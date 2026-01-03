@@ -113,6 +113,24 @@ The Admin app includes a Home dashboard with key performance indicators (KPIs) a
 - Projects section lists all projects with feedback/user/comment/vote counts
 - Project picker in toolbar filters all stats by selected project
 
+## Project Icons
+
+Projects have customizable icon colors stored in the database:
+- `colorIndex` (0-7) maps to predefined gradient color pairs
+- Generated randomly on project creation
+- Users can change colors via Edit Project in the Admin app
+- Archived projects always display gray icons regardless of colorIndex
+
+Available gradients (index 0-7):
+0. Blue → Purple
+1. Green → Teal
+2. Orange → Red
+3. Pink → Purple
+4. Indigo → Blue
+5. Teal → Cyan
+6. Purple → Pink
+7. Mint → Green
+
 ## Code Conventions
 
 - Use `@main` attribute for app entry points

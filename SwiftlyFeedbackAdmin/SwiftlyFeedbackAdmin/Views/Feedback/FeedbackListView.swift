@@ -609,6 +609,7 @@ struct FeedbackCategoryBadge: View {
                 ownerEmail: nil,
                 isArchived: false,
                 archivedAt: nil,
+                colorIndex: 0,
                 feedbackCount: 0,
                 memberCount: 1,
                 createdAt: Date(),

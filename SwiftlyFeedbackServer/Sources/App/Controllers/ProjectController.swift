@@ -71,6 +71,7 @@ struct ProjectController: RouteCollection {
                 isArchived: project.isArchived,
                 isOwner: true,
                 role: nil,
+                colorIndex: project.colorIndex,
                 feedbackCount: project.feedbacks.count,
                 createdAt: project.createdAt
             ))
@@ -87,6 +88,7 @@ struct ProjectController: RouteCollection {
                     isArchived: project.isArchived,
                     isOwner: false,
                     role: membership.role,
+                    colorIndex: project.colorIndex,
                     feedbackCount: project.feedbacks.count,
                     createdAt: project.createdAt
                 ))
@@ -103,11 +105,13 @@ struct ProjectController: RouteCollection {
         let dto = try req.content.decode(CreateProjectDTO.self)
 
         let apiKey = generateApiKey()
+        let colorIndex = Int.random(in: 0..<8)
         let project = Project(
             name: dto.name,
             apiKey: apiKey,
             description: dto.description,
-            ownerId: try user.requireID()
+            ownerId: try user.requireID(),
+            colorIndex: colorIndex
         )
 
         try await project.save(on: req.db)
@@ -144,6 +148,9 @@ struct ProjectController: RouteCollection {
         }
         if let description = dto.description {
             project.description = description
+        }
+        if let colorIndex = dto.colorIndex {
+            project.colorIndex = colorIndex
         }
 
         try await project.save(on: req.db)

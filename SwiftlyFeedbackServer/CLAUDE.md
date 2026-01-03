@@ -91,9 +91,9 @@ All routes prefixed with `/api/v1`.
 
 ### Projects (Bearer token required)
 - `GET /projects` - List user's projects
-- `POST /projects` - Create project (returns API key)
+- `POST /projects` - Create project (returns API key, assigns random colorIndex 0-7)
 - `GET /projects/:id` - Get project details
-- `PATCH /projects/:id` - Update project (owner/admin)
+- `PATCH /projects/:id` - Update project (owner/admin) - supports name, description, colorIndex
 - `DELETE /projects/:id` - Delete project (owner only)
 - `POST /projects/:id/archive` - Archive project (owner only)
 - `POST /projects/:id/unarchive` - Unarchive project (owner only)

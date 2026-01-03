@@ -33,6 +33,7 @@ struct ProjectStats: Codable, Identifiable, Equatable, Sendable {
     let id: UUID
     let name: String
     let isArchived: Bool
+    let colorIndex: Int
     let feedbackCount: Int
     let feedbackByStatus: FeedbackByStatus
     let feedbackByCategory: FeedbackByCategory

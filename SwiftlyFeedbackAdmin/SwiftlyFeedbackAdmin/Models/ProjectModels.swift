@@ -9,6 +9,7 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let ownerEmail: String?
     let isArchived: Bool
     let archivedAt: Date?
+    let colorIndex: Int
     let feedbackCount: Int
     let memberCount: Int
     let createdAt: Date?
@@ -22,6 +23,7 @@ struct ProjectListItem: Codable, Identifiable, Sendable {
     let isArchived: Bool
     let isOwner: Bool
     let role: ProjectRole?
+    let colorIndex: Int
     let feedbackCount: Int
     let createdAt: Date?
 }
@@ -75,6 +77,7 @@ struct CreateProjectRequest: Encodable {
 struct UpdateProjectRequest: Encodable {
     let name: String?
     let description: String?
+    let colorIndex: Int?
 }
 
 struct AddMemberRequest: Encodable {

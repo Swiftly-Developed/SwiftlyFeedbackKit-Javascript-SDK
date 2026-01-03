@@ -101,6 +101,14 @@ The `ProjectListView` supports three view modes (persisted via `@AppStorage`):
 | Table | `tablecells` | Detailed rows with columns (name, feedback count, role, date) |
 | Grid | `square.grid.2x2` | Card-based layout with full project info |
 
+## Project Icons
+
+`ProjectIconView` displays project icons with gradient colors:
+- Uses `colorIndex` (0-7) from the project to select a gradient pair
+- Shows initials (first 2 letters, or first letter of each word for multi-word names)
+- Archived projects always show gray gradient with archive icon
+- Color picker available in `EditProjectView` for users to customize
+
 ## Cross-Platform Considerations
 
 - Use `Color(.systemBackground)` on iOS, `Color(nsColor: .textBackgroundColor)` on macOS

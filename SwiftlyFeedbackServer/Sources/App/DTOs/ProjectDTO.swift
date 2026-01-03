@@ -12,9 +12,11 @@ struct CreateProjectDTO: Content, Validatable {
 struct UpdateProjectDTO: Content, Validatable {
     let name: String?
     let description: String?
+    let colorIndex: Int?
 
     static func validations(_ validations: inout Validations) {
         validations.add("name", as: String?.self, is: .nil || !.empty && .count(1...100), required: false)
+        validations.add("colorIndex", as: Int?.self, is: .nil || .range(0...7), required: false)
     }
 }
 
@@ -40,6 +42,7 @@ struct ProjectResponseDTO: Content {
     let ownerEmail: String?
     let isArchived: Bool
     let archivedAt: Date?
+    let colorIndex: Int
     let feedbackCount: Int
     let memberCount: Int
     let createdAt: Date?
@@ -54,6 +57,7 @@ struct ProjectResponseDTO: Content {
         self.ownerEmail = ownerEmail
         self.isArchived = project.isArchived
         self.archivedAt = project.archivedAt
+        self.colorIndex = project.colorIndex
         self.feedbackCount = feedbackCount
         self.memberCount = memberCount
         self.createdAt = project.createdAt
@@ -68,6 +72,7 @@ struct ProjectListItemDTO: Content {
     let isArchived: Bool
     let isOwner: Bool
     let role: ProjectRole?
+    let colorIndex: Int
     let feedbackCount: Int
     let createdAt: Date?
 }

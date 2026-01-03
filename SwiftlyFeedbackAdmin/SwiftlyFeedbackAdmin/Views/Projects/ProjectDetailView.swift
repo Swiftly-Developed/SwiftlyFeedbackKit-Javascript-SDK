@@ -12,8 +12,6 @@ struct ProjectDetailView: View {
     @State private var showingMembersSheet = false
     @State private var showingEditSheet = false
     @State private var copiedToClipboard = false
-    @State private var navigateToFeedback = false
-    @State private var feedbackViewModel = FeedbackViewModel()
 
     private var isCompact: Bool {
         #if os(macOS)
@@ -145,11 +143,6 @@ struct ProjectDetailView: View {
                     #if os(macOS)
                     .frame(minWidth: 400, minHeight: 200)
                     #endif
-            }
-        }
-        .navigationDestination(isPresented: $navigateToFeedback) {
-            if let project = viewModel.selectedProject {
-                FeedbackListView(project: project, viewModel: feedbackViewModel)
             }
         }
     }
@@ -312,18 +305,12 @@ struct ProjectDetailView: View {
             : [GridItem(.flexible(minimum: 120, maximum: 180)), GridItem(.flexible(minimum: 120, maximum: 180)), GridItem(.flexible(minimum: 120, maximum: 180)), GridItem(.flexible(minimum: 120, maximum: 180))]
 
         return LazyVGrid(columns: columns, spacing: 12) {
-            Button {
-                navigateToFeedback = true
-            } label: {
-                StatCard(
-                    icon: "bubble.left.and.bubble.right.fill",
-                    iconColor: .blue,
-                    title: "Feedback",
-                    value: "\(project.feedbackCount)",
-                    showChevron: true
-                )
-            }
-            .buttonStyle(.plain)
+            StatCard(
+                icon: "bubble.left.and.bubble.right.fill",
+                iconColor: .blue,
+                title: "Feedback",
+                value: "\(project.feedbackCount)"
+            )
 
             StatCard(
                 icon: "person.2.fill",
@@ -384,18 +371,6 @@ struct ProjectDetailView: View {
     #if os(iOS)
     private func quickActionsSection(_ project: Project) -> some View {
         VStack(spacing: 0) {
-            QuickActionButton(
-                icon: "bubble.left.and.bubble.right",
-                iconColor: .blue,
-                title: "View Feedback",
-                subtitle: "\(project.feedbackCount) submissions"
-            ) {
-                navigateToFeedback = true
-            }
-
-            Divider()
-                .padding(.leading, 56)
-
             QuickActionButton(
                 icon: "pencil",
                 iconColor: .indigo,
@@ -567,21 +542,72 @@ struct EditProjectView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
     @State private var description: String
+    @State private var selectedColorIndex: Int
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
         case name, description
     }
 
+    private static let gradientColors: [(Color, Color)] = [
+        (.blue, .purple),
+        (.green, .teal),
+        (.orange, .red),
+        (.pink, .purple),
+        (.indigo, .blue),
+        (.teal, .cyan),
+        (.purple, .pink),
+        (.mint, .green)
+    ]
+
     init(project: Project, viewModel: ProjectViewModel) {
         self.project = project
         self.viewModel = viewModel
         _name = State(initialValue: project.name)
         _description = State(initialValue: project.description ?? "")
+        _selectedColorIndex = State(initialValue: project.colorIndex)
     }
 
     private var hasChanges: Bool {
-        name != project.name || description != (project.description ?? "")
+        name != project.name ||
+        description != (project.description ?? "") ||
+        selectedColorIndex != project.colorIndex
+    }
+
+    private var colorPickerGrid: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 50, maximum: 60), spacing: 12)], spacing: 12) {
+            ForEach(0..<Self.gradientColors.count, id: \.self) { index in
+                let colors = Self.gradientColors[index]
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedColorIndex = index
+                    }
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [colors.0, colors.1],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+
+                        if selectedColorIndex == index {
+                            Circle()
+                                .strokeBorder(.white, lineWidth: 3)
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, 8)
     }
 
     var body: some View {
@@ -608,6 +634,14 @@ struct EditProjectView: View {
                 } footer: {
                     Text("Optional. Describe the purpose of this project.")
                 }
+
+                Section {
+                    colorPickerGrid
+                } header: {
+                    Text("Icon Color")
+                } footer: {
+                    Text("Choose a color for your project icon.")
+                }
             }
             .formStyle(.grouped)
             .navigationTitle("Edit Project")
@@ -626,7 +660,8 @@ struct EditProjectView: View {
                             if await viewModel.updateProject(
                                 id: project.id,
                                 name: name != project.name ? name : nil,
-                                description: description != (project.description ?? "") ? description : nil
+                                description: description != (project.description ?? "") ? description : nil,
+                                colorIndex: selectedColorIndex != project.colorIndex ? selectedColorIndex : nil
                             ) {
                                 dismiss()
                             }
@@ -680,6 +715,7 @@ struct EditProjectView: View {
             ownerEmail: "test@example.com",
             isArchived: false,
             archivedAt: nil,
+            colorIndex: 0,
             feedbackCount: 42,
             memberCount: 5,
             createdAt: Date(),

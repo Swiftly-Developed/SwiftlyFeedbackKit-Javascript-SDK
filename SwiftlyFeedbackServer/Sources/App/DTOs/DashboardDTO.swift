@@ -24,6 +24,7 @@ struct ProjectStatsDTO: Content {
     let id: UUID
     let name: String
     let isArchived: Bool
+    let colorIndex: Int
     let feedbackCount: Int
     let feedbackByStatus: FeedbackByStatusDTO
     let feedbackByCategory: FeedbackByCategoryDTO

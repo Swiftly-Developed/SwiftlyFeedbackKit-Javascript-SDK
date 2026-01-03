@@ -25,6 +25,9 @@ final class Project: Model, Content, @unchecked Sendable {
     @OptionalField(key: "archived_at")
     var archivedAt: Date?
 
+    @Field(key: "color_index")
+    var colorIndex: Int
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -45,7 +48,8 @@ final class Project: Model, Content, @unchecked Sendable {
         apiKey: String,
         description: String? = nil,
         ownerId: UUID,
-        isArchived: Bool = false
+        isArchived: Bool = false,
+        colorIndex: Int = 0
     ) {
         self.id = id
         self.name = name
@@ -53,6 +57,7 @@ final class Project: Model, Content, @unchecked Sendable {
         self.description = description
         self.$owner.id = ownerId
         self.isArchived = isArchived
+        self.colorIndex = colorIndex
     }
 }
 

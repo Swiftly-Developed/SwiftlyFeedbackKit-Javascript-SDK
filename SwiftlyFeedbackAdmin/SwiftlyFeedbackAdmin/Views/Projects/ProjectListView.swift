@@ -236,6 +236,7 @@ struct ProjectListRowView: View {
             ProjectIconView(
                 name: project.name,
                 isArchived: project.isArchived,
+                colorIndex: project.colorIndex,
                 size: 44
             )
 
@@ -318,6 +319,7 @@ struct ProjectTableRowView: View {
             ProjectIconView(
                 name: project.name,
                 isArchived: project.isArchived,
+                colorIndex: project.colorIndex,
                 size: 40
             )
 
@@ -422,6 +424,7 @@ struct ProjectCardView: View {
                 ProjectIconView(
                     name: project.name,
                     isArchived: project.isArchived,
+                    colorIndex: project.colorIndex,
                     size: 48
                 )
 
@@ -526,6 +529,7 @@ struct ProjectCardView: View {
 struct ProjectIconView: View {
     let name: String
     let isArchived: Bool
+    let colorIndex: Int
     let size: CGFloat
 
     private var initials: String {
@@ -536,6 +540,17 @@ struct ProjectIconView: View {
         return String(name.prefix(2)).uppercased()
     }
 
+    private static let gradients: [(Color, Color)] = [
+        (.blue, .purple),
+        (.green, .teal),
+        (.orange, .red),
+        (.pink, .purple),
+        (.indigo, .blue),
+        (.teal, .cyan),
+        (.purple, .pink),
+        (.mint, .green)
+    ]
+
     private var gradient: LinearGradient {
         if isArchived {
             return LinearGradient(
@@ -545,19 +560,8 @@ struct ProjectIconView: View {
             )
         }
 
-        // Generate consistent color based on project name
-        let hash = abs(name.hashValue)
-        let gradients: [(Color, Color)] = [
-            (.blue, .purple),
-            (.green, .teal),
-            (.orange, .red),
-            (.pink, .purple),
-            (.indigo, .blue),
-            (.teal, .cyan),
-            (.purple, .pink),
-            (.mint, .green)
-        ]
-        let colors = gradients[hash % gradients.count]
+        let safeIndex = abs(colorIndex) % Self.gradients.count
+        let colors = Self.gradients[safeIndex]
 
         return LinearGradient(
             colors: [colors.0, colors.1],

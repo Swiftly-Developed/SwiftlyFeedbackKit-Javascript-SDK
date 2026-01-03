@@ -115,6 +115,7 @@ struct FeedbackDashboardView: View {
                     ProjectIconView(
                         name: project.name,
                         isArchived: project.isArchived,
+                        colorIndex: project.colorIndex,
                         size: 24
                     )
                     Text(project.name)

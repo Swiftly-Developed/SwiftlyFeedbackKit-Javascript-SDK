@@ -94,12 +94,12 @@ final class ProjectViewModel {
         }
     }
 
-    func updateProject(id: UUID, name: String?, description: String?) async -> Bool {
+    func updateProject(id: UUID, name: String?, description: String?, colorIndex: Int? = nil) async -> Bool {
         isLoading = true
         errorMessage = nil
 
         do {
-            let request = UpdateProjectRequest(name: name, description: description)
+            let request = UpdateProjectRequest(name: name, description: description, colorIndex: colorIndex)
             selectedProject = try await AdminAPIClient.shared.patch(path: "projects/\(id)", body: request)
             await loadProjects()
             isLoading = false
