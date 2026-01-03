@@ -25,4 +25,7 @@ func routes(_ app: Application) throws {
 
     // SDK User routes (for MRR tracking)
     try api.register(collection: SDKUserController())
+
+    // View event tracking routes
+    try api.register(collection: ViewEventController())
 }

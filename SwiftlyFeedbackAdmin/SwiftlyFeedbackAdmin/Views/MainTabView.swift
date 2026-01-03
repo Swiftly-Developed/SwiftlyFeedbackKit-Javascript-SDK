@@ -35,6 +35,13 @@ struct MainTabView: View {
             }
 
             NavigationStack {
+                EventsDashboardView(projectViewModel: projectViewModel)
+            }
+            .tabItem {
+                Label("Events", systemImage: "chart.bar.xaxis")
+            }
+
+            NavigationStack {
                 SettingsView(authViewModel: authViewModel, projectViewModel: projectViewModel)
             }
             .tabItem {
@@ -66,6 +73,7 @@ struct MacNavigationView: View {
         case projects = "Projects"
         case feedback = "Feedback"
         case users = "Users"
+        case events = "Events"
         case settings = "Settings"
 
         var id: String { rawValue }
@@ -75,6 +83,7 @@ struct MacNavigationView: View {
             case .projects: return "folder"
             case .feedback: return "bubble.left.and.bubble.right"
             case .users: return "person.2"
+            case .events: return "chart.bar.xaxis"
             case .settings: return "gear"
             }
         }
@@ -102,6 +111,10 @@ struct MacNavigationView: View {
             case .users:
                 NavigationStack {
                     UsersDashboardView(projectViewModel: projectViewModel)
+                }
+            case .events:
+                NavigationStack {
+                    EventsDashboardView(projectViewModel: projectViewModel)
                 }
             case .settings:
                 NavigationStack {

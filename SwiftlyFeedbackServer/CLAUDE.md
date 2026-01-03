@@ -45,7 +45,8 @@ Sources/App/
 │   ├── FeedbackController.swift
 │   ├── VoteController.swift
 │   ├── CommentController.swift
-│   └── SDKUserController.swift
+│   ├── SDKUserController.swift
+│   └── ViewEventController.swift
 ├── Models/               # Fluent database models
 │   ├── User.swift
 │   ├── UserToken.swift
@@ -56,7 +57,8 @@ Sources/App/
 │   ├── Feedback.swift
 │   ├── Vote.swift
 │   ├── Comment.swift
-│   └── SDKUser.swift
+│   ├── SDKUser.swift
+│   └── ViewEvent.swift
 ├── Migrations/           # Database migrations
 ├── DTOs/                 # Data transfer objects
 ├── Services/             # Business logic services
@@ -121,6 +123,11 @@ All routes prefixed with `/api/v1`.
 ### SDK Users (Bearer token required)
 - `GET /users/project/:projectId` - List SDK users for a project
 - `GET /users/project/:projectId/stats` - Get SDK user stats (total users, MRR totals, averages)
+
+### View Events
+- `POST /events/track` - Track view event (X-API-Key required)
+- `GET /events/project/:projectId` - List recent events (Bearer token required)
+- `GET /events/project/:projectId/stats` - Get event statistics with 30-day daily breakdown (Bearer token required)
 
 ## Code Patterns
 

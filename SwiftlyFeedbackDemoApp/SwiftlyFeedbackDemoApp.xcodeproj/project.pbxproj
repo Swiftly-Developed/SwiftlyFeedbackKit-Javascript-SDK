@@ -83,7 +83,6 @@
 				D0B8F30E2F08C0EB00C707DC /* SwiftlyFeedbackDemoApp */,
 				D0B8F31C2F08C0EC00C707DC /* SwiftlyFeedbackDemoAppTests */,
 				D0B8F3262F08C0EC00C707DC /* SwiftlyFeedbackDemoAppUITests */,
-				D0F3F5E52F093DEB006C891E /* Frameworks */,
 				D0B8F30D2F08C0EB00C707DC /* Products */,
 			);
 			sourceTree = "<group>";
@@ -96,13 +95,6 @@
 				D0B8F3232F08C0EC00C707DC /* SwiftlyFeedbackDemoAppUITests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		D0F3F5E52F093DEB006C891E /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

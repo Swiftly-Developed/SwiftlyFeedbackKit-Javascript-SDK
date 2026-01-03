@@ -451,6 +451,54 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - View Events API
+
+    func getViewEventStats(projectId: UUID) async throws -> ViewEventsOverview {
+        let path = "events/project/\(projectId)/stats"
+        logger.info("🔵 GET \(path) (view event stats)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            logger.debug("📊 View Event Stats - attempting to decode \(data.count) bytes")
+            if let rawJSON = String(data: data, encoding: .utf8) {
+                logger.debug("📊 View Event Stats - raw JSON: \(rawJSON)")
+            }
+            let decoded = try decoder.decode(ViewEventsOverview.self, from: data)
+            logger.info("✅ GET \(path) - decoded view event stats: totalEvents=\(decoded.totalEvents), uniqueUsers=\(decoded.uniqueUsers)")
+            return decoded
+        } catch let decodingError as DecodingError {
+            logger.error("❌ GET \(path) - DecodingError: \(self.describeDecodingError(decodingError))")
+            if let rawJSON = String(data: data, encoding: .utf8) {
+                logger.error("❌ Raw JSON that failed to decode: \(rawJSON)")
+            }
+            throw APIError.decodingError(decodingError)
+        } catch {
+            logger.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getViewEvents(projectId: UUID) async throws -> [ViewEvent] {
+        let path = "events/project/\(projectId)"
+        logger.info("🔵 GET \(path) (view events)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            logger.debug("📊 View Events - attempting to decode \(data.count) bytes")
+            let decoded = try decoder.decode([ViewEvent].self, from: data)
+            logger.info("✅ GET \(path) - decoded \(decoded.count) view events")
+            return decoded
+        } catch let decodingError as DecodingError {
+            logger.error("❌ GET \(path) - DecodingError: \(self.describeDecodingError(decodingError))")
+            throw APIError.decodingError(decodingError)
+        } catch {
+            logger.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Helpers
 
     private func describeDecodingError(_ error: DecodingError) -> String {

@@ -21,12 +21,14 @@ SwiftlyFeedbackAdmin/
 │   ├── AuthModels.swift            # User, token models
 │   ├── ProjectModels.swift         # Project, member models
 │   ├── FeedbackModels.swift        # Feedback, Comment models, DTOs
-│   └── SDKUserModels.swift         # SDK user and stats models
+│   ├── SDKUserModels.swift         # SDK user and stats models
+│   └── ViewEventModels.swift       # View event and stats models
 ├── ViewModels/
 │   ├── AuthViewModel.swift         # Authentication state
 │   ├── ProjectViewModel.swift      # Project management state
 │   ├── FeedbackViewModel.swift     # Feedback management state
-│   └── SDKUserViewModel.swift      # SDK user management state
+│   ├── SDKUserViewModel.swift      # SDK user management state
+│   └── ViewEventViewModel.swift    # View event management state
 ├── Views/
 │   ├── RootView.swift              # Root navigation
 │   ├── MainTabView.swift           # Tab bar navigation
@@ -48,6 +50,8 @@ SwiftlyFeedbackAdmin/
 │   ├── Users/
 │   │   ├── UsersDashboardView.swift    # Users dashboard with stats and list
 │   │   └── UsersListView.swift         # Users list (legacy, used in project detail)
+│   ├── Events/
+│   │   └── EventsDashboardView.swift   # Events dashboard with chart and stats
 │   └── Settings/
 │       ├── SettingsView.swift          # App settings
 │       └── DeveloperCommandsView.swift # Dev tools (DEBUG/TestFlight only)
@@ -160,3 +164,21 @@ Uses `Logger.swift` for centralized OSLog logging with categories:
 - **Delete All My Projects**: Remove all projects owned by the user
 
 Controlled by `AppEnvironment.isDeveloperMode` which checks for DEBUG builds or TestFlight sandbox receipt.
+
+## Events Dashboard
+
+The `EventsDashboardView` provides a dedicated tab for viewing SDK view events (screen views and custom events tracked by apps using SwiftlyFeedbackKit):
+
+### Features
+- Project picker in toolbar to switch between projects
+- Stats cards showing: Total Events, Unique Users
+- **Daily Events Chart** (Swift Charts) showing 30-day event history with bar visualization
+- Event breakdown showing count and unique users per event type
+- Recent events list with user type indicators (iCloud/Device/Custom)
+
+### Event Types
+Events can be any custom string, plus predefined types:
+- `feedback_list` - User viewed the feedback list
+- `feedback_detail` - User viewed a feedback detail
+- `submit_feedback` - User viewed the submit feedback form
+- Custom events - Any string defined by the app developer

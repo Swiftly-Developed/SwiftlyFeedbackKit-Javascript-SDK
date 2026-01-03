@@ -58,6 +58,42 @@ cd SwiftlyFeedbackServer && swift run
 - Archived projects allow reads but block new feedback, votes, and comments
 - Only owner can archive/unarchive
 
+## Analytics & Tracking
+
+### View Event Tracking
+The SDK tracks user views and custom events. Events are stored with user ID, event name, and optional properties.
+
+**SDK Usage:**
+```swift
+// Track custom events (any string - fully customizable)
+SwiftlyFeedback.view("feature_details", properties: ["id": "abc123"])
+SwiftlyFeedback.view("onboarding_step_1")
+SwiftlyFeedback.view("purchase_completed", properties: ["amount": "9.99"])
+
+// Predefined events (automatically tracked when views appear)
+SwiftlyFeedback.view(.feedbackList)
+SwiftlyFeedback.view(.feedbackDetail)
+SwiftlyFeedback.view(.submitFeedback)
+
+// Disable automatic tracking
+SwiftlyFeedback.config.enableAutomaticViewTracking = false
+```
+
+**Server Endpoints:**
+- `POST /events/track` - Track event (SDK, API key auth)
+- `GET /events/project/:id/stats` - Event statistics with 30-day daily breakdown (Admin, bearer auth)
+- `GET /events/project/:id` - Recent events (Admin, bearer auth)
+
+**Admin Dashboard:**
+- Events tab displays total events, unique users, and event breakdown by type
+- Daily events chart (Swift Charts) shows 30-day history with bar visualization
+- Recent events list with user type indicators (iCloud/Device/Custom)
+
+### SDK User Tracking
+- Users are automatically registered on SDK initialization
+- Tracks first seen, last seen, and MRR (Monthly Recurring Revenue)
+- User IDs: iCloud-based (`icloud_`), local UUID (`local_`), or custom
+
 ## Code Conventions
 
 - Use `@main` attribute for app entry points

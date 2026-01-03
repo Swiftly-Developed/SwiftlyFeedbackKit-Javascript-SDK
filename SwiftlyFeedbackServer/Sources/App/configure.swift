@@ -43,6 +43,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddUserEmailVerified())
     app.migrations.add(CreateEmailVerification())
     app.migrations.add(CreateSDKUser())
+    app.migrations.add(CreateViewEvent())
 
     try await app.autoMigrate()
 
