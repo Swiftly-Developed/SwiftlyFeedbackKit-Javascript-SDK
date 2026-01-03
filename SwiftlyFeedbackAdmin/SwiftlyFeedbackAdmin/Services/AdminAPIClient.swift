@@ -1,0 +1,261 @@
+import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "com.swiftlyfeedback.admin", category: "APIClient")
+
+actor AdminAPIClient {
+    static let shared = AdminAPIClient()
+
+    private let baseURL: URL
+    private let session: URLSession
+    private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
+
+    private init() {
+        // Default to localhost for development
+        self.baseURL = URL(string: "http://localhost:8080/api/v1")!
+        self.session = URLSession.shared
+
+        self.decoder = JSONDecoder()
+        self.decoder.keyDecodingStrategy = .convertFromSnakeCase
+        self.decoder.dateDecodingStrategy = .iso8601
+
+        self.encoder = JSONEncoder()
+        self.encoder.keyEncodingStrategy = .convertToSnakeCase
+        self.encoder.dateEncodingStrategy = .iso8601
+
+        logger.info("AdminAPIClient initialized with baseURL: \(self.baseURL.absoluteString)")
+    }
+
+    private func makeRequest(
+        path: String,
+        method: String,
+        body: (any Encodable)? = nil,
+        requiresAuth: Bool = true
+    ) async throws -> (Data, URLResponse) {
+        let url = baseURL.appendingPathComponent(path)
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        logger.info("📤 Request: \(method) \(url.absoluteString)")
+
+        if requiresAuth {
+            guard let token = KeychainService.getToken() else {
+                logger.error("❌ No auth token found in keychain")
+                throw APIError.unauthorized
+            }
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            logger.debug("🔑 Auth token attached (length: \(token.count))")
+        }
+
+        if let body = body {
+            do {
+                let bodyData = try encoder.encode(body)
+                request.httpBody = bodyData
+                if let bodyString = String(data: bodyData, encoding: .utf8) {
+                    logger.debug("📦 Request body: \(bodyString)")
+                }
+            } catch {
+                logger.error("❌ Failed to encode request body: \(error.localizedDescription)")
+                throw error
+            }
+        }
+
+        do {
+            logger.info("🌐 Sending request to \(url.absoluteString)...")
+            let (data, response) = try await session.data(for: request)
+
+            if let httpResponse = response as? HTTPURLResponse {
+                logger.info("📥 Response: \(httpResponse.statusCode) for \(method) \(path)")
+
+                if let responseString = String(data: data, encoding: .utf8) {
+                    if data.count < 1000 {
+                        logger.debug("📄 Response body: \(responseString)")
+                    } else {
+                        logger.debug("📄 Response body (truncated): \(responseString.prefix(500))...")
+                    }
+                }
+            }
+
+            return (data, response)
+        } catch let error as URLError {
+            logger.error("❌ URLError: \(error.code.rawValue) - \(error.localizedDescription)")
+            logger.error("❌ URLError details - code: \(error.code.rawValue), failingURL: \(error.failingURL?.absoluteString ?? "nil")")
+            throw APIError.networkError(error)
+        } catch {
+            logger.error("❌ Network error: \(error.localizedDescription)")
+            logger.error("❌ Error type: \(type(of: error))")
+            throw APIError.networkError(error)
+        }
+    }
+
+    func get<T: Decodable>(path: String, requiresAuth: Bool = true) async throws -> T {
+        logger.info("🔵 GET \(path)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: requiresAuth)
+        try validateResponse(response, data: data, path: path)
+        do {
+            let decoded = try decoder.decode(T.self, from: data)
+            logger.info("✅ GET \(path) - decoded successfully")
+            return decoded
+        } catch {
+            logger.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func post<T: Decodable, B: Encodable>(path: String, body: B, requiresAuth: Bool = true) async throws -> T {
+        logger.info("🟢 POST \(path) (with body)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: requiresAuth)
+        try validateResponse(response, data: data, path: path)
+        do {
+            let decoded = try decoder.decode(T.self, from: data)
+            logger.info("✅ POST \(path) - decoded successfully")
+            return decoded
+        } catch {
+            logger.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func post(path: String, requiresAuth: Bool = true) async throws {
+        logger.info("🟢 POST \(path) (no body, no response)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", requiresAuth: requiresAuth)
+        try validateResponse(response, data: data, path: path)
+        logger.info("✅ POST \(path) - completed")
+    }
+
+    func post<T: Decodable>(path: String, requiresAuth: Bool = true) async throws -> T {
+        logger.info("🟢 POST \(path) (no body, with response)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", requiresAuth: requiresAuth)
+        try validateResponse(response, data: data, path: path)
+        do {
+            let decoded = try decoder.decode(T.self, from: data)
+            logger.info("✅ POST \(path) - decoded successfully")
+            return decoded
+        } catch {
+            logger.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func patch<T: Decodable, B: Encodable>(path: String, body: B, requiresAuth: Bool = true) async throws -> T {
+        logger.info("🟠 PATCH \(path)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: requiresAuth)
+        try validateResponse(response, data: data, path: path)
+        do {
+            let decoded = try decoder.decode(T.self, from: data)
+            logger.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            logger.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func put<B: Encodable>(path: String, body: B, requiresAuth: Bool = true) async throws {
+        logger.info("🟡 PUT \(path)")
+        let (data, response) = try await makeRequest(path: path, method: "PUT", body: body, requiresAuth: requiresAuth)
+        try validateResponse(response, data: data, path: path)
+        logger.info("✅ PUT \(path) - completed")
+    }
+
+    func delete(path: String, requiresAuth: Bool = true) async throws {
+        logger.info("🔴 DELETE \(path)")
+        let (data, response) = try await makeRequest(path: path, method: "DELETE", requiresAuth: requiresAuth)
+        try validateResponse(response, data: data, path: path)
+        logger.info("✅ DELETE \(path) - completed")
+    }
+
+    func delete<B: Encodable>(path: String, body: B, requiresAuth: Bool = true) async throws {
+        logger.info("🔴 DELETE \(path) (with body)")
+        let (data, response) = try await makeRequest(path: path, method: "DELETE", body: body, requiresAuth: requiresAuth)
+        try validateResponse(response, data: data, path: path)
+        logger.info("✅ DELETE \(path) - completed")
+    }
+
+    private func validateResponse(_ response: URLResponse, data: Data, path: String) throws {
+        guard let httpResponse = response as? HTTPURLResponse else {
+            logger.error("❌ \(path) - Invalid response (not HTTPURLResponse)")
+            throw APIError.invalidResponse
+        }
+
+        let statusCode = httpResponse.statusCode
+        logger.info("🔍 Validating response for \(path): status \(statusCode)")
+
+        switch statusCode {
+        case 200...299:
+            logger.debug("✅ \(path) - Status \(statusCode) OK")
+            return
+        case 401:
+            logger.error("❌ \(path) - 401 Unauthorized")
+            throw APIError.unauthorized
+        case 403:
+            let message = parseErrorMessage(data)
+            logger.error("❌ \(path) - 403 Forbidden: \(message)")
+            throw APIError.forbidden(message)
+        case 404:
+            let message = parseErrorMessage(data)
+            logger.error("❌ \(path) - 404 Not Found: \(message)")
+            throw APIError.notFound(message)
+        case 409:
+            let message = parseErrorMessage(data)
+            logger.error("❌ \(path) - 409 Conflict: \(message)")
+            throw APIError.conflict(message)
+        case 400:
+            let message = parseErrorMessage(data)
+            logger.error("❌ \(path) - 400 Bad Request: \(message)")
+            throw APIError.badRequest(message)
+        default:
+            let message = parseErrorMessage(data)
+            logger.error("❌ \(path) - \(statusCode) Server Error: \(message)")
+            throw APIError.serverError(statusCode, message)
+        }
+    }
+
+    private func parseErrorMessage(_ data: Data) -> String {
+        struct ErrorResponse: Decodable {
+            let reason: String?
+            let error: Bool?
+        }
+        if let errorResponse = try? decoder.decode(ErrorResponse.self, from: data) {
+            return errorResponse.reason ?? "Unknown error"
+        }
+        return String(data: data, encoding: .utf8) ?? "Unknown error"
+    }
+}
+
+enum APIError: Error, LocalizedError {
+    case invalidResponse
+    case unauthorized
+    case forbidden(String)
+    case notFound(String)
+    case conflict(String)
+    case badRequest(String)
+    case serverError(Int, String)
+    case networkError(Error)
+    case decodingError(Error)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse:
+            return "Invalid response from server"
+        case .unauthorized:
+            return "Please log in to continue"
+        case .forbidden(let message):
+            return message
+        case .notFound(let message):
+            return message
+        case .conflict(let message):
+            return message
+        case .badRequest(let message):
+            return message
+        case .serverError(let code, let message):
+            return "Server error (\(code)): \(message)"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .decodingError(let error):
+            return "Failed to parse response: \(error.localizedDescription)"
+        }
+    }
+}

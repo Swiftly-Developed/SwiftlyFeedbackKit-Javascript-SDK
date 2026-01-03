@@ -1,0 +1,35 @@
+// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+    name: "SwiftlyFeedbackServer",
+    platforms: [
+        .macOS(.v13)
+    ],
+    dependencies: [
+        .package(url: "https://github.com/vapor/vapor.git", from: "4.89.0"),
+        .package(url: "https://github.com/vapor/fluent.git", from: "4.9.0"),
+        .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.8.0"),
+        .package(url: "https://github.com/vapor/jwt.git", from: "4.2.0"),
+    ],
+    targets: [
+        .executableTarget(
+            name: "SwiftlyFeedbackServer",
+            dependencies: [
+                .product(name: "Vapor", package: "vapor"),
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
+                .product(name: "JWT", package: "jwt"),
+            ],
+            path: "Sources/App"
+        ),
+        .testTarget(
+            name: "SwiftlyFeedbackServerTests",
+            dependencies: [
+                .target(name: "SwiftlyFeedbackServer"),
+                .product(name: "XCTVapor", package: "vapor"),
+            ],
+            path: "Tests/AppTests"
+        ),
+    ]
+)

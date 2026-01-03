@@ -1,0 +1,87 @@
+import SwiftUI
+
+struct SignupView: View {
+    @Bindable var viewModel: AuthViewModel
+    let onSwitchToLogin: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            // Header
+            VStack(spacing: 8) {
+                Image(systemName: "bubble.left.and.bubble.right.fill")
+                    .font(.system(size: 60))
+                    .foregroundStyle(.blue)
+
+                Text("Create Account")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+
+                Text("Start collecting feedback today")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.bottom, 20)
+
+            // Form
+            VStack(spacing: 16) {
+                TextField("Name", text: $viewModel.signupName)
+                    .textFieldStyle(.roundedBorder)
+                    .textContentType(.name)
+
+                TextField("Email", text: $viewModel.signupEmail)
+                    .textFieldStyle(.roundedBorder)
+                    .textContentType(.emailAddress)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
+                    #endif
+
+                SecureField("Password", text: $viewModel.signupPassword)
+                    .textFieldStyle(.roundedBorder)
+                    .textContentType(.newPassword)
+
+                SecureField("Confirm Password", text: $viewModel.signupConfirmPassword)
+                    .textFieldStyle(.roundedBorder)
+                    .textContentType(.newPassword)
+
+                Text("Password must be at least 8 characters")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    Task {
+                        await viewModel.signup()
+                    }
+                } label: {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Create Account")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(viewModel.isLoading)
+            }
+
+            // Switch to login
+            HStack {
+                Text("Already have an account?")
+                    .foregroundStyle(.secondary)
+                Button("Log In") {
+                    onSwitchToLogin()
+                }
+            }
+            .font(.subheadline)
+        }
+        .padding(32)
+        .frame(maxWidth: 400)
+    }
+}
+
+#Preview {
+    SignupView(viewModel: AuthViewModel()) {}
+}

@@ -1,0 +1,151 @@
+import Vapor
+
+struct EmailService {
+    private let apiKey: String
+    private let client: Client
+    private let baseURL = "https://api.resend.com"
+
+    init(client: Client) {
+        self.apiKey = Environment.get("RESEND_API_KEY") ?? "re_Tx4Gv22o_75qkTKVeceK9KD8LZ5NdDsiW"
+        self.client = client
+    }
+
+    func sendProjectInvite(
+        to email: String,
+        inviterName: String,
+        projectName: String,
+        inviteCode: String,
+        role: ProjectRole
+    ) async throws {
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">You're Invited!</h1>
+            </div>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="font-size: 16px; margin-bottom: 20px;">Hi there,</p>
+                <p style="font-size: 16px; margin-bottom: 20px;">
+                    <strong>\(inviterName)</strong> has invited you to join <strong>\(projectName)</strong> on Swiftly Feedback as a <strong>\(role.rawValue)</strong>.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 25px;">
+                    Swiftly Feedback helps teams collect and manage user feedback for their apps.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 10px; text-align: center;">
+                    Your invite code is:
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <div style="background: #f5f5f5; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; display: inline-block;">
+                        <span style="font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #667eea;">\(inviteCode)</span>
+                    </div>
+                </div>
+                <p style="font-size: 14px; color: #666; margin-top: 25px; text-align: center;">
+                    Open the Swiftly Feedback app and enter this code to accept your invitation.
+                </p>
+                <p style="font-size: 14px; color: #666; margin-top: 10px; text-align: center;">
+                    If you don't have a Swiftly Feedback account yet, create one first, then enter this code.
+                </p>
+                <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 25px 0;">
+                <p style="font-size: 12px; color: #999; text-align: center;">
+                    If you didn't expect this invitation, you can safely ignore this email.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+
+        let request = ResendEmailRequest(
+            from: "Swiftly Feedback <noreply@swiftly-workspace.com>",
+            to: [email],
+            subject: "\(inviterName) invited you to \(projectName)",
+            html: html
+        )
+
+        try await sendEmail(request)
+    }
+
+    func sendEmailVerification(
+        to email: String,
+        userName: String,
+        verificationCode: String
+    ) async throws {
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
+                <h1 style="color: white; margin: 0; font-size: 24px;">Verify Your Email</h1>
+            </div>
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="font-size: 16px; margin-bottom: 20px;">Hi \(userName),</p>
+                <p style="font-size: 16px; margin-bottom: 20px;">
+                    Welcome to Swiftly Feedback! Please verify your email address to complete your registration.
+                </p>
+                <p style="font-size: 16px; margin-bottom: 10px; text-align: center;">
+                    Your verification code is:
+                </p>
+                <div style="text-align: center; margin: 20px 0;">
+                    <div style="background: #f5f5f5; border: 2px dashed #667eea; border-radius: 8px; padding: 20px; display: inline-block;">
+                        <span style="font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #667eea;">\(verificationCode)</span>
+                    </div>
+                </div>
+                <p style="font-size: 14px; color: #666; margin-top: 25px; text-align: center;">
+                    Enter this code in the Swiftly Feedback app to verify your email.
+                </p>
+                <p style="font-size: 14px; color: #666; margin-top: 10px; text-align: center;">
+                    This code expires in 24 hours.
+                </p>
+                <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 25px 0;">
+                <p style="font-size: 12px; color: #999; text-align: center;">
+                    If you didn't create an account with Swiftly Feedback, you can safely ignore this email.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+
+        let request = ResendEmailRequest(
+            from: "Swiftly Feedback <noreply@swiftly-workspace.com>",
+            to: [email],
+            subject: "Verify your email for Swiftly Feedback",
+            html: html
+        )
+
+        try await sendEmail(request)
+    }
+
+    private func sendEmail(_ request: ResendEmailRequest) async throws {
+        let response = try await client.post(URI(string: "\(baseURL)/emails")) { req in
+            req.headers.add(name: .authorization, value: "Bearer \(apiKey)")
+            req.headers.add(name: .contentType, value: "application/json")
+            try req.content.encode(request)
+        }
+
+        guard response.status == .ok else {
+            let errorBody = response.body.map { String(buffer: $0) } ?? "Unknown error"
+            throw Abort(.internalServerError, reason: "Failed to send email: \(errorBody)")
+        }
+    }
+}
+
+private struct ResendEmailRequest: Content {
+    let from: String
+    let to: [String]
+    let subject: String
+    let html: String
+}
+
+extension Request {
+    var emailService: EmailService {
+        EmailService(client: self.client)
+    }
+}
