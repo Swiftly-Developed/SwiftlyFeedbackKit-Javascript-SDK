@@ -19,6 +19,17 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let slackNotifyNewComments: Bool
     let slackNotifyStatusChanges: Bool
     let allowedStatuses: [String]
+    // GitHub integration fields
+    let githubOwner: String?
+    let githubRepo: String?
+    let githubToken: String?
+    let githubDefaultLabels: [String]?
+    let githubSyncStatus: Bool
+
+    /// Whether GitHub integration is configured
+    var isGitHubConfigured: Bool {
+        githubOwner != nil && githubRepo != nil && githubToken != nil
+    }
 
     // Custom decoder to handle backwards compatibility when allowedStatuses is missing
     init(from decoder: Decoder) throws {
@@ -43,6 +54,12 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         // Default to standard statuses if not present (backwards compatibility)
         allowedStatuses = try container.decodeIfPresent([String].self, forKey: .allowedStatuses)
             ?? ["pending", "approved", "in_progress", "completed", "rejected"]
+        // GitHub fields (backwards compatibility)
+        githubOwner = try container.decodeIfPresent(String.self, forKey: .githubOwner)
+        githubRepo = try container.decodeIfPresent(String.self, forKey: .githubRepo)
+        githubToken = try container.decodeIfPresent(String.self, forKey: .githubToken)
+        githubDefaultLabels = try container.decodeIfPresent([String].self, forKey: .githubDefaultLabels)
+        githubSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .githubSyncStatus) ?? false
     }
 
     init(
@@ -63,7 +80,12 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         slackNotifyNewFeedback: Bool,
         slackNotifyNewComments: Bool,
         slackNotifyStatusChanges: Bool,
-        allowedStatuses: [String]
+        allowedStatuses: [String],
+        githubOwner: String? = nil,
+        githubRepo: String? = nil,
+        githubToken: String? = nil,
+        githubDefaultLabels: [String]? = nil,
+        githubSyncStatus: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -83,6 +105,11 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         self.slackNotifyNewComments = slackNotifyNewComments
         self.slackNotifyStatusChanges = slackNotifyStatusChanges
         self.allowedStatuses = allowedStatuses
+        self.githubOwner = githubOwner
+        self.githubRepo = githubRepo
+        self.githubToken = githubToken
+        self.githubDefaultLabels = githubDefaultLabels
+        self.githubSyncStatus = githubSyncStatus
     }
 }
 
@@ -159,6 +186,37 @@ struct UpdateProjectSlackRequest: Encodable {
 
 struct UpdateProjectStatusesRequest: Encodable {
     let allowedStatuses: [String]
+}
+
+// MARK: - GitHub Integration
+
+struct UpdateProjectGitHubRequest: Encodable {
+    let githubOwner: String?
+    let githubRepo: String?
+    let githubToken: String?
+    let githubDefaultLabels: [String]?
+    let githubSyncStatus: Bool?
+}
+
+struct CreateGitHubIssueRequest: Encodable {
+    let feedbackId: UUID
+    let additionalLabels: [String]?
+}
+
+struct CreateGitHubIssueResponse: Decodable {
+    let feedbackId: UUID
+    let issueUrl: String
+    let issueNumber: Int
+}
+
+struct BulkCreateGitHubIssuesRequest: Encodable {
+    let feedbackIds: [UUID]
+    let additionalLabels: [String]?
+}
+
+struct BulkCreateGitHubIssuesResponse: Decodable {
+    let created: [CreateGitHubIssueResponse]
+    let failed: [UUID]
 }
 
 struct AddMemberRequest: Encodable {

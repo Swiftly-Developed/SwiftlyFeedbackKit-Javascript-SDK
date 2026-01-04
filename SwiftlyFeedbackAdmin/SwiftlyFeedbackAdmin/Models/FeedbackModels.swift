@@ -21,6 +21,9 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     let mergedIntoId: UUID?
     let mergedAt: Date?
     let mergedFeedbackIds: [UUID]?
+    // GitHub integration fields
+    let githubIssueUrl: String?
+    let githubIssueNumber: Int?
 
     /// Formatted total MRR string for display (always shows, even if $0)
     var formattedMrr: String {
@@ -44,6 +47,11 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     /// Number of feedbacks merged into this one
     var mergedCount: Int {
         mergedFeedbackIds?.count ?? 0
+    }
+
+    /// Whether this feedback has a linked GitHub issue
+    var hasGitHubIssue: Bool {
+        githubIssueUrl != nil
     }
 }
 

@@ -47,7 +47,8 @@ SwiftlyFeedbackAdmin/
 │   │   ├── CreateProjectView.swift    # Create new project sheet
 │   │   ├── ProjectMembersView.swift   # Manage members
 │   │   ├── AcceptInviteView.swift     # Accept project invite
-│   │   └── SlackSettingsView.swift    # Configure Slack webhook notifications
+│   │   ├── SlackSettingsView.swift    # Configure Slack webhook notifications
+│   │   └── GitHubSettingsView.swift   # Configure GitHub Issues integration
 │   ├── Feedback/
 │   │   ├── FeedbackDashboardView.swift # Dashboard with List/Kanban views
 │   │   ├── FeedbackListView.swift      # Feedback list with row view
@@ -270,3 +271,39 @@ Merge duplicate feedback items to consolidate similar requests and get accurate 
 - `FeedbackDashboardView.swift` - Main feedback tab with merge support
 - `FeedbackListView.swift` - Project detail feedback list with merge support
 - `FeedbackViewModel.swift` - Merge logic and selection state management
+
+## GitHub Integration
+
+Push feedback items to GitHub as issues for tracking in your development workflow.
+
+### Setup
+1. In your GitHub account, create a Personal Access Token (PAT) with `repo` scope
+2. In Admin app: Project Details > Menu (⋯) > GitHub Integration
+3. Enter repository owner, name, and token
+4. Optionally configure default labels and status sync
+
+### GitHubSettingsView Features
+- Repository owner and name fields
+- SecureField for Personal Access Token
+- Default labels (comma-separated) applied to all issues
+- Status sync toggle: auto-close issues when feedback completed/rejected
+- Help button linking to GitHub token creation page
+- Remove integration button
+
+### Feedback Context Menu Actions
+- **Push to GitHub**: Create a GitHub issue from feedback (only shown if GitHub configured and no existing issue)
+- **View GitHub Issue**: Open the linked issue in browser (only shown if feedback has an issue)
+
+### Bulk Actions
+When selecting multiple feedback items, the action bar includes "Push to GitHub" button to create issues for all selected items that don't already have GitHub issues.
+
+### Visual Indicators
+- GitHub badge (branch icon) on feedback cards that have linked issues
+- Success toast showing issue number when created
+
+### Files
+- `GitHubSettingsView.swift` - Settings sheet for GitHub integration
+- `FeedbackDashboardView.swift` - Context menu with Push/View GitHub actions
+- `FeedbackListView.swift` - Row context menu with GitHub actions
+- `FeedbackViewModel.swift` - `createGitHubIssue()` and `bulkCreateGitHubIssues()` methods
+- `AdminAPIClient.swift` - `createGitHubIssue()` and `bulkCreateGitHubIssues()` API calls

@@ -33,6 +33,11 @@ struct ProjectController: RouteCollection {
         // Status settings
         protected.patch(":projectId", "statuses", use: updateAllowedStatuses)
 
+        // GitHub integration
+        protected.patch(":projectId", "github", use: updateGitHubSettings)
+        protected.post(":projectId", "github", "issue", use: createGitHubIssue)
+        protected.post(":projectId", "github", "issues", use: bulkCreateGitHubIssues)
+
         // Invite management
         protected.get(":projectId", "invites", use: listInvites)
         protected.delete(":projectId", "invites", ":inviteId", use: cancelInvite)
@@ -650,6 +655,220 @@ struct ProjectController: RouteCollection {
             memberCount: project.members.count,
             ownerEmail: project.owner.email
         )
+    }
+
+    // MARK: - GitHub Integration
+
+    @Sendable
+    func updateGitHubSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectGitHubDTO.self)
+
+        if let owner = dto.githubOwner {
+            project.githubOwner = owner.isEmpty ? nil : owner.trimmingCharacters(in: .whitespaces)
+        }
+        if let repo = dto.githubRepo {
+            project.githubRepo = repo.isEmpty ? nil : repo.trimmingCharacters(in: .whitespaces)
+        }
+        if let token = dto.githubToken {
+            project.githubToken = token.isEmpty ? nil : token
+        }
+        if let labels = dto.githubDefaultLabels {
+            project.githubDefaultLabels = labels.isEmpty ? nil : labels
+        }
+        if let syncStatus = dto.githubSyncStatus {
+            project.githubSyncStatus = syncStatus
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count,
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createGitHubIssue(req: Request) async throws -> CreateGitHubIssueResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        // Validate GitHub is configured
+        guard let owner = project.githubOwner,
+              let repo = project.githubRepo,
+              let token = project.githubToken else {
+            throw Abort(.badRequest, reason: "GitHub integration not configured")
+        }
+
+        let dto = try req.content.decode(CreateGitHubIssueDTO.self)
+
+        // Get feedback
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        // Check not already pushed
+        if feedback.githubIssueURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has a GitHub issue")
+        }
+
+        // Build labels
+        var labels = project.githubDefaultLabels ?? []
+        if let additional = dto.additionalLabels {
+            labels.append(contentsOf: additional)
+        }
+        // Add category as label
+        labels.append(feedback.category.rawValue)
+
+        // Calculate MRR for issue body
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        // Build issue body
+        let body = req.githubService.buildIssueBody(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        // Create issue
+        let response = try await req.githubService.createIssue(
+            owner: owner,
+            repo: repo,
+            token: token,
+            title: feedback.title,
+            body: body,
+            labels: labels.isEmpty ? nil : labels
+        )
+
+        // Update feedback with issue link
+        feedback.githubIssueURL = response.htmlUrl
+        feedback.githubIssueNumber = response.number
+        try await feedback.save(on: req.db)
+
+        return CreateGitHubIssueResponseDTO(
+            feedbackId: feedback.id!,
+            issueUrl: response.htmlUrl,
+            issueNumber: response.number
+        )
+    }
+
+    @Sendable
+    func bulkCreateGitHubIssues(req: Request) async throws -> BulkCreateGitHubIssuesResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let owner = project.githubOwner,
+              let repo = project.githubRepo,
+              let token = project.githubToken else {
+            throw Abort(.badRequest, reason: "GitHub integration not configured")
+        }
+
+        let dto = try req.content.decode(BulkCreateGitHubIssuesDTO.self)
+
+        var created: [CreateGitHubIssueResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Skip if already has issue
+                if feedback.githubIssueURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                var labels = project.githubDefaultLabels ?? []
+                if let additional = dto.additionalLabels {
+                    labels.append(contentsOf: additional)
+                }
+                labels.append(feedback.category.rawValue)
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let body = req.githubService.buildIssueBody(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                let response = try await req.githubService.createIssue(
+                    owner: owner,
+                    repo: repo,
+                    token: token,
+                    title: feedback.title,
+                    body: body,
+                    labels: labels.isEmpty ? nil : labels
+                )
+
+                feedback.githubIssueURL = response.htmlUrl
+                feedback.githubIssueNumber = response.number
+                try await feedback.save(on: req.db)
+
+                created.append(CreateGitHubIssueResponseDTO(
+                    feedbackId: feedback.id!,
+                    issueUrl: response.htmlUrl,
+                    issueNumber: response.number
+                ))
+            } catch {
+                req.logger.error("Failed to create GitHub issue for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateGitHubIssuesResponseDTO(created: created, failed: failed)
     }
 
     // MARK: - Helpers

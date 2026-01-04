@@ -43,6 +43,22 @@ final class Project: Model, Content, @unchecked Sendable {
     @Field(key: "allowed_statuses")
     var allowedStatuses: [String]
 
+    // GitHub integration fields
+    @OptionalField(key: "github_owner")
+    var githubOwner: String?
+
+    @OptionalField(key: "github_repo")
+    var githubRepo: String?
+
+    @OptionalField(key: "github_token")
+    var githubToken: String?
+
+    @OptionalField(key: "github_default_labels")
+    var githubDefaultLabels: [String]?
+
+    @Field(key: "github_sync_status")
+    var githubSyncStatus: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -69,7 +85,12 @@ final class Project: Model, Content, @unchecked Sendable {
         slackNotifyNewFeedback: Bool = true,
         slackNotifyNewComments: Bool = true,
         slackNotifyStatusChanges: Bool = true,
-        allowedStatuses: [String]? = nil
+        allowedStatuses: [String]? = nil,
+        githubOwner: String? = nil,
+        githubRepo: String? = nil,
+        githubToken: String? = nil,
+        githubDefaultLabels: [String]? = nil,
+        githubSyncStatus: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -83,6 +104,11 @@ final class Project: Model, Content, @unchecked Sendable {
         self.slackNotifyNewComments = slackNotifyNewComments
         self.slackNotifyStatusChanges = slackNotifyStatusChanges
         self.allowedStatuses = allowedStatuses ?? FeedbackStatus.defaultAllowed.map { $0.rawValue }
+        self.githubOwner = githubOwner
+        self.githubRepo = githubRepo
+        self.githubToken = githubToken
+        self.githubDefaultLabels = githubDefaultLabels
+        self.githubSyncStatus = githubSyncStatus
     }
 }
 

@@ -135,6 +135,19 @@ struct FeedbackDashboardView: View {
 
             Spacer()
 
+            // GitHub push button (only show if GitHub is configured)
+            if let fullProject = projectViewModel.selectedProject, fullProject.isGitHubConfigured {
+                Button {
+                    Task {
+                        await feedbackViewModel.bulkCreateGitHubIssues(projectId: fullProject.id)
+                    }
+                } label: {
+                    Label("Push to GitHub", systemImage: "arrow.triangle.branch")
+                }
+                .buttonStyle(.bordered)
+                .disabled(feedbackViewModel.selectedFeedbacks.allSatisfy { $0.hasGitHubIssue })
+            }
+
             Button {
                 feedbackViewModel.startMergeWithSelection()
             } label: {
@@ -374,11 +387,11 @@ struct FeedbackDashboardView: View {
                 // macOS: Single click selects, double click opens
                 FeedbackListRowView(feedback: feedback, showMergeBadge: feedback.hasMergedFeedback)
                     .tag(feedback.id)
-                    .onTapGesture(count: 2) {
-                        feedbackToOpen = feedback
-                    }
                     .onTapGesture(count: 1) {
                         feedbackViewModel.toggleSelection(feedback.id)
+                    }
+                    .onTapGesture(count: 2) {
+                        feedbackToOpen = feedback
                     }
                     .contextMenu {
                         Button {
@@ -425,6 +438,7 @@ struct FeedbackDashboardView: View {
                         viewModel: feedbackViewModel,
                         apiKey: selectedProject.map { projectApiKey(for: $0) } ?? "",
                         allowedStatuses: allowedStatuses,
+                        project: projectViewModel.selectedProject,
                         feedbackToOpen: $feedbackToOpen
                     )
                 }
@@ -443,6 +457,26 @@ struct FeedbackDashboardView: View {
 
     @ViewBuilder
     private func feedbackContextMenuItems(for feedback: Feedback) -> some View {
+        // GitHub options
+        if let fullProject = projectViewModel.selectedProject, fullProject.isGitHubConfigured {
+            if feedback.hasGitHubIssue {
+                if let issueUrl = feedback.githubIssueUrl, let url = URL(string: issueUrl) {
+                    Link(destination: url) {
+                        Label("View GitHub Issue", systemImage: "link")
+                    }
+                }
+            } else {
+                Button {
+                    Task {
+                        await feedbackViewModel.createGitHubIssue(projectId: fullProject.id, feedbackId: feedback.id)
+                    }
+                } label: {
+                    Label("Push to GitHub", systemImage: "arrow.triangle.branch")
+                }
+            }
+            Divider()
+        }
+
         // Merge option (shows when this + selected >= 2)
         let canMergeThis = feedbackViewModel.selectedFeedbackIds.count >= 1 || feedbackViewModel.selectedFeedbackIds.contains(feedback.id)
         if canMergeThis {
@@ -585,6 +619,7 @@ struct DashboardKanbanColumnView: View {
     @Bindable var viewModel: FeedbackViewModel
     let apiKey: String
     let allowedStatuses: [FeedbackStatus]
+    let project: Project?
     @Binding var feedbackToOpen: Feedback?
 
     var body: some View {
@@ -663,11 +698,11 @@ struct DashboardKanbanColumnView: View {
             feedback: feedback,
             viewModel: viewModel
         )
-        .onTapGesture(count: 2) {
-            feedbackToOpen = feedback
-        }
         .onTapGesture(count: 1) {
             viewModel.toggleSelection(feedback.id)
+        }
+        .onTapGesture(count: 2) {
+            feedbackToOpen = feedback
         }
         .draggable(feedback.id.uuidString)
         .contextMenu {
@@ -697,6 +732,26 @@ struct DashboardKanbanColumnView: View {
 
     @ViewBuilder
     private func kanbanContextMenuItems(for feedback: Feedback) -> some View {
+        // GitHub options
+        if let project = project, project.isGitHubConfigured {
+            if feedback.hasGitHubIssue {
+                if let issueUrl = feedback.githubIssueUrl, let url = URL(string: issueUrl) {
+                    Link(destination: url) {
+                        Label("View GitHub Issue", systemImage: "link")
+                    }
+                }
+            } else {
+                Button {
+                    Task {
+                        await viewModel.createGitHubIssue(projectId: project.id, feedbackId: feedback.id)
+                    }
+                } label: {
+                    Label("Push to GitHub", systemImage: "arrow.triangle.branch")
+                }
+            }
+            Divider()
+        }
+
         // Merge option
         if viewModel.selectedFeedbackIds.count >= 1 {
             Button {
@@ -772,6 +827,9 @@ struct DashboardKanbanCardView: View {
                 MrrBadge(mrr: feedback.formattedMrr)
                 if feedback.hasMergedFeedback {
                     MergeBadge(count: feedback.mergedCount)
+                }
+                if feedback.hasGitHubIssue {
+                    GitHubBadge()
                 }
                 Spacer()
                 if isSelected {

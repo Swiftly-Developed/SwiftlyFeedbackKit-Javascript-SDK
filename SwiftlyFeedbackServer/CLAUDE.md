@@ -64,7 +64,8 @@ Sources/App/
 ├── DTOs/                 # Data transfer objects
 ├── Services/             # Business logic services
 │   ├── EmailService.swift    # Email notifications via Resend
-│   └── SlackService.swift    # Slack webhook notifications
+│   ├── SlackService.swift    # Slack webhook notifications
+│   └── GitHubService.swift   # GitHub Issues integration
 ├── configure.swift       # App configuration
 ├── routes.swift          # Route registration
 └── entrypoint.swift      # Main entry point
@@ -102,6 +103,9 @@ All routes prefixed with `/api/v1`.
 - `POST /projects/:id/regenerate-key` - Regenerate API key (owner only)
 - `PATCH /projects/:id/slack` - Update Slack settings (owner/admin only)
 - `PATCH /projects/:id/statuses` - Update allowed statuses (owner/admin only)
+- `PATCH /projects/:id/github` - Update GitHub settings (owner/admin only)
+- `POST /projects/:id/github/issue` - Create GitHub issue from feedback (owner/admin only)
+- `POST /projects/:id/github/issues` - Bulk create GitHub issues (owner/admin only)
 
 ### Project Members (Bearer token required)
 - `GET /projects/:id/members` - List members
@@ -191,3 +195,86 @@ Request body:
 
 ### Migration
 `AddFeedbackMergeFields` adds the merge-related columns to the feedbacks table.
+
+## GitHub Integration
+
+Push feedback items to GitHub as issues for tracking in your development workflow.
+
+### Configuration Endpoint
+`PATCH /projects/:id/github` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "github_owner": "username-or-org",
+  "github_repo": "repo-name",
+  "github_token": "ghp_xxxxx",
+  "github_default_labels": ["feedback", "user-request"],
+  "github_sync_status": true
+}
+```
+
+### Create Issue Endpoint
+`POST /projects/:id/github/issue` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "feedback_id": "uuid"
+}
+```
+
+Response:
+```json
+{
+  "feedback_id": "uuid",
+  "issue_url": "https://github.com/owner/repo/issues/123",
+  "issue_number": 123
+}
+```
+
+### Bulk Create Issues Endpoint
+`POST /projects/:id/github/issues` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "feedback_ids": ["uuid", "uuid"]
+}
+```
+
+Response:
+```json
+{
+  "created": [{"feedback_id": "uuid", "issue_url": "...", "issue_number": 1}],
+  "failed": ["uuid"]
+}
+```
+
+### Database Fields
+
+**Project model:**
+- `github_owner` (String?) - Repository owner (user or org)
+- `github_repo` (String?) - Repository name
+- `github_token` (String?) - Personal Access Token
+- `github_default_labels` ([String]?) - Labels to apply to all issues
+- `github_sync_status` (Bool) - Sync feedback status to issue state
+
+**Feedback model:**
+- `github_issue_url` (String?) - URL of linked GitHub issue
+- `github_issue_number` (Int?) - Issue number for API calls
+
+### Status Sync
+When `github_sync_status` is enabled:
+- Feedback marked **completed** or **rejected** → GitHub issue closed
+- Feedback changed from completed/rejected to another status → GitHub issue reopened
+
+### GitHubService
+Handles GitHub API interactions:
+- `createIssue()` - Creates a new issue with formatted body
+- `closeIssue()` - Closes an issue when feedback completed/rejected
+- `reopenIssue()` - Reopens an issue when status changed back
+- `buildIssueBody()` - Formats feedback details for issue body
+
+### Migration
+`AddProjectGitHubIntegration` adds GitHub fields to projects and feedbacks tables.

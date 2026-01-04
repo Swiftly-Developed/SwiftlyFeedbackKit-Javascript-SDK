@@ -13,6 +13,7 @@ struct ProjectDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingSlackSheet = false
     @State private var showingStatusSheet = false
+    @State private var showingGitHubSheet = false
     @State private var copiedToClipboard = false
 
     private var isCompact: Bool {
@@ -75,6 +76,12 @@ struct ProjectDetailView: View {
                             showingStatusSheet = true
                         } label: {
                             Label("Status Settings", systemImage: "list.bullet.clipboard")
+                        }
+
+                        Button {
+                            showingGitHubSheet = true
+                        } label: {
+                            Label("GitHub Integration", systemImage: "arrow.triangle.branch")
                         }
 
                         Divider()
@@ -172,6 +179,14 @@ struct ProjectDetailView: View {
                 StatusSettingsView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 400, minHeight: 400)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingGitHubSheet) {
+            if let project = viewModel.selectedProject {
+                GitHubSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 450, minHeight: 450)
                     #endif
             }
         }

@@ -304,6 +304,37 @@ struct FeedbackController: RouteCollection {
                     }
                 }
             }
+
+            // Sync to GitHub if configured
+            if let issueNumber = feedback.githubIssueNumber,
+               project.githubSyncStatus,
+               let owner = project.githubOwner,
+               let repo = project.githubRepo,
+               let token = project.githubToken {
+                Task {
+                    do {
+                        if newStatus == .completed || newStatus == .rejected {
+                            // Close the issue
+                            try await req.githubService.closeIssue(
+                                owner: owner,
+                                repo: repo,
+                                token: token,
+                                issueNumber: issueNumber
+                            )
+                        } else if oldStatus == .completed || oldStatus == .rejected {
+                            // Reopening from a closed status
+                            try await req.githubService.reopenIssue(
+                                owner: owner,
+                                repo: repo,
+                                token: token,
+                                issueNumber: issueNumber
+                            )
+                        }
+                    } catch {
+                        req.logger.error("Failed to sync GitHub issue status: \(error)")
+                    }
+                }
+            }
         }
 
         try await feedback.$votes.load(on: req.db)

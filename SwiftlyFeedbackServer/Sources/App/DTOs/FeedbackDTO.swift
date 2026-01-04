@@ -34,6 +34,9 @@ struct FeedbackResponseDTO: Content {
     let mergedIntoId: UUID?
     let mergedAt: Date?
     let mergedFeedbackIds: [UUID]?
+    // GitHub integration fields
+    let githubIssueUrl: String?
+    let githubIssueNumber: Int?
 
     init(feedback: Feedback, hasVoted: Bool = false, commentCount: Int = 0, totalMrr: Double? = nil) {
         self.id = feedback.id!
@@ -52,5 +55,7 @@ struct FeedbackResponseDTO: Content {
         self.mergedIntoId = feedback.mergedIntoId
         self.mergedAt = feedback.mergedAt
         self.mergedFeedbackIds = feedback.mergedFeedbackIds
+        self.githubIssueUrl = feedback.githubIssueURL
+        self.githubIssueNumber = feedback.githubIssueNumber
     }
 }

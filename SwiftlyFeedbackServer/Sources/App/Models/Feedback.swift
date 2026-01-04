@@ -53,6 +53,13 @@ final class Feedback: Model, Content, @unchecked Sendable {
     @OptionalField(key: "merged_feedback_ids")
     var mergedFeedbackIds: [UUID]?
 
+    // GitHub integration fields
+    @OptionalField(key: "github_issue_url")
+    var githubIssueURL: String?
+
+    @OptionalField(key: "github_issue_number")
+    var githubIssueNumber: Int?
+
     /// Whether this feedback has been merged into another
     var isMerged: Bool {
         mergedIntoId != nil
@@ -61,6 +68,11 @@ final class Feedback: Model, Content, @unchecked Sendable {
     /// Whether this feedback has received merges from other feedback
     var hasMergedFeedback: Bool {
         mergedFeedbackIds?.isEmpty == false
+    }
+
+    /// Whether this feedback has a linked GitHub issue
+    var hasGitHubIssue: Bool {
+        githubIssueURL != nil
     }
 
     init() {}

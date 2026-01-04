@@ -31,6 +31,37 @@ struct UpdateProjectStatusesDTO: Content {
     var allowedStatuses: [String]
 }
 
+// MARK: - GitHub Integration DTOs
+
+struct UpdateProjectGitHubDTO: Content {
+    var githubOwner: String?
+    var githubRepo: String?
+    var githubToken: String?
+    var githubDefaultLabels: [String]?
+    var githubSyncStatus: Bool?
+}
+
+struct CreateGitHubIssueDTO: Content {
+    var feedbackId: UUID
+    var additionalLabels: [String]?
+}
+
+struct CreateGitHubIssueResponseDTO: Content {
+    var feedbackId: UUID
+    var issueUrl: String
+    var issueNumber: Int
+}
+
+struct BulkCreateGitHubIssuesDTO: Content {
+    var feedbackIds: [UUID]
+    var additionalLabels: [String]?
+}
+
+struct BulkCreateGitHubIssuesResponseDTO: Content {
+    var created: [CreateGitHubIssueResponseDTO]
+    var failed: [UUID]
+}
+
 struct AddMemberDTO: Content, Validatable {
     let email: String
     let role: ProjectRole
@@ -63,6 +94,12 @@ struct ProjectResponseDTO: Content {
     let slackNotifyNewComments: Bool
     let slackNotifyStatusChanges: Bool
     let allowedStatuses: [String]
+    // GitHub integration fields
+    let githubOwner: String?
+    let githubRepo: String?
+    let githubToken: String?
+    let githubDefaultLabels: [String]?
+    let githubSyncStatus: Bool
 
     init(project: Project, feedbackCount: Int = 0, memberCount: Int = 0, ownerEmail: String? = nil) {
         self.id = project.id!
@@ -83,6 +120,11 @@ struct ProjectResponseDTO: Content {
         self.slackNotifyNewComments = project.slackNotifyNewComments
         self.slackNotifyStatusChanges = project.slackNotifyStatusChanges
         self.allowedStatuses = project.allowedStatuses
+        self.githubOwner = project.githubOwner
+        self.githubRepo = project.githubRepo
+        self.githubToken = project.githubToken
+        self.githubDefaultLabels = project.githubDefaultLabels
+        self.githubSyncStatus = project.githubSyncStatus
     }
 }
 

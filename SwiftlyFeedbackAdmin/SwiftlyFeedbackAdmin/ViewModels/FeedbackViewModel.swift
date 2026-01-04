@@ -427,4 +427,79 @@ final class FeedbackViewModel {
             return false
         }
     }
+
+    // MARK: - GitHub Integration
+
+    func createGitHubIssue(projectId: UUID, feedbackId: UUID) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.createGitHubIssue(
+                projectId: projectId,
+                feedbackId: feedbackId
+            )
+
+            // Update local feedback with GitHub issue info
+            if let index = feedbacks.firstIndex(where: { $0.id == feedbackId }) {
+                // We need to reload the feedback to get the updated GitHub fields
+                // since our response only contains the URL and number
+                await refreshFeedbacks()
+            }
+
+            logger.info("✅ GitHub issue created: \(response.issueUrl)")
+            showSuccess(message: "GitHub issue #\(response.issueNumber) created")
+            isLoading = false
+            return true
+        } catch {
+            logger.error("❌ Failed to create GitHub issue: \(error.localizedDescription)")
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
+    func bulkCreateGitHubIssues(projectId: UUID) async -> Bool {
+        // Get feedbacks that don't already have GitHub issues
+        let feedbackIds = selectedFeedbacks
+            .filter { !$0.hasGitHubIssue }
+            .map { $0.id }
+
+        guard !feedbackIds.isEmpty else {
+            showError(message: "No feedbacks to push to GitHub (all selected items already have issues)")
+            return false
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.bulkCreateGitHubIssues(
+                projectId: projectId,
+                feedbackIds: feedbackIds
+            )
+
+            // Refresh to get updated GitHub fields
+            await refreshFeedbacks()
+
+            // Clear selection
+            clearSelection()
+
+            if response.failed.isEmpty {
+                logger.info("✅ GitHub issues created: \(response.created.count)")
+                showSuccess(message: "Created \(response.created.count) GitHub issues")
+            } else {
+                logger.warning("⚠️ GitHub issues created with some failures: \(response.created.count) created, \(response.failed.count) failed")
+                showSuccess(message: "Created \(response.created.count) GitHub issues (\(response.failed.count) failed)")
+            }
+
+            isLoading = false
+            return true
+        } catch {
+            logger.error("❌ Failed to create GitHub issues: \(error.localizedDescription)")
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
 }

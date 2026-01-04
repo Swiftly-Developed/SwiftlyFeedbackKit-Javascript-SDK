@@ -115,7 +115,7 @@ struct FeedbackDetailView: View {
                 HStack(spacing: 16) {
                     if let createdAt = feedback.createdAt {
                         Label {
-                            Text("Created ") + Text(createdAt, style: .relative) + Text(" ago")
+                            Text("Created \(createdAt, style: .relative) ago")
                         } icon: {
                             Image(systemName: "clock")
                         }
@@ -125,7 +125,7 @@ struct FeedbackDetailView: View {
 
                     if let updatedAt = feedback.updatedAt, updatedAt != feedback.createdAt {
                         Label {
-                            Text("Updated ") + Text(updatedAt, style: .relative) + Text(" ago")
+                            Text("Updated \(updatedAt, style: .relative) ago")
                         } icon: {
                             Image(systemName: "pencil")
                         }
@@ -471,7 +471,9 @@ struct CommentRowView: View {
                 updatedAt: Date().addingTimeInterval(-3600),
                 mergedIntoId: nil,
                 mergedAt: nil,
-                mergedFeedbackIds: [UUID(), UUID()]
+                mergedFeedbackIds: [UUID(), UUID()],
+                githubIssueUrl: nil,
+                githubIssueNumber: nil
             ),
             apiKey: "test-key",
             allowedStatuses: [.pending, .approved, .inProgress, .completed, .rejected],

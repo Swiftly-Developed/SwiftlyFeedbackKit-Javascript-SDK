@@ -291,6 +291,87 @@ Request body:
 
 All Slack notifications are sent asynchronously to avoid blocking API responses.
 
+## GitHub Integration
+
+Projects can push feedback items to GitHub as issues for tracking in your development workflow. Configuration is done per-project in the Admin app.
+
+### Setup
+1. Create a GitHub Personal Access Token (PAT) with `repo` scope (private repos) or `public_repo` scope (public repos)
+2. In Admin app: Project Details > Menu (⋯) > GitHub Integration
+3. Enter repository owner, name, and token
+4. Optionally configure default labels and status sync
+
+### Features
+- **Create Issue**: Push individual feedback to GitHub as an issue
+- **Bulk Create**: Push multiple selected feedback items at once
+- **Status Sync**: Automatically close/reopen issues when feedback status changes
+- **Link Tracking**: GitHub issue URL stored on feedback for quick access
+
+### Issue Creation
+When feedback is pushed to GitHub:
+- Issue title = Feedback title
+- Issue body includes description, category, vote count, MRR, and submitter email
+- Labels: default labels + feedback category (e.g., "feature_request", "bug")
+- Feedback card shows GitHub badge with link to issue
+
+### Status Sync (Optional)
+When enabled, feedback status changes sync to GitHub:
+- **Completed/Rejected** → Issue closed
+- **Other status** (from completed/rejected) → Issue reopened
+
+### Server Endpoints
+- `PATCH /projects/:id/github` - Update GitHub settings (bearer auth, owner/admin only)
+- `POST /projects/:id/github/issue` - Create single issue (bearer auth, owner/admin only)
+- `POST /projects/:id/github/issues` - Bulk create issues (bearer auth, owner/admin only)
+
+**Update settings request:**
+```json
+{
+  "github_owner": "apple",
+  "github_repo": "swift",
+  "github_token": "ghp_...",
+  "github_default_labels": ["feedback", "user-request"],
+  "github_sync_status": true
+}
+```
+
+**Create issue request:**
+```json
+{
+  "feedback_id": "uuid",
+  "additional_labels": ["priority-high"]
+}
+```
+
+**Create issue response:**
+```json
+{
+  "feedback_id": "uuid",
+  "issue_url": "https://github.com/owner/repo/issues/123",
+  "issue_number": 123
+}
+```
+
+### Database Fields
+
+**Project model:**
+- `github_owner` (String?, optional) - Repository owner (user or org)
+- `github_repo` (String?, optional) - Repository name
+- `github_token` (String?, optional) - Personal Access Token
+- `github_default_labels` ([String]?, optional) - Labels applied to all issues
+- `github_sync_status` (Bool, default: false) - Enable status sync
+
+**Feedback model:**
+- `github_issue_url` (String?, optional) - URL of linked GitHub issue
+- `github_issue_number` (Int?, optional) - Issue number for API calls
+
+### Admin App UI
+- **Settings**: Project Details > Menu (⋯) > GitHub Integration
+- **Push single**: Right-click feedback > "Push to GitHub"
+- **Push bulk**: Select multiple items > "Push to GitHub" button in action bar
+- **View issue**: Right-click feedback with issue > "View GitHub Issue"
+- **Badge**: Feedback cards show GitHub icon when linked to an issue
+
 ## Feedback Merging
 
 Admins can merge duplicate feedback items to consolidate similar requests. This helps get an accurate picture of demand while keeping vote counts and comments organized.
@@ -379,3 +460,4 @@ Toggle("Feature", isOn: Bindable(settings).featureEnabled)
 - Passwords are hashed with bcrypt
 - Use `Bindable()` for @Observable bindings instead of `@Bindable` property wrapper
 - Platform conditionals: `#if os(macOS)` / `#if os(iOS)`
+

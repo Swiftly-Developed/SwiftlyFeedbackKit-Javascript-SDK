@@ -345,6 +345,37 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - GitHub Settings
+
+    func updateGitHubSettings(
+        projectId: UUID,
+        githubOwner: String?,
+        githubRepo: String?,
+        githubToken: String?,
+        githubDefaultLabels: [String]?,
+        githubSyncStatus: Bool?
+    ) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            selectedProject = try await AdminAPIClient.shared.updateProjectGitHubSettings(
+                projectId: projectId,
+                githubOwner: githubOwner,
+                githubRepo: githubRepo,
+                githubToken: githubToken,
+                githubDefaultLabels: githubDefaultLabels,
+                githubSyncStatus: githubSyncStatus
+            )
+            isLoading = false
+            return true
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
     // MARK: - Accept Invite
 
     var inviteCode = ""

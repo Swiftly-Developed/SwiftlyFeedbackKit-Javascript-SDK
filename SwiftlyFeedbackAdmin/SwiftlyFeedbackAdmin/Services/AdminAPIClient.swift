@@ -636,6 +636,89 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - GitHub Integration API
+
+    func updateProjectGitHubSettings(
+        projectId: UUID,
+        githubOwner: String?,
+        githubRepo: String?,
+        githubToken: String?,
+        githubDefaultLabels: [String]?,
+        githubSyncStatus: Bool?
+    ) async throws -> Project {
+        let path = "projects/\(projectId)/github"
+        let body = UpdateProjectGitHubRequest(
+            githubOwner: githubOwner,
+            githubRepo: githubRepo,
+            githubToken: githubToken,
+            githubDefaultLabels: githubDefaultLabels,
+            githubSyncStatus: githubSyncStatus
+        )
+
+        logger.info("🟠 PATCH \(path) (GitHub settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            logger.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            logger.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createGitHubIssue(
+        projectId: UUID,
+        feedbackId: UUID,
+        additionalLabels: [String]? = nil
+    ) async throws -> CreateGitHubIssueResponse {
+        let path = "projects/\(projectId)/github/issue"
+        let body = CreateGitHubIssueRequest(
+            feedbackId: feedbackId,
+            additionalLabels: additionalLabels
+        )
+
+        logger.info("🟢 POST \(path) (create GitHub issue)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateGitHubIssueResponse.self, from: data)
+            logger.info("✅ POST \(path) - decoded successfully")
+            return decoded
+        } catch {
+            logger.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateGitHubIssues(
+        projectId: UUID,
+        feedbackIds: [UUID],
+        additionalLabels: [String]? = nil
+    ) async throws -> BulkCreateGitHubIssuesResponse {
+        let path = "projects/\(projectId)/github/issues"
+        let body = BulkCreateGitHubIssuesRequest(
+            feedbackIds: feedbackIds,
+            additionalLabels: additionalLabels
+        )
+
+        logger.info("🟢 POST \(path) (bulk create GitHub issues)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateGitHubIssuesResponse.self, from: data)
+            logger.info("✅ POST \(path) - decoded: \(decoded.created.count) created, \(decoded.failed.count) failed")
+            return decoded
+        } catch {
+            logger.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Merge Feedback API
 
     func mergeFeedback(primaryId: UUID, secondaryIds: [UUID]) async throws -> MergeFeedbackResponse {
