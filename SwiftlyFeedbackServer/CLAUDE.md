@@ -113,7 +113,7 @@ All routes prefixed with `/api/v1`.
 - `DELETE /feedbacks/:id` - Delete feedback (auth + owner/admin)
 
 ### Votes (X-API-Key header required)
-- `POST /feedbacks/:id/votes` - Vote (blocked if archived)
+- `POST /feedbacks/:id/votes` - Vote (blocked if archived or status is completed/rejected)
 - `DELETE /feedbacks/:id/votes` - Remove vote (blocked if archived)
 
 ### Comments (X-API-Key header required)

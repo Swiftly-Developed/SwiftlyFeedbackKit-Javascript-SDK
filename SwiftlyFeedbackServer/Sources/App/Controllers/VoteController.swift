@@ -27,6 +27,11 @@ struct VoteController: RouteCollection {
             throw Abort(.forbidden, reason: "Cannot vote on feedback for an archived project")
         }
 
+        // Check if feedback status allows voting
+        if feedback.status == .completed || feedback.status == .rejected {
+            throw Abort(.forbidden, reason: "Cannot vote on feedback that is \(feedback.status.rawValue)")
+        }
+
         let dto = try req.content.decode(CreateVoteDTO.self)
 
         // Validate userId

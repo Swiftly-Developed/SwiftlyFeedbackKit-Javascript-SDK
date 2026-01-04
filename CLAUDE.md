@@ -58,6 +58,12 @@ cd SwiftlyFeedbackServer && swift run
 - Archived projects allow reads but block new feedback, votes, and comments
 - Only owner can archive/unarchive
 
+### Voting Restrictions
+- Users cannot vote on feedback with **completed** or **rejected** status
+- Server returns 403 Forbidden if voting is attempted on these statuses
+- SDK disables and dims the vote button for non-votable feedback
+- `FeedbackStatus.canVote` property indicates if voting is allowed
+
 ## Analytics & Tracking
 
 ### View Event Tracking
