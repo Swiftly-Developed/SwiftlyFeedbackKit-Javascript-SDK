@@ -7,6 +7,7 @@ struct ConfigurationView: View {
         List {
             userSection
             subscriptionSection
+            permissionsSection
             sdkConfigurationSection
             displayOptionsSection
         }
@@ -124,6 +125,24 @@ struct ConfigurationView: View {
             Text("Features")
         } footer: {
             Text("Configure which features are enabled in the feedback interface.")
+        }
+    }
+
+    // MARK: - Permissions Section
+
+    @ViewBuilder
+    private var permissionsSection: some View {
+        Section {
+            Toggle("Allow Feedback Submission", isOn: Bindable(settings).allowFeedbackSubmission)
+
+            if !settings.allowFeedbackSubmission {
+                TextField("Custom disabled message", text: Bindable(settings).feedbackSubmissionDisabledMessage, axis: .vertical)
+                    .lineLimit(2...4)
+            }
+        } header: {
+            Text("Permissions")
+        } footer: {
+            Text("Disable feedback submission for free users. When disabled, tapping the add button shows an alert instead of opening the submission form.")
         }
     }
 

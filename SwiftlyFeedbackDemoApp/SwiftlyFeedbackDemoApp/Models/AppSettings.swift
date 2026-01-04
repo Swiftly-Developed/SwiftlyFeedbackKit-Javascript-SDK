@@ -90,6 +90,20 @@ final class AppSettings {
         }
     }
 
+    var allowFeedbackSubmission: Bool {
+        didSet {
+            UserDefaults.standard.set(allowFeedbackSubmission, forKey: "allowFeedbackSubmission")
+            SwiftlyFeedback.config.allowFeedbackSubmission = allowFeedbackSubmission
+        }
+    }
+
+    var feedbackSubmissionDisabledMessage: String {
+        didSet {
+            UserDefaults.standard.set(feedbackSubmissionDisabledMessage, forKey: "feedbackSubmissionDisabledMessage")
+            SwiftlyFeedback.config.feedbackSubmissionDisabledMessage = feedbackSubmissionDisabledMessage.isEmpty ? nil : feedbackSubmissionDisabledMessage
+        }
+    }
+
     // MARK: - Initialization
 
     init() {
@@ -111,6 +125,8 @@ final class AppSettings {
         self.showCategoryBadge = defaults.object(forKey: "showCategoryBadge") as? Bool ?? true
         self.showVoteCount = defaults.object(forKey: "showVoteCount") as? Bool ?? true
         self.expandDescriptionInList = defaults.object(forKey: "expandDescriptionInList") as? Bool ?? false
+        self.allowFeedbackSubmission = defaults.object(forKey: "allowFeedbackSubmission") as? Bool ?? true
+        self.feedbackSubmissionDisabledMessage = defaults.string(forKey: "feedbackSubmissionDisabledMessage") ?? ""
 
         // Apply SDK configuration after loading
         applySDKConfiguration()
@@ -126,6 +142,8 @@ final class AppSettings {
         SwiftlyFeedback.config.showCategoryBadge = showCategoryBadge
         SwiftlyFeedback.config.showVoteCount = showVoteCount
         SwiftlyFeedback.config.expandDescriptionInList = expandDescriptionInList
+        SwiftlyFeedback.config.allowFeedbackSubmission = allowFeedbackSubmission
+        SwiftlyFeedback.config.feedbackSubmissionDisabledMessage = feedbackSubmissionDisabledMessage.isEmpty ? nil : feedbackSubmissionDisabledMessage
 
         if !customUserId.isEmpty {
             SwiftlyFeedback.updateUser(customID: customUserId)

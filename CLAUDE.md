@@ -64,6 +64,24 @@ cd SwiftlyFeedbackServer && swift run
 - SDK disables and dims the vote button for non-votable feedback
 - `FeedbackStatus.canVote` property indicates if voting is allowed
 
+### Feedback Submission Permission
+The SDK supports restricting feedback submission (e.g., for free users):
+
+```swift
+// Disable feedback submission for free users
+SwiftlyFeedback.config.allowFeedbackSubmission = user.isPro
+
+// Customize the alert message shown when submission is disabled
+SwiftlyFeedback.config.feedbackSubmissionDisabledMessage =
+    "Only Pro users can submit feature requests, but you can vote for existing ones!"
+```
+
+**Behavior when disabled:**
+- The add button remains visible but shows an alert instead of opening the submission form
+- Alert title: "Submission Disabled" (localized)
+- Alert message: Custom message or default "Feedback submission is not available. You can still vote for existing feedback."
+- Users can still browse and vote on existing feedback
+
 ## Analytics & Tracking
 
 ### View Event Tracking
