@@ -296,6 +296,35 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Slack Settings
+
+    func updateSlackSettings(
+        projectId: UUID,
+        slackWebhookUrl: String?,
+        slackNotifyNewFeedback: Bool?,
+        slackNotifyNewComments: Bool?,
+        slackNotifyStatusChanges: Bool?
+    ) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            selectedProject = try await AdminAPIClient.shared.updateProjectSlackSettings(
+                projectId: projectId,
+                slackWebhookUrl: slackWebhookUrl,
+                slackNotifyNewFeedback: slackNotifyNewFeedback,
+                slackNotifyNewComments: slackNotifyNewComments,
+                slackNotifyStatusChanges: slackNotifyStatusChanges
+            )
+            isLoading = false
+            return true
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
     // MARK: - Accept Invite
 
     var inviteCode = ""

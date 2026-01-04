@@ -198,6 +198,50 @@ All notification emails are sent asynchronously to avoid blocking API responses.
 - **Email Verification**: Sent on user signup with 8-character verification code
 - **Project Invite**: Sent when inviting members to a project with invite code
 
+## Slack Integration
+
+Projects can optionally send notifications to a Slack channel via Incoming Webhooks. Configuration is done per-project in the Admin app.
+
+### Setup
+1. In your Slack workspace, create an Incoming Webhook (Apps & Integrations > Incoming Webhooks)
+2. Copy the webhook URL (starts with `https://hooks.slack.com/`)
+3. In Admin app: Project Details > Menu (⋯) > Slack Integration
+4. Paste the webhook URL and configure notification preferences
+
+### Notification Types
+Each notification type can be enabled/disabled independently:
+- **New feedback** (`slackNotifyNewFeedback`): When users submit new feedback via the SDK
+- **New comments** (`slackNotifyNewComments`): When comments are added to feedback
+- **Status changes** (`slackNotifyStatusChanges`): When feedback status is updated (pending → approved → in progress → completed/rejected)
+
+### Message Format
+Slack notifications use Block Kit for rich formatting:
+- Header with notification type
+- Project name
+- Relevant details (feedback title, category, description, status change, comment content)
+- Status emojis for status changes
+
+### Server Endpoint
+- `PATCH /projects/:id/slack` - Update Slack settings (bearer auth, owner/admin only)
+
+Request body:
+```json
+{
+  "slack_webhook_url": "https://hooks.slack.com/...",
+  "slack_notify_new_feedback": true,
+  "slack_notify_new_comments": true,
+  "slack_notify_status_changes": true
+}
+```
+
+### Database Fields (Project model)
+- `slack_webhook_url` (String?, optional) - Slack Incoming Webhook URL
+- `slack_notify_new_feedback` (Bool, default: true) - Enable new feedback notifications
+- `slack_notify_new_comments` (Bool, default: true) - Enable comment notifications
+- `slack_notify_status_changes` (Bool, default: true) - Enable status change notifications
+
+All Slack notifications are sent asynchronously to avoid blocking API responses.
+
 ## Demo App
 
 The SwiftlyFeedbackDemoApp showcases SDK integration patterns:

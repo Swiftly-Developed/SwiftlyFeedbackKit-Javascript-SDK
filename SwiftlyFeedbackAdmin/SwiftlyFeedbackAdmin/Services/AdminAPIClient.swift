@@ -522,6 +522,37 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Project Slack Settings API
+
+    func updateProjectSlackSettings(
+        projectId: UUID,
+        slackWebhookUrl: String?,
+        slackNotifyNewFeedback: Bool?,
+        slackNotifyNewComments: Bool?,
+        slackNotifyStatusChanges: Bool?
+    ) async throws -> Project {
+        let path = "projects/\(projectId)/slack"
+        let body = UpdateProjectSlackRequest(
+            slackWebhookUrl: slackWebhookUrl,
+            slackNotifyNewFeedback: slackNotifyNewFeedback,
+            slackNotifyNewComments: slackNotifyNewComments,
+            slackNotifyStatusChanges: slackNotifyStatusChanges
+        )
+
+        logger.info("🟠 PATCH \(path) (slack settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            logger.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            logger.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Home Dashboard API
 
     func getHomeDashboard() async throws -> HomeDashboard {

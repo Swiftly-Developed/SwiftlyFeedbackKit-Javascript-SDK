@@ -28,6 +28,18 @@ final class Project: Model, Content, @unchecked Sendable {
     @Field(key: "color_index")
     var colorIndex: Int
 
+    @OptionalField(key: "slack_webhook_url")
+    var slackWebhookURL: String?
+
+    @Field(key: "slack_notify_new_feedback")
+    var slackNotifyNewFeedback: Bool
+
+    @Field(key: "slack_notify_new_comments")
+    var slackNotifyNewComments: Bool
+
+    @Field(key: "slack_notify_status_changes")
+    var slackNotifyStatusChanges: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -49,7 +61,11 @@ final class Project: Model, Content, @unchecked Sendable {
         description: String? = nil,
         ownerId: UUID,
         isArchived: Bool = false,
-        colorIndex: Int = 0
+        colorIndex: Int = 0,
+        slackWebhookURL: String? = nil,
+        slackNotifyNewFeedback: Bool = true,
+        slackNotifyNewComments: Bool = true,
+        slackNotifyStatusChanges: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -58,6 +74,10 @@ final class Project: Model, Content, @unchecked Sendable {
         self.$owner.id = ownerId
         self.isArchived = isArchived
         self.colorIndex = colorIndex
+        self.slackWebhookURL = slackWebhookURL
+        self.slackNotifyNewFeedback = slackNotifyNewFeedback
+        self.slackNotifyNewComments = slackNotifyNewComments
+        self.slackNotifyStatusChanges = slackNotifyStatusChanges
     }
 }
 

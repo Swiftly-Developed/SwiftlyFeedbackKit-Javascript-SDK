@@ -11,6 +11,7 @@ struct ProjectDetailView: View {
     @State private var showingArchiveAlert = false
     @State private var showingMembersSheet = false
     @State private var showingEditSheet = false
+    @State private var showingSlackSheet = false
     @State private var copiedToClipboard = false
 
     private var isCompact: Bool {
@@ -61,6 +62,12 @@ struct ProjectDetailView: View {
                             showingMembersSheet = true
                         } label: {
                             Label("Manage Members", systemImage: "person.2")
+                        }
+
+                        Button {
+                            showingSlackSheet = true
+                        } label: {
+                            Label("Slack Integration", systemImage: "number")
                         }
 
                         Divider()
@@ -142,6 +149,14 @@ struct ProjectDetailView: View {
                 EditProjectView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 400, minHeight: 200)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingSlackSheet) {
+            if let project = viewModel.selectedProject {
+                SlackSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 450, minHeight: 350)
                     #endif
             }
         }
@@ -301,10 +316,10 @@ struct ProjectDetailView: View {
 
     private func statsGrid(_ project: Project) -> some View {
         let columns = isCompact
-            ? [GridItem(.flexible(minimum: 100, maximum: 200)), GridItem(.flexible(minimum: 100, maximum: 200))]
-            : [GridItem(.flexible(minimum: 120, maximum: 180)), GridItem(.flexible(minimum: 120, maximum: 180)), GridItem(.flexible(minimum: 120, maximum: 180)), GridItem(.flexible(minimum: 120, maximum: 180))]
+            ? [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+            : [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
 
-        return LazyVGrid(columns: columns, spacing: 12) {
+        return LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
             StatCard(
                 icon: "bubble.left.and.bubble.right.fill",
                 iconColor: .blue,
@@ -719,7 +734,11 @@ struct EditProjectView: View {
             feedbackCount: 42,
             memberCount: 5,
             createdAt: Date(),
-            updatedAt: Date()
+            updatedAt: Date(),
+            slackWebhookUrl: nil,
+            slackNotifyNewFeedback: true,
+            slackNotifyNewComments: true,
+            slackNotifyStatusChanges: true
         ),
         viewModel: ProjectViewModel()
     )

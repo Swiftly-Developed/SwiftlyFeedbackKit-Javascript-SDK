@@ -27,6 +27,9 @@ struct ProjectController: RouteCollection {
         protected.patch(":projectId", "members", ":memberId", use: updateMemberRole)
         protected.delete(":projectId", "members", ":memberId", use: removeMember)
 
+        // Slack settings
+        protected.patch(":projectId", "slack", use: updateSlackSettings)
+
         // Invite management
         protected.get(":projectId", "invites", use: listInvites)
         protected.delete(":projectId", "invites", ":inviteId", use: cancelInvite)
@@ -559,6 +562,52 @@ struct ProjectController: RouteCollection {
             projectId: projectId,
             projectName: invite.project.name,
             role: invite.role
+        )
+    }
+
+    // MARK: - Slack Settings
+
+    @Sendable
+    func updateSlackSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectSlackDTO.self)
+
+        // Debug: Log what was decoded
+        req.logger.info("Slack DTO decoded - webhookURL: \(dto.slackWebhookUrl ?? "nil"), notifyFeedback: \(dto.slackNotifyNewFeedback?.description ?? "nil"), notifyComments: \(dto.slackNotifyNewComments?.description ?? "nil"), notifyStatus: \(dto.slackNotifyStatusChanges?.description ?? "nil")")
+
+        // Validate webhook URL format if provided
+        if let webhookURL = dto.slackWebhookUrl, !webhookURL.isEmpty {
+            guard webhookURL.hasPrefix("https://hooks.slack.com/") else {
+                throw Abort(.badRequest, reason: "Invalid Slack webhook URL. It must start with https://hooks.slack.com/")
+            }
+        }
+
+        if let webhookURL = dto.slackWebhookUrl {
+            project.slackWebhookURL = webhookURL.isEmpty ? nil : webhookURL
+        }
+        if let notify = dto.slackNotifyNewFeedback {
+            project.slackNotifyNewFeedback = notify
+        }
+        if let notify = dto.slackNotifyNewComments {
+            project.slackNotifyNewComments = notify
+        }
+        if let notify = dto.slackNotifyStatusChanges {
+            project.slackNotifyStatusChanges = notify
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count,
+            ownerEmail: project.owner.email
         )
     }
 

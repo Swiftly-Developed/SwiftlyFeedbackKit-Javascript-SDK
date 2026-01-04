@@ -239,7 +239,11 @@ struct UserRowView: View {
                 feedbackCount: 0,
                 memberCount: 1,
                 createdAt: Date(),
-                updatedAt: Date()
+                updatedAt: Date(),
+                slackWebhookUrl: nil,
+                slackNotifyNewFeedback: true,
+                slackNotifyNewComments: true,
+                slackNotifyStatusChanges: true
             )
         )
     }

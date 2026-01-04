@@ -20,6 +20,13 @@ struct UpdateProjectDTO: Content, Validatable {
     }
 }
 
+struct UpdateProjectSlackDTO: Content {
+    var slackWebhookUrl: String?
+    var slackNotifyNewFeedback: Bool?
+    var slackNotifyNewComments: Bool?
+    var slackNotifyStatusChanges: Bool?
+}
+
 struct AddMemberDTO: Content, Validatable {
     let email: String
     let role: ProjectRole
@@ -47,6 +54,10 @@ struct ProjectResponseDTO: Content {
     let memberCount: Int
     let createdAt: Date?
     let updatedAt: Date?
+    let slackWebhookURL: String?
+    let slackNotifyNewFeedback: Bool
+    let slackNotifyNewComments: Bool
+    let slackNotifyStatusChanges: Bool
 
     init(project: Project, feedbackCount: Int = 0, memberCount: Int = 0, ownerEmail: String? = nil) {
         self.id = project.id!
@@ -62,6 +73,10 @@ struct ProjectResponseDTO: Content {
         self.memberCount = memberCount
         self.createdAt = project.createdAt
         self.updatedAt = project.updatedAt
+        self.slackWebhookURL = project.slackWebhookURL
+        self.slackNotifyNewFeedback = project.slackNotifyNewFeedback
+        self.slackNotifyNewComments = project.slackNotifyNewComments
+        self.slackNotifyStatusChanges = project.slackNotifyStatusChanges
     }
 }
 

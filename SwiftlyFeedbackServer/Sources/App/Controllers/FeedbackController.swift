@@ -167,6 +167,24 @@ struct FeedbackController: RouteCollection {
             }
         }
 
+        // Send Slack notification if configured
+        if let webhookURL = project.slackWebhookURL, project.slackNotifyNewFeedback {
+            Task {
+                do {
+                    try await req.slackService.sendNewFeedbackNotification(
+                        webhookURL: webhookURL,
+                        projectName: project.name,
+                        feedbackTitle: feedback.title,
+                        feedbackCategory: feedback.category.rawValue,
+                        feedbackDescription: feedback.description,
+                        userName: nil
+                    )
+                } catch {
+                    req.logger.error("Failed to send Slack notification: \(error)")
+                }
+            }
+        }
+
         return FeedbackResponseDTO(feedback: feedback)
     }
 
@@ -236,6 +254,8 @@ struct FeedbackController: RouteCollection {
         // Send status change notification if status changed
         if let newStatus = dto.status, newStatus != oldStatus {
             let project = feedback.project
+
+            // Send email notification
             Task {
                 do {
                     // Collect emails: feedback submitter (if provided) + voters with emails
@@ -258,6 +278,23 @@ struct FeedbackController: RouteCollection {
                     )
                 } catch {
                     req.logger.error("Failed to send status change notification: \(error)")
+                }
+            }
+
+            // Send Slack notification if configured
+            if let webhookURL = project.slackWebhookURL, project.slackNotifyStatusChanges {
+                Task {
+                    do {
+                        try await req.slackService.sendFeedbackStatusChangeNotification(
+                            webhookURL: webhookURL,
+                            projectName: project.name,
+                            feedbackTitle: feedback.title,
+                            oldStatus: oldStatus.rawValue,
+                            newStatus: newStatus.rawValue
+                        )
+                    } catch {
+                        req.logger.error("Failed to send Slack status notification: \(error)")
+                    }
                 }
             }
         }

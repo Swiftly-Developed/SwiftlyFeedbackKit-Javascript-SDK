@@ -14,6 +14,10 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let memberCount: Int
     let createdAt: Date?
     let updatedAt: Date?
+    let slackWebhookUrl: String?
+    let slackNotifyNewFeedback: Bool
+    let slackNotifyNewComments: Bool
+    let slackNotifyStatusChanges: Bool
 }
 
 struct ProjectListItem: Codable, Identifiable, Sendable {
@@ -78,6 +82,13 @@ struct UpdateProjectRequest: Encodable {
     let name: String?
     let description: String?
     let colorIndex: Int?
+}
+
+struct UpdateProjectSlackRequest: Encodable {
+    let slackWebhookUrl: String?
+    let slackNotifyNewFeedback: Bool?
+    let slackNotifyNewComments: Bool?
+    let slackNotifyStatusChanges: Bool?
 }
 
 struct AddMemberRequest: Encodable {

@@ -63,6 +63,8 @@ Sources/App/
 ├── Migrations/           # Database migrations
 ├── DTOs/                 # Data transfer objects
 ├── Services/             # Business logic services
+│   ├── EmailService.swift    # Email notifications via Resend
+│   └── SlackService.swift    # Slack webhook notifications
 ├── configure.swift       # App configuration
 ├── routes.swift          # Route registration
 └── entrypoint.swift      # Main entry point
@@ -98,6 +100,7 @@ All routes prefixed with `/api/v1`.
 - `POST /projects/:id/archive` - Archive project (owner only)
 - `POST /projects/:id/unarchive` - Unarchive project (owner only)
 - `POST /projects/:id/regenerate-key` - Regenerate API key (owner only)
+- `PATCH /projects/:id/slack` - Update Slack settings (owner/admin only)
 
 ### Project Members (Bearer token required)
 - `GET /projects/:id/members` - List members

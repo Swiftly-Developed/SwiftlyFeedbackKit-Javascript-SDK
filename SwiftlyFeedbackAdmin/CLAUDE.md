@@ -46,7 +46,8 @@ SwiftlyFeedbackAdmin/
 │   │   ├── ProjectDetailView.swift    # Project details & feedback
 │   │   ├── CreateProjectView.swift    # Create new project sheet
 │   │   ├── ProjectMembersView.swift   # Manage members
-│   │   └── AcceptInviteView.swift     # Accept project invite
+│   │   ├── AcceptInviteView.swift     # Accept project invite
+│   │   └── SlackSettingsView.swift    # Configure Slack webhook notifications
 │   ├── Feedback/
 │   │   ├── FeedbackDashboardView.swift # Dashboard with List/Kanban views
 │   │   ├── FeedbackListView.swift      # Feedback list with row view
@@ -208,3 +209,18 @@ Events can be any custom string, plus predefined types:
 - `feedback_detail` - User viewed a feedback detail
 - `submit_feedback` - User viewed the submit feedback form
 - Custom events - Any string defined by the app developer
+
+## Slack Integration
+
+Projects can send notifications to Slack via Incoming Webhooks. Configure in Project Details > Menu (⋯) > Slack Integration.
+
+### SlackSettingsView Features
+- Multiline TextEditor for webhook URL (monospaced font for readability)
+- Toggles for notification types: new feedback, comments, status changes
+- URL validation (must start with `https://hooks.slack.com/`)
+- Remove integration button to clear webhook
+
+### Notification Types
+- **New feedback submitted**: When SDK users submit feedback
+- **New comments**: When comments are added to feedback
+- **Status changes**: When feedback status is updated

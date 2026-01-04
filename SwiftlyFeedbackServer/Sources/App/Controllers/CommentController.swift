@@ -96,6 +96,26 @@ struct CommentController: RouteCollection {
             }
         }
 
+        // Send Slack notification if configured
+        if let webhookURL = project.slackWebhookURL, project.slackNotifyNewComments {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterName = isAdmin ? "Admin" : "User"
+            Task {
+                do {
+                    try await req.slackService.sendNewCommentNotification(
+                        webhookURL: webhookURL,
+                        projectName: project.name,
+                        feedbackTitle: feedback.title,
+                        commentContent: comment.content,
+                        commenterName: commenterName,
+                        isAdmin: isAdmin
+                    )
+                } catch {
+                    req.logger.error("Failed to send Slack comment notification: \(error)")
+                }
+            }
+        }
+
         return CommentResponseDTO(comment: comment)
     }
 
