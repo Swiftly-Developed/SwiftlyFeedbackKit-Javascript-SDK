@@ -30,32 +30,22 @@ struct UsersDashboardView: View {
             }
             .searchable(text: $userViewModel.searchText, prompt: "Search users...")
             .onChange(of: selectedProject) { _, newProject in
-                Logger.view.info("UsersDashboardView: selectedProject changed to \(newProject?.name ?? "nil")")
-                if let project = newProject {
-                    Logger.view.info("UsersDashboardView: Triggering loadUsers for project: \(project.id.uuidString)")
-                    Task {
-                        await userViewModel.loadUsers(projectId: project.id)
-                    }
+                Logger.view.info("UsersDashboardView: selectedProject changed to \(newProject?.name ?? "All Projects")")
+                Task {
+                    await userViewModel.loadUsers(projectId: newProject?.id)
                 }
             }
             .task {
-                Logger.view.info("UsersDashboardView: .task fired - projects count: \(self.projectViewModel.projects.count)")
-                // Auto-select first project if none selected
-                if selectedProject == nil, let first = projectViewModel.projects.first {
-                    Logger.view.info("UsersDashboardView: Auto-selecting first project: \(first.name) (\(first.id.uuidString))")
-                    selectedProject = first
-                } else if selectedProject == nil {
-                    Logger.view.warning("UsersDashboardView: No projects available to auto-select")
-                } else {
-                    Logger.view.debug("UsersDashboardView: Project already selected: \(self.selectedProject?.name ?? "nil")")
+                Logger.view.info("UsersDashboardView: .task fired - loading all projects by default")
+                // Load all projects by default (selectedProject is nil)
+                if userViewModel.users.isEmpty {
+                    await userViewModel.loadUsers(projectId: nil)
                 }
             }
             #if os(iOS)
             .refreshable {
                 Logger.view.info("UsersDashboardView: Pull to refresh triggered")
-                if let project = selectedProject {
-                    await userViewModel.loadUsers(projectId: project.id)
-                }
+                await userViewModel.loadUsers(projectId: selectedProject?.id)
             }
             #endif
             .alert("Error", isPresented: $userViewModel.showError) {
@@ -72,15 +62,29 @@ struct UsersDashboardView: View {
 
     private var projectPicker: some View {
         Menu {
-            if projectViewModel.projects.isEmpty {
-                Text("No projects available")
-            } else {
+            Button {
+                selectedProject = nil
+            } label: {
+                HStack {
+                    Text("All Projects")
+                    if selectedProject == nil {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            }
+
+            if !projectViewModel.projects.isEmpty {
+                Divider()
+
                 ForEach(projectViewModel.projects) { project in
                     Button {
                         selectedProject = project
                     } label: {
                         HStack {
                             Text(project.name)
+                            if project.isArchived {
+                                Image(systemName: "archivebox")
+                            }
                             if selectedProject?.id == project.id {
                                 Image(systemName: "checkmark")
                             }
@@ -100,8 +104,10 @@ struct UsersDashboardView: View {
                     Text(project.name)
                         .fontWeight(.medium)
                 } else {
-                    Image(systemName: "folder")
-                    Text("Select Project")
+                    Image(systemName: "person.2.fill")
+                        .foregroundStyle(.blue)
+                    Text("All Projects")
+                        .fontWeight(.medium)
                 }
                 Image(systemName: "chevron.down")
                     .font(.caption)
@@ -144,9 +150,7 @@ struct UsersDashboardView: View {
 
     @ViewBuilder
     private var dashboardContent: some View {
-        if selectedProject == nil {
-            noProjectSelectedView
-        } else if userViewModel.isLoading && userViewModel.users.isEmpty {
+        if userViewModel.isLoading && userViewModel.users.isEmpty {
             ProgressView("Loading users...")
         } else if userViewModel.users.isEmpty {
             emptyUsersView
@@ -200,14 +204,6 @@ struct UsersDashboardView: View {
     }
 
     // MARK: - Empty States
-
-    private var noProjectSelectedView: some View {
-        ContentUnavailableView {
-            Label("No Project Selected", systemImage: "folder")
-        } description: {
-            Text("Select a project from the dropdown to view its users.")
-        }
-    }
 
     private var emptyUsersView: some View {
         ContentUnavailableView {

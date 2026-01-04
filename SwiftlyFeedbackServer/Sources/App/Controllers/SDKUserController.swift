@@ -12,6 +12,8 @@ struct SDKUserController: RouteCollection {
         let protected = users.grouped(UserToken.authenticator(), User.guardMiddleware())
         protected.get("project", ":projectId", use: getProjectUsers)
         protected.get("project", ":projectId", "stats", use: getProjectUserStats)
+        protected.get("all", use: getAllUsers)
+        protected.get("all", "stats", use: getAllUserStats)
     }
 
     /// Get the project from API key
@@ -138,6 +140,83 @@ struct SDKUserController: RouteCollection {
 
         let sdkUsers = try await SDKUser.query(on: req.db)
             .filter(\.$project.$id == projectId)
+            .all()
+
+        let totalUsers = sdkUsers.count
+        let usersWithMRR = sdkUsers.filter { $0.mrr != nil && $0.mrr! > 0 }
+        let totalMRR = usersWithMRR.reduce(0.0) { $0 + ($1.mrr ?? 0) }
+        let averageMRR = usersWithMRR.isEmpty ? 0 : totalMRR / Double(usersWithMRR.count)
+
+        return SDKUsersStatsDTO(
+            totalUsers: totalUsers,
+            totalMRR: totalMRR,
+            usersWithMRR: usersWithMRR.count,
+            averageMRR: averageMRR
+        )
+    }
+
+    /// Get all SDK users across all projects the user has access to (admin only)
+    @Sendable
+    func getAllUsers(req: Request) async throws -> [SDKUserListResponseDTO] {
+        let user = try req.auth.require(User.self)
+        let userId = try user.requireID()
+
+        // Get all projects the user has access to
+        let memberships = try await ProjectMember.query(on: req.db)
+            .filter(\.$user.$id == userId)
+            .all()
+        let projectIds = memberships.map { $0.$project.id }
+
+        // Get all SDK users for these projects
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id ~~ projectIds)
+            .sort(\.$lastSeenAt, .descending)
+            .all()
+
+        // Get feedback counts per user across all projects
+        let feedbacks = try await Feedback.query(on: req.db)
+            .filter(\.$project.$id ~~ projectIds)
+            .all()
+
+        let feedbackCounts = Dictionary(grouping: feedbacks, by: { $0.userId })
+            .mapValues { $0.count }
+
+        // Get vote counts per user across all projects
+        let votes = try await Vote.query(on: req.db)
+            .join(Feedback.self, on: \Vote.$feedback.$id == \Feedback.$id)
+            .filter(Feedback.self, \.$project.$id ~~ projectIds)
+            .all()
+
+        let voteCounts = Dictionary(grouping: votes, by: { $0.userId })
+            .mapValues { $0.count }
+
+        return sdkUsers.map { sdkUser in
+            SDKUserListResponseDTO(
+                id: sdkUser.id!,
+                userId: sdkUser.userId,
+                mrr: sdkUser.mrr,
+                feedbackCount: feedbackCounts[sdkUser.userId] ?? 0,
+                voteCount: voteCounts[sdkUser.userId] ?? 0,
+                firstSeenAt: sdkUser.firstSeenAt,
+                lastSeenAt: sdkUser.lastSeenAt
+            )
+        }
+    }
+
+    /// Get SDK user statistics across all projects the user has access to (admin only)
+    @Sendable
+    func getAllUserStats(req: Request) async throws -> SDKUsersStatsDTO {
+        let user = try req.auth.require(User.self)
+        let userId = try user.requireID()
+
+        // Get all projects the user has access to
+        let memberships = try await ProjectMember.query(on: req.db)
+            .filter(\.$user.$id == userId)
+            .all()
+        let projectIds = memberships.map { $0.$project.id }
+
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id ~~ projectIds)
             .all()
 
         let totalUsers = sdkUsers.count

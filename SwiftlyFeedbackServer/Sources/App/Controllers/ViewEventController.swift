@@ -13,6 +13,7 @@ struct ViewEventController: RouteCollection {
         let protected = events.grouped(UserToken.authenticator(), User.guardMiddleware())
         protected.get("project", ":projectId", use: getProjectEvents)
         protected.get("project", ":projectId", "stats", use: getProjectEventStats)
+        protected.get("all", "stats", use: getAllEventStats)
     }
 
     /// Get the project from API key
@@ -127,6 +128,57 @@ struct ViewEventController: RouteCollection {
         // Get recent events (last 10)
         let recentEvents = try await ViewEvent.query(on: req.db)
             .filter(\.$project.$id == projectId)
+            .sort(\.$createdAt, .descending)
+            .limit(10)
+            .all()
+            .map { ViewEventResponseDTO(viewEvent: $0) }
+
+        // Calculate daily stats (last 30 days)
+        let dailyStats = calculateDailyStats(events: allEvents, days: 30)
+
+        return ViewEventsOverviewDTO(
+            totalEvents: totalEvents,
+            uniqueUsers: uniqueUsers,
+            eventBreakdown: eventBreakdown,
+            recentEvents: recentEvents,
+            dailyStats: dailyStats
+        )
+    }
+
+    /// Get view event statistics across all projects the user has access to (admin only)
+    @Sendable
+    func getAllEventStats(req: Request) async throws -> ViewEventsOverviewDTO {
+        let user = try req.auth.require(User.self)
+        let userId = try user.requireID()
+
+        // Get all projects the user has access to
+        let memberships = try await ProjectMember.query(on: req.db)
+            .filter(\.$user.$id == userId)
+            .all()
+        let projectIds = memberships.map { $0.$project.id }
+
+        // Get all events for these projects
+        let allEvents = try await ViewEvent.query(on: req.db)
+            .filter(\.$project.$id ~~ projectIds)
+            .all()
+
+        // Calculate totals
+        let totalEvents = allEvents.count
+        let uniqueUsers = Set(allEvents.map { $0.userId }).count
+
+        // Group by event name for breakdown
+        let groupedByName = Dictionary(grouping: allEvents) { $0.eventName }
+        let eventBreakdown = groupedByName.map { eventName, events in
+            ViewEventStatsDTO(
+                eventName: eventName,
+                totalCount: events.count,
+                uniqueUsers: Set(events.map { $0.userId }).count
+            )
+        }.sorted { $0.totalCount > $1.totalCount }
+
+        // Get recent events (last 10) across all projects
+        let recentEvents = try await ViewEvent.query(on: req.db)
+            .filter(\.$project.$id ~~ projectIds)
             .sort(\.$createdAt, .descending)
             .limit(10)
             .all()

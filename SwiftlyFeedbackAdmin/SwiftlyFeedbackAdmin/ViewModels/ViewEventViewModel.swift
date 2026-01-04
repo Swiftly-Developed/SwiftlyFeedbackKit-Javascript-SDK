@@ -53,8 +53,8 @@ final class ViewEventViewModel {
         return result
     }
 
-    func loadEvents(projectId: UUID) async {
-        Logger.viewModel.info("ViewEventViewModel: loadEvents called for projectId: \(projectId.uuidString)")
+    func loadEvents(projectId: UUID? = nil) async {
+        Logger.viewModel.info("ViewEventViewModel: loadEvents called for projectId: \(projectId?.uuidString ?? "all")")
 
         guard !isLoading else {
             Logger.viewModel.warning("ViewEventViewModel: loadEvents skipped - already loading")
@@ -67,7 +67,13 @@ final class ViewEventViewModel {
 
         do {
             Logger.viewModel.info("ViewEventViewModel: Fetching event stats...")
-            let loadedOverview = try await AdminAPIClient.shared.getViewEventStats(projectId: projectId)
+
+            let loadedOverview: ViewEventsOverview
+            if let projectId = projectId {
+                loadedOverview = try await AdminAPIClient.shared.getViewEventStats(projectId: projectId)
+            } else {
+                loadedOverview = try await AdminAPIClient.shared.getAllViewEventStats()
+            }
 
             Logger.viewModel.info("ViewEventViewModel: Successfully loaded overview - totalEvents: \(loadedOverview.totalEvents), uniqueUsers: \(loadedOverview.uniqueUsers)")
             Logger.viewModel.info("ViewEventViewModel: Event breakdown count: \(loadedOverview.eventBreakdown.count)")
@@ -96,10 +102,6 @@ final class ViewEventViewModel {
 
     func refreshEvents() async {
         Logger.viewModel.info("ViewEventViewModel: refreshEvents called")
-        guard let projectId = currentProjectId else {
-            Logger.viewModel.warning("ViewEventViewModel: refreshEvents skipped - no currentProjectId")
-            return
-        }
-        await loadEvents(projectId: projectId)
+        await loadEvents(projectId: currentProjectId)
     }
 }

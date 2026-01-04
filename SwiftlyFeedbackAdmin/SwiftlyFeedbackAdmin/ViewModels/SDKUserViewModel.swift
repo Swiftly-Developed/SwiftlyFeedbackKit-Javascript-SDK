@@ -57,8 +57,8 @@ final class SDKUserViewModel {
         return result
     }
 
-    func loadUsers(projectId: UUID) async {
-        Logger.viewModel.info("SDKUserViewModel: loadUsers called for projectId: \(projectId.uuidString)")
+    func loadUsers(projectId: UUID? = nil) async {
+        Logger.viewModel.info("SDKUserViewModel: loadUsers called for projectId: \(projectId?.uuidString ?? "all")")
 
         guard !isLoading else {
             Logger.viewModel.warning("SDKUserViewModel: loadUsers skipped - already loading")
@@ -71,10 +71,19 @@ final class SDKUserViewModel {
 
         do {
             Logger.viewModel.info("SDKUserViewModel: Fetching users and stats in parallel...")
-            async let usersResult = AdminAPIClient.shared.getSDKUsers(projectId: projectId)
-            async let statsResult = AdminAPIClient.shared.getSDKUserStats(projectId: projectId)
 
-            let (loadedUsers, loadedStats) = try await (usersResult, statsResult)
+            let loadedUsers: [SDKUser]
+            let loadedStats: SDKUserStats
+
+            if let projectId = projectId {
+                async let usersResult = AdminAPIClient.shared.getSDKUsers(projectId: projectId)
+                async let statsResult = AdminAPIClient.shared.getSDKUserStats(projectId: projectId)
+                (loadedUsers, loadedStats) = try await (usersResult, statsResult)
+            } else {
+                async let usersResult = AdminAPIClient.shared.getAllSDKUsers()
+                async let statsResult = AdminAPIClient.shared.getAllSDKUserStats()
+                (loadedUsers, loadedStats) = try await (usersResult, statsResult)
+            }
 
             Logger.viewModel.info("SDKUserViewModel: Successfully loaded \(loadedUsers.count) users")
             Logger.viewModel.info("SDKUserViewModel: Stats - totalUsers: \(loadedStats.totalUsers), totalMrr: \(loadedStats.totalMrr), usersWithMrr: \(loadedStats.usersWithMrr)")
@@ -104,10 +113,6 @@ final class SDKUserViewModel {
 
     func refreshUsers() async {
         Logger.viewModel.info("SDKUserViewModel: refreshUsers called")
-        guard let projectId = currentProjectId else {
-            Logger.viewModel.warning("SDKUserViewModel: refreshUsers skipped - no currentProjectId")
-            return
-        }
-        await loadUsers(projectId: projectId)
+        await loadUsers(projectId: currentProjectId)
     }
 }

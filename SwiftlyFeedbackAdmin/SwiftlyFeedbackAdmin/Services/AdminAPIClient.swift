@@ -425,6 +425,46 @@ actor AdminAPIClient {
         }
     }
 
+    func getAllSDKUsers() async throws -> [SDKUser] {
+        let path = "users/all"
+        logger.info("🔵 GET \(path) (all SDK users)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            logger.debug("📊 All SDK Users - attempting to decode \(data.count) bytes")
+            let decoded = try decoder.decode([SDKUser].self, from: data)
+            logger.info("✅ GET \(path) - decoded \(decoded.count) SDK users")
+            return decoded
+        } catch let decodingError as DecodingError {
+            logger.error("❌ GET \(path) - DecodingError: \(self.describeDecodingError(decodingError))")
+            throw APIError.decodingError(decodingError)
+        } catch {
+            logger.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAllSDKUserStats() async throws -> SDKUserStats {
+        let path = "users/all/stats"
+        logger.info("🔵 GET \(path) (all SDK user stats)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            logger.debug("📊 All SDK User Stats - attempting to decode \(data.count) bytes")
+            let decoded = try decoder.decode(SDKUserStats.self, from: data)
+            logger.info("✅ GET \(path) - decoded SDK user stats: totalUsers=\(decoded.totalUsers), totalMrr=\(decoded.totalMrr)")
+            return decoded
+        } catch let decodingError as DecodingError {
+            logger.error("❌ GET \(path) - DecodingError: \(self.describeDecodingError(decodingError))")
+            throw APIError.decodingError(decodingError)
+        } catch {
+            logger.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     func getSDKUserStats(projectId: UUID) async throws -> SDKUserStats {
         let path = "users/project/\(projectId)/stats"
         logger.info("🔵 GET \(path) (SDK user stats)")
@@ -452,6 +492,26 @@ actor AdminAPIClient {
     }
 
     // MARK: - View Events API
+
+    func getAllViewEventStats() async throws -> ViewEventsOverview {
+        let path = "events/all/stats"
+        logger.info("🔵 GET \(path) (all view event stats)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            logger.debug("📊 All View Event Stats - attempting to decode \(data.count) bytes")
+            let decoded = try decoder.decode(ViewEventsOverview.self, from: data)
+            logger.info("✅ GET \(path) - decoded view event stats: totalEvents=\(decoded.totalEvents), uniqueUsers=\(decoded.uniqueUsers)")
+            return decoded
+        } catch let decodingError as DecodingError {
+            logger.error("❌ GET \(path) - DecodingError: \(self.describeDecodingError(decodingError))")
+            throw APIError.decodingError(decodingError)
+        } catch {
+            logger.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
 
     func getViewEventStats(projectId: UUID) async throws -> ViewEventsOverview {
         let path = "events/project/\(projectId)/stats"

@@ -129,11 +129,14 @@ All routes prefixed with `/api/v1`.
 ### SDK Users (Bearer token required)
 - `GET /users/project/:projectId` - List SDK users for a project
 - `GET /users/project/:projectId/stats` - Get SDK user stats (total users, MRR totals, averages)
+- `GET /users/all` - List SDK users across all projects the user has access to
+- `GET /users/all/stats` - Get aggregated SDK user stats across all projects
 
 ### View Events
 - `POST /events/track` - Track view event (X-API-Key required)
 - `GET /events/project/:projectId` - List recent events (Bearer token required)
 - `GET /events/project/:projectId/stats` - Get event statistics with 30-day daily breakdown (Bearer token required)
+- `GET /events/all/stats` - Get aggregated event statistics across all projects (Bearer token required)
 
 ### Dashboard (Bearer token required)
 - `GET /dashboard/home` - Aggregated KPIs across all user's projects (projects, feedback by status/category, users, comments, votes)

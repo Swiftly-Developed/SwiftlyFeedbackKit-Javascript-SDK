@@ -149,7 +149,8 @@ The `FeedbackDashboardView` provides a dedicated tab for managing feedback acros
 The `UsersDashboardView` provides a dedicated tab for viewing SDK users (end users of apps using SwiftlyFeedbackKit):
 
 ### Features
-- Project picker in toolbar to switch between projects
+- **All Projects** option in toolbar picker to view users across all projects (default)
+- Project picker in toolbar to filter by specific project
 - Stats cards showing: Total Users, Total MRR, Paying Users, Average MRR
 - Search users by user ID
 - Sort by: Last Seen, MRR, Feedback Count, Vote Count
@@ -197,7 +198,8 @@ The `HomeDashboardView` is the first tab displaying key performance indicators a
 The `EventsDashboardView` provides a dedicated tab for viewing SDK view events (screen views and custom events tracked by apps using SwiftlyFeedbackKit):
 
 ### Features
-- Project picker in toolbar to switch between projects
+- **All Projects** option in toolbar picker to view events across all projects (default)
+- Project picker in toolbar to filter by specific project
 - Stats cards showing: Total Events, Unique Users
 - **Daily Events Chart** (Swift Charts) showing 30-day event history with bar visualization
 - Event breakdown showing count and unique users per event type

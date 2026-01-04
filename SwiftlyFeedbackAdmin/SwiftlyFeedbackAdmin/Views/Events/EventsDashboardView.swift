@@ -31,32 +31,22 @@ struct EventsDashboardView: View {
             }
             .searchable(text: $eventViewModel.searchText, prompt: "Search events...")
             .onChange(of: selectedProject) { _, newProject in
-                Logger.view.info("EventsDashboardView: selectedProject changed to \(newProject?.name ?? "nil")")
-                if let project = newProject {
-                    Logger.view.info("EventsDashboardView: Triggering loadEvents for project: \(project.id.uuidString)")
-                    Task {
-                        await eventViewModel.loadEvents(projectId: project.id)
-                    }
+                Logger.view.info("EventsDashboardView: selectedProject changed to \(newProject?.name ?? "All Projects")")
+                Task {
+                    await eventViewModel.loadEvents(projectId: newProject?.id)
                 }
             }
             .task {
-                Logger.view.info("EventsDashboardView: .task fired - projects count: \(self.projectViewModel.projects.count)")
-                // Auto-select first project if none selected
-                if selectedProject == nil, let first = projectViewModel.projects.first {
-                    Logger.view.info("EventsDashboardView: Auto-selecting first project: \(first.name) (\(first.id.uuidString))")
-                    selectedProject = first
-                } else if selectedProject == nil {
-                    Logger.view.warning("EventsDashboardView: No projects available to auto-select")
-                } else {
-                    Logger.view.debug("EventsDashboardView: Project already selected: \(self.selectedProject?.name ?? "nil")")
+                Logger.view.info("EventsDashboardView: .task fired - loading all projects by default")
+                // Load all projects by default (selectedProject is nil)
+                if eventViewModel.overview == nil {
+                    await eventViewModel.loadEvents(projectId: nil)
                 }
             }
             #if os(iOS)
             .refreshable {
                 Logger.view.info("EventsDashboardView: Pull to refresh triggered")
-                if let project = selectedProject {
-                    await eventViewModel.loadEvents(projectId: project.id)
-                }
+                await eventViewModel.loadEvents(projectId: selectedProject?.id)
             }
             #endif
             .alert("Error", isPresented: $eventViewModel.showError) {
@@ -73,15 +63,29 @@ struct EventsDashboardView: View {
 
     private var projectPicker: some View {
         Menu {
-            if projectViewModel.projects.isEmpty {
-                Text("No projects available")
-            } else {
+            Button {
+                selectedProject = nil
+            } label: {
+                HStack {
+                    Text("All Projects")
+                    if selectedProject == nil {
+                        Image(systemName: "checkmark")
+                    }
+                }
+            }
+
+            if !projectViewModel.projects.isEmpty {
+                Divider()
+
                 ForEach(projectViewModel.projects) { project in
                     Button {
                         selectedProject = project
                     } label: {
                         HStack {
                             Text(project.name)
+                            if project.isArchived {
+                                Image(systemName: "archivebox")
+                            }
                             if selectedProject?.id == project.id {
                                 Image(systemName: "checkmark")
                             }
@@ -101,8 +105,10 @@ struct EventsDashboardView: View {
                     Text(project.name)
                         .fontWeight(.medium)
                 } else {
-                    Image(systemName: "folder")
-                    Text("Select Project")
+                    Image(systemName: "chart.bar.fill")
+                        .foregroundStyle(.blue)
+                    Text("All Projects")
+                        .fontWeight(.medium)
                 }
                 Image(systemName: "chevron.down")
                     .font(.caption)
@@ -145,9 +151,7 @@ struct EventsDashboardView: View {
 
     @ViewBuilder
     private var dashboardContent: some View {
-        if selectedProject == nil {
-            noProjectSelectedView
-        } else if eventViewModel.isLoading && eventViewModel.overview == nil {
+        if eventViewModel.isLoading && eventViewModel.overview == nil {
             ProgressView("Loading events...")
         } else if eventViewModel.overview == nil || eventViewModel.overview?.totalEvents == 0 {
             emptyEventsView
@@ -229,14 +233,6 @@ struct EventsDashboardView: View {
     }
 
     // MARK: - Empty States
-
-    private var noProjectSelectedView: some View {
-        ContentUnavailableView {
-            Label("No Project Selected", systemImage: "folder")
-        } description: {
-            Text("Select a project from the dropdown to view its events.")
-        }
-    }
 
     private var emptyEventsView: some View {
         ContentUnavailableView {
