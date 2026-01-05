@@ -477,7 +477,11 @@ struct CommentRowView: View {
                 clickupTaskUrl: nil,
                 clickupTaskId: nil,
                 notionPageUrl: nil,
-                notionPageId: nil
+                notionPageId: nil,
+                mondayItemUrl: nil,
+                mondayItemId: nil,
+                linearIssueUrl: nil,
+                linearIssueId: nil
             ),
             apiKey: "test-key",
             allowedStatuses: [.pending, .approved, .inProgress, .completed, .rejected],

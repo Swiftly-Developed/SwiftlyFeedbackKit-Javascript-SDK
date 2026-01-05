@@ -166,6 +166,55 @@ struct CommentController: RouteCollection {
             }
         }
 
+        // Sync comment to Monday.com if enabled
+        if project.mondaySyncComments,
+           let itemId = feedback.mondayItemId,
+           let token = project.mondayToken {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterType = isAdmin ? "Admin" : "User"
+            let commentText = "[\(commenterType)] \(comment.content)\n\n---\nSynced from SwiftlyFeedback"
+
+            Task {
+                do {
+                    _ = try await req.mondayService.createUpdate(
+                        itemId: itemId,
+                        token: token,
+                        body: commentText
+                    )
+                } catch {
+                    req.logger.error("Failed to sync comment to Monday.com: \(error)")
+                }
+            }
+        }
+
+        // Sync comment to Linear if enabled
+        if project.linearSyncComments,
+           let issueId = feedback.linearIssueId,
+           let token = project.linearToken {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterType = isAdmin ? "Admin" : "User"
+            let commentText = """
+            **[\(commenterType)] Comment:**
+
+            \(comment.content)
+
+            ---
+            _Synced from SwiftlyFeedback_
+            """
+
+            Task {
+                do {
+                    try await req.linearService.createComment(
+                        issueId: issueId,
+                        body: commentText,
+                        token: token
+                    )
+                } catch {
+                    req.logger.error("Failed to sync comment to Linear: \(error)")
+                }
+            }
+        }
+
         return CommentResponseDTO(comment: comment)
     }
 

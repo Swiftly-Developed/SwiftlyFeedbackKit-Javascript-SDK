@@ -136,17 +136,67 @@ struct FeedbackDashboardView: View {
 
             Spacer()
 
-            // GitHub push button (only show if GitHub is configured)
-            if let fullProject = projectViewModel.selectedProject, fullProject.isGitHubConfigured {
-                Button {
-                    Task {
-                        await feedbackViewModel.bulkCreateGitHubIssues(projectId: fullProject.id)
+            // Integration push buttons (only show if configured)
+            if let fullProject = projectViewModel.selectedProject {
+                if fullProject.isGitHubConfigured {
+                    Button {
+                        Task {
+                            await feedbackViewModel.bulkCreateGitHubIssues(projectId: fullProject.id)
+                        }
+                    } label: {
+                        Label("GitHub", systemImage: "arrow.triangle.branch")
                     }
-                } label: {
-                    Label("Push to GitHub", systemImage: "arrow.triangle.branch")
+                    .buttonStyle(.bordered)
+                    .disabled(feedbackViewModel.selectedFeedbacks.allSatisfy { $0.hasGitHubIssue })
                 }
-                .buttonStyle(.bordered)
-                .disabled(feedbackViewModel.selectedFeedbacks.allSatisfy { $0.hasGitHubIssue })
+
+                if fullProject.isClickUpConfigured {
+                    Button {
+                        Task {
+                            await feedbackViewModel.bulkCreateClickUpTasks(projectId: fullProject.id)
+                        }
+                    } label: {
+                        Label("ClickUp", systemImage: "checklist")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(feedbackViewModel.selectedFeedbacks.allSatisfy { $0.hasClickUpTask })
+                }
+
+                if fullProject.isNotionConfigured {
+                    Button {
+                        Task {
+                            await feedbackViewModel.bulkCreateNotionPages(projectId: fullProject.id)
+                        }
+                    } label: {
+                        Label("Notion", systemImage: "doc.text")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(feedbackViewModel.selectedFeedbacks.allSatisfy { $0.hasNotionPage })
+                }
+
+                if fullProject.isMondayConfigured {
+                    Button {
+                        Task {
+                            await feedbackViewModel.bulkCreateMondayItems(projectId: fullProject.id)
+                        }
+                    } label: {
+                        Label("Monday", systemImage: "calendar")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(feedbackViewModel.selectedFeedbacks.allSatisfy { $0.hasMondayItem })
+                }
+
+                if fullProject.isLinearConfigured {
+                    Button {
+                        Task {
+                            await feedbackViewModel.bulkCreateLinearIssues(projectId: fullProject.id)
+                        }
+                    } label: {
+                        Label("Linear", systemImage: "lineweight")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(feedbackViewModel.selectedFeedbacks.allSatisfy { $0.hasLinearIssue })
+                }
             }
 
             Button {
@@ -458,24 +508,106 @@ struct FeedbackDashboardView: View {
 
     @ViewBuilder
     private func feedbackContextMenuItems(for feedback: Feedback) -> some View {
-        // GitHub options
-        if let fullProject = projectViewModel.selectedProject, fullProject.isGitHubConfigured {
-            if feedback.hasGitHubIssue {
-                if let issueUrl = feedback.githubIssueUrl, let url = URL(string: issueUrl) {
-                    Link(destination: url) {
-                        Label("View GitHub Issue", systemImage: "link")
+        // Integration options
+        if let fullProject = projectViewModel.selectedProject {
+            // GitHub options
+            if fullProject.isGitHubConfigured {
+                if feedback.hasGitHubIssue {
+                    if let issueUrl = feedback.githubIssueUrl, let url = URL(string: issueUrl) {
+                        Link(destination: url) {
+                            Label("View GitHub Issue", systemImage: "link")
+                        }
                     }
-                }
-            } else {
-                Button {
-                    Task {
-                        await feedbackViewModel.createGitHubIssue(projectId: fullProject.id, feedbackId: feedback.id)
+                } else {
+                    Button {
+                        Task {
+                            await feedbackViewModel.createGitHubIssue(projectId: fullProject.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to GitHub", systemImage: "arrow.triangle.branch")
                     }
-                } label: {
-                    Label("Push to GitHub", systemImage: "arrow.triangle.branch")
                 }
             }
-            Divider()
+
+            // ClickUp options
+            if fullProject.isClickUpConfigured {
+                if feedback.hasClickUpTask {
+                    if let taskUrl = feedback.clickupTaskUrl, let url = URL(string: taskUrl) {
+                        Link(destination: url) {
+                            Label("View ClickUp Task", systemImage: "link")
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await feedbackViewModel.createClickUpTask(projectId: fullProject.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to ClickUp", systemImage: "checklist")
+                    }
+                }
+            }
+
+            // Notion options
+            if fullProject.isNotionConfigured {
+                if feedback.hasNotionPage {
+                    if let pageUrl = feedback.notionPageUrl, let url = URL(string: pageUrl) {
+                        Link(destination: url) {
+                            Label("View Notion Page", systemImage: "link")
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await feedbackViewModel.createNotionPage(projectId: fullProject.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to Notion", systemImage: "doc.text")
+                    }
+                }
+            }
+
+            // Monday.com options
+            if fullProject.isMondayConfigured {
+                if feedback.hasMondayItem {
+                    if let itemUrl = feedback.mondayItemUrl, let url = URL(string: itemUrl) {
+                        Link(destination: url) {
+                            Label("View Monday Item", systemImage: "link")
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await feedbackViewModel.createMondayItem(projectId: fullProject.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to Monday", systemImage: "calendar")
+                    }
+                }
+            }
+
+            // Linear options
+            if fullProject.isLinearConfigured {
+                if feedback.hasLinearIssue {
+                    if let issueUrl = feedback.linearIssueUrl, let url = URL(string: issueUrl) {
+                        Link(destination: url) {
+                            Label("View Linear Issue", systemImage: "link")
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await feedbackViewModel.createLinearIssue(projectId: fullProject.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to Linear", systemImage: "lineweight")
+                    }
+                }
+            }
+
+            if fullProject.isGitHubConfigured || fullProject.isClickUpConfigured || fullProject.isNotionConfigured || fullProject.isMondayConfigured || fullProject.isLinearConfigured {
+                Divider()
+            }
         }
 
         // Merge option (shows when this + selected >= 2)
@@ -733,24 +865,106 @@ struct DashboardKanbanColumnView: View {
 
     @ViewBuilder
     private func kanbanContextMenuItems(for feedback: Feedback) -> some View {
-        // GitHub options
-        if let project = project, project.isGitHubConfigured {
-            if feedback.hasGitHubIssue {
-                if let issueUrl = feedback.githubIssueUrl, let url = URL(string: issueUrl) {
-                    Link(destination: url) {
-                        Label("View GitHub Issue", systemImage: "link")
+        // Integration options
+        if let project = project {
+            // GitHub options
+            if project.isGitHubConfigured {
+                if feedback.hasGitHubIssue {
+                    if let issueUrl = feedback.githubIssueUrl, let url = URL(string: issueUrl) {
+                        Link(destination: url) {
+                            Label("View GitHub Issue", systemImage: "link")
+                        }
                     }
-                }
-            } else {
-                Button {
-                    Task {
-                        await viewModel.createGitHubIssue(projectId: project.id, feedbackId: feedback.id)
+                } else {
+                    Button {
+                        Task {
+                            await viewModel.createGitHubIssue(projectId: project.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to GitHub", systemImage: "arrow.triangle.branch")
                     }
-                } label: {
-                    Label("Push to GitHub", systemImage: "arrow.triangle.branch")
                 }
             }
-            Divider()
+
+            // ClickUp options
+            if project.isClickUpConfigured {
+                if feedback.hasClickUpTask {
+                    if let taskUrl = feedback.clickupTaskUrl, let url = URL(string: taskUrl) {
+                        Link(destination: url) {
+                            Label("View ClickUp Task", systemImage: "link")
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await viewModel.createClickUpTask(projectId: project.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to ClickUp", systemImage: "checklist")
+                    }
+                }
+            }
+
+            // Notion options
+            if project.isNotionConfigured {
+                if feedback.hasNotionPage {
+                    if let pageUrl = feedback.notionPageUrl, let url = URL(string: pageUrl) {
+                        Link(destination: url) {
+                            Label("View Notion Page", systemImage: "link")
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await viewModel.createNotionPage(projectId: project.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to Notion", systemImage: "doc.text")
+                    }
+                }
+            }
+
+            // Monday.com options
+            if project.isMondayConfigured {
+                if feedback.hasMondayItem {
+                    if let itemUrl = feedback.mondayItemUrl, let url = URL(string: itemUrl) {
+                        Link(destination: url) {
+                            Label("View Monday Item", systemImage: "link")
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await viewModel.createMondayItem(projectId: project.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to Monday", systemImage: "calendar")
+                    }
+                }
+            }
+
+            // Linear options
+            if project.isLinearConfigured {
+                if feedback.hasLinearIssue {
+                    if let issueUrl = feedback.linearIssueUrl, let url = URL(string: issueUrl) {
+                        Link(destination: url) {
+                            Label("View Linear Issue", systemImage: "link")
+                        }
+                    }
+                } else {
+                    Button {
+                        Task {
+                            await viewModel.createLinearIssue(projectId: project.id, feedbackId: feedback.id)
+                        }
+                    } label: {
+                        Label("Push to Linear", systemImage: "lineweight")
+                    }
+                }
+            }
+
+            if project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured || project.isLinearConfigured {
+                Divider()
+            }
         }
 
         // Merge option
@@ -831,6 +1045,18 @@ struct DashboardKanbanCardView: View {
                 }
                 if feedback.hasGitHubIssue {
                     GitHubBadge()
+                }
+                if feedback.hasClickUpTask {
+                    ClickUpBadge()
+                }
+                if feedback.hasNotionPage {
+                    NotionBadge()
+                }
+                if feedback.hasMondayItem {
+                    MondayBadge()
+                }
+                if feedback.hasLinearIssue {
+                    LinearBadge()
                 }
                 Spacer()
                 if isSelected {

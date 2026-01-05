@@ -614,6 +614,217 @@ When enabled, feedback status changes map to ClickUp statuses:
 - **View task**: Right-click feedback with task > "View ClickUp Task"
 - **Badge**: Feedback cards show purple ClickUp badge when linked to a task
 
+## Linear Integration
+
+Projects can push feedback items to Linear as issues for tracking in your product development workflow. Configuration is done per-project in the Admin app.
+
+### Setup
+1. Get your Linear Personal API Key from Settings > API
+2. In Admin app: Project Details > Menu (⋯) > Linear Integration
+3. Enter your API token and select the target team via the picker
+4. Optionally select a project and configure default labels, status sync, and comment sync
+
+### Features
+- **Create Issue**: Push individual feedback to Linear as an issue
+- **Bulk Create**: Push multiple selected feedback items at once
+- **Status Sync**: Automatically update Linear issue workflow state when feedback status changes
+- **Comment Sync**: Sync comments from SwiftlyFeedback to Linear issues
+- **Link Tracking**: Linear issue URL stored on feedback for quick access
+
+### Issue Creation
+When feedback is pushed to Linear:
+- Issue title = Feedback title
+- Issue description (markdown) includes description, category, vote count, MRR, and submitter email
+- Labels: default labels configured in settings
+- Issue identifier (e.g., "ENG-123") stored for reference
+- Feedback card shows Linear badge with link to issue
+
+### Status Sync (Optional)
+When enabled, feedback status changes map to Linear workflow state types:
+- **pending** → `backlog`
+- **approved** → `unstarted`
+- **in_progress** → `started`
+- **testflight** → `started`
+- **completed** → `completed`
+- **rejected** → `canceled`
+
+Note: Linear finds the matching workflow state by type within the configured team.
+
+### Server Endpoints
+- `PATCH /projects/:id/linear` - Update Linear settings (bearer auth, owner/admin only)
+- `POST /projects/:id/linear/issue` - Create single issue (bearer auth, owner/admin only)
+- `POST /projects/:id/linear/issues` - Bulk create issues (bearer auth, owner/admin only)
+- `GET /projects/:id/linear/teams` - Get teams for picker
+- `GET /projects/:id/linear/projects/:teamId` - Get projects in team
+- `GET /projects/:id/linear/states/:teamId` - Get workflow states
+- `GET /projects/:id/linear/labels/:teamId` - Get labels
+
+**Update settings request:**
+```json
+{
+  "linear_token": "lin_api_...",
+  "linear_team_id": "abc123",
+  "linear_team_name": "Engineering",
+  "linear_project_id": "def456",
+  "linear_project_name": "Feedback",
+  "linear_default_label_ids": ["label1", "label2"],
+  "linear_sync_status": true,
+  "linear_sync_comments": true
+}
+```
+
+**Create issue request:**
+```json
+{
+  "feedback_id": "uuid",
+  "additional_label_ids": ["label3"]
+}
+```
+
+**Create issue response:**
+```json
+{
+  "feedback_id": "uuid",
+  "issue_url": "https://linear.app/team/issue/ENG-123",
+  "issue_id": "abc123",
+  "identifier": "ENG-123"
+}
+```
+
+### Database Fields
+
+**Project model:**
+- `linear_token` (String?, optional) - Linear Personal API Key
+- `linear_team_id` (String?, optional) - Target team ID
+- `linear_team_name` (String?, optional) - Team name for display
+- `linear_project_id` (String?, optional) - Target project ID (optional)
+- `linear_project_name` (String?, optional) - Project name for display
+- `linear_default_label_ids` ([String]?, optional) - Label IDs applied to all issues
+- `linear_sync_status` (Bool, default: false) - Enable status sync
+- `linear_sync_comments` (Bool, default: false) - Enable comment sync
+
+**Feedback model:**
+- `linear_issue_url` (String?, optional) - URL of linked Linear issue
+- `linear_issue_id` (String?, optional) - Issue ID for API calls
+
+### Admin App UI
+- **Settings**: Project Details > Menu (⋯) > Linear Integration
+- **Push single**: Right-click feedback > "Push to Linear"
+- **Push bulk**: Select multiple items > "Push to Linear" button in action bar
+- **View issue**: Right-click feedback with issue > "View Linear Issue"
+- **Badge**: Feedback cards show purple Linear icon (arrow.triangle.branch) when linked to an issue
+
+### Linear API Details
+- **Base URL**: `https://api.linear.app/graphql` (GraphQL)
+- **Auth Header**: `Authorization: Bearer {token}`
+- **Content-Type**: `application/json`
+- **Tokens don't expire**: Users authorize once
+
+## Monday.com Integration
+
+Projects can push feedback items to Monday.com as board items for tracking in your project management workflow. Configuration is done per-project in the Admin app.
+
+### Setup
+1. Get your Monday.com API token from Settings > Developers > My Access Tokens
+2. In Admin app: Project Details > Menu (⋯) > Monday.com Integration
+3. Enter your API token and select the target board via the picker
+4. Optionally select a group and configure status sync, comment sync, and vote count sync
+
+### Features
+- **Create Item**: Push individual feedback to Monday.com as a board item
+- **Bulk Create**: Push multiple selected feedback items at once
+- **Status Sync**: Automatically update Monday.com item status when feedback status changes
+- **Comment Sync**: Sync comments from SwiftlyFeedback to Monday.com items (as updates)
+- **Vote Count Sync**: Update a number column with vote count when users vote
+- **Link Tracking**: Monday.com item URL stored on feedback for quick access
+
+### Item Creation
+When feedback is pushed to Monday.com:
+- Item name = Feedback title
+- Item description includes description, category, vote count, MRR, and submitter email
+- Feedback card shows Monday.com badge with link to item
+
+### Status Sync (Optional)
+When enabled, feedback status changes map to Monday.com statuses:
+- **pending** → "Pending"
+- **approved** → "Approved"
+- **in_progress** → "Working on it"
+- **testflight** → "In Review"
+- **completed** → "Done"
+- **rejected** → "Stuck"
+
+Note: Status labels must exist in your Monday.com board's Status column.
+
+### Server Endpoints
+- `PATCH /projects/:id/monday` - Update Monday.com settings (bearer auth, owner/admin only)
+- `POST /projects/:id/monday/item` - Create single item (bearer auth, owner/admin only)
+- `POST /projects/:id/monday/items` - Bulk create items (bearer auth, owner/admin only)
+- `GET /projects/:id/monday/boards` - Get accessible boards for picker
+- `GET /projects/:id/monday/boards/:boardId/groups` - Get groups in board
+- `GET /projects/:id/monday/boards/:boardId/columns` - Get columns in board
+
+**Update settings request:**
+```json
+{
+  "monday_token": "...",
+  "monday_board_id": "12345",
+  "monday_board_name": "Feedback Board",
+  "monday_group_id": "new_group",
+  "monday_group_name": "New Items",
+  "monday_sync_status": true,
+  "monday_sync_comments": true,
+  "monday_status_column_id": "status",
+  "monday_votes_column_id": "numbers"
+}
+```
+
+**Create item request:**
+```json
+{
+  "feedback_id": "uuid"
+}
+```
+
+**Create item response:**
+```json
+{
+  "feedback_id": "uuid",
+  "item_url": "https://monday.com/boards/12345/pulses/67890",
+  "item_id": "67890"
+}
+```
+
+### Database Fields
+
+**Project model:**
+- `monday_token` (String?, optional) - Monday.com API token
+- `monday_board_id` (String?, optional) - Target board ID
+- `monday_board_name` (String?, optional) - Board name for display
+- `monday_group_id` (String?, optional) - Target group ID within board
+- `monday_group_name` (String?, optional) - Group name for display
+- `monday_sync_status` (Bool, default: false) - Enable status sync
+- `monday_sync_comments` (Bool, default: false) - Enable comment sync
+- `monday_status_column_id` (String?, optional) - Column ID for status sync
+- `monday_votes_column_id` (String?, optional) - Column ID for vote count sync
+
+**Feedback model:**
+- `monday_item_url` (String?, optional) - URL of linked Monday.com item
+- `monday_item_id` (String?, optional) - Item ID for API calls
+
+### Admin App UI
+- **Settings**: Project Details > Menu (⋯) > Monday.com Integration
+- **Push single**: Right-click feedback > "Push to Monday"
+- **Push bulk**: Select multiple items > "Monday" button in action bar
+- **View item**: Right-click feedback with item > "View Monday Item"
+- **Badge**: Feedback cards show red Monday.com badge when linked to an item
+
+### Monday.com API Details
+- **Base URL**: `https://api.monday.com/v2` (GraphQL)
+- **Auth Header**: `Authorization: {token}` (no "Bearer" prefix)
+- **API Version Header**: `API-Version: 2024-10`
+- **Rate Limit**: 1,000-5,000 requests/minute depending on plan
+- **Tokens don't expire**: Users authorize once
+
 ## Feedback Merging
 
 Admins can merge duplicate feedback items to consolidate similar requests. This helps get an accurate picture of demand while keeping vote counts and comments organized.

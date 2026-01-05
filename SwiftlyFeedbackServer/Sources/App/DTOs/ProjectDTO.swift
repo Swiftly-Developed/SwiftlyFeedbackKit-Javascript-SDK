@@ -170,6 +170,116 @@ struct NotionPropertyDTO: Content {
     var type: String
 }
 
+// MARK: - Monday.com Integration DTOs
+
+struct UpdateProjectMondayDTO: Content {
+    var mondayToken: String?
+    var mondayBoardId: String?
+    var mondayBoardName: String?
+    var mondayGroupId: String?
+    var mondayGroupName: String?
+    var mondaySyncStatus: Bool?
+    var mondaySyncComments: Bool?
+    var mondayStatusColumnId: String?
+    var mondayVotesColumnId: String?
+}
+
+struct CreateMondayItemDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateMondayItemResponseDTO: Content {
+    var feedbackId: UUID
+    var itemUrl: String
+    var itemId: String
+}
+
+struct BulkCreateMondayItemsDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateMondayItemsResponseDTO: Content {
+    var created: [CreateMondayItemResponseDTO]
+    var failed: [UUID]
+}
+
+struct MondayBoardDTO: Content {
+    var id: String
+    var name: String
+}
+
+struct MondayGroupDTO: Content {
+    var id: String
+    var title: String
+}
+
+struct MondayColumnDTO: Content {
+    var id: String
+    var title: String
+    var type: String
+}
+
+// MARK: - Linear Integration DTOs
+
+struct UpdateProjectLinearDTO: Content {
+    var linearToken: String?
+    var linearTeamId: String?
+    var linearTeamName: String?
+    var linearProjectId: String?
+    var linearProjectName: String?
+    var linearDefaultLabelIds: [String]?
+    var linearSyncStatus: Bool?
+    var linearSyncComments: Bool?
+}
+
+struct CreateLinearIssueDTO: Content {
+    var feedbackId: UUID
+    var additionalLabelIds: [String]?
+}
+
+struct CreateLinearIssueResponseDTO: Content {
+    var feedbackId: UUID
+    var issueUrl: String
+    var issueId: String
+    var identifier: String
+}
+
+struct BulkCreateLinearIssuesDTO: Content {
+    var feedbackIds: [UUID]
+    var additionalLabelIds: [String]?
+}
+
+struct BulkCreateLinearIssuesResponseDTO: Content {
+    var created: [CreateLinearIssueResponseDTO]
+    var failed: [UUID]
+}
+
+// Linear hierarchy DTOs for settings UI
+struct LinearTeamDTO: Content {
+    var id: String
+    var name: String
+    var key: String
+}
+
+struct LinearProjectDTO: Content {
+    var id: String
+    var name: String
+    var state: String
+}
+
+struct LinearWorkflowStateDTO: Content {
+    var id: String
+    var name: String
+    var type: String
+    var position: Double
+}
+
+struct LinearLabelDTO: Content {
+    var id: String
+    var name: String
+    var color: String
+}
+
 struct AddMemberDTO: Content, Validatable {
     let email: String
     let role: ProjectRole
@@ -225,6 +335,25 @@ struct ProjectResponseDTO: Content {
     let notionSyncComments: Bool
     let notionStatusProperty: String?
     let notionVotesProperty: String?
+    // Monday.com integration fields
+    let mondayToken: String?
+    let mondayBoardId: String?
+    let mondayBoardName: String?
+    let mondayGroupId: String?
+    let mondayGroupName: String?
+    let mondaySyncStatus: Bool
+    let mondaySyncComments: Bool
+    let mondayStatusColumnId: String?
+    let mondayVotesColumnId: String?
+    // Linear integration fields
+    let linearToken: String?
+    let linearTeamId: String?
+    let linearTeamName: String?
+    let linearProjectId: String?
+    let linearProjectName: String?
+    let linearDefaultLabelIds: [String]?
+    let linearSyncStatus: Bool
+    let linearSyncComments: Bool
 
     init(project: Project, feedbackCount: Int = 0, memberCount: Int = 0, ownerEmail: String? = nil) {
         self.id = project.id!
@@ -265,6 +394,23 @@ struct ProjectResponseDTO: Content {
         self.notionSyncComments = project.notionSyncComments
         self.notionStatusProperty = project.notionStatusProperty
         self.notionVotesProperty = project.notionVotesProperty
+        self.mondayToken = project.mondayToken
+        self.mondayBoardId = project.mondayBoardId
+        self.mondayBoardName = project.mondayBoardName
+        self.mondayGroupId = project.mondayGroupId
+        self.mondayGroupName = project.mondayGroupName
+        self.mondaySyncStatus = project.mondaySyncStatus
+        self.mondaySyncComments = project.mondaySyncComments
+        self.mondayStatusColumnId = project.mondayStatusColumnId
+        self.mondayVotesColumnId = project.mondayVotesColumnId
+        self.linearToken = project.linearToken
+        self.linearTeamId = project.linearTeamId
+        self.linearTeamName = project.linearTeamName
+        self.linearProjectId = project.linearProjectId
+        self.linearProjectName = project.linearProjectName
+        self.linearDefaultLabelIds = project.linearDefaultLabelIds
+        self.linearSyncStatus = project.linearSyncStatus
+        self.linearSyncComments = project.linearSyncComments
     }
 }
 

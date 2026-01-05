@@ -43,6 +43,12 @@ struct FeedbackResponseDTO: Content {
     // Notion integration fields
     let notionPageUrl: String?
     let notionPageId: String?
+    // Monday.com integration fields
+    let mondayItemUrl: String?
+    let mondayItemId: String?
+    // Linear integration fields
+    let linearIssueUrl: String?
+    let linearIssueId: String?
 
     init(feedback: Feedback, hasVoted: Bool = false, commentCount: Int = 0, totalMrr: Double? = nil) {
         self.id = feedback.id!
@@ -67,5 +73,9 @@ struct FeedbackResponseDTO: Content {
         self.clickupTaskId = feedback.clickupTaskId
         self.notionPageUrl = feedback.notionPageURL
         self.notionPageId = feedback.notionPageId
+        self.mondayItemUrl = feedback.mondayItemURL
+        self.mondayItemId = feedback.mondayItemId
+        self.linearIssueUrl = feedback.linearIssueURL
+        self.linearIssueId = feedback.linearIssueId
     }
 }

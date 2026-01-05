@@ -56,6 +56,23 @@ struct ProjectController: RouteCollection {
         protected.get(":projectId", "notion", "databases", use: getNotionDatabases)
         protected.get(":projectId", "notion", "database", ":databaseId", "properties", use: getNotionDatabaseProperties)
 
+        // Monday.com integration
+        protected.patch(":projectId", "monday", use: updateMondaySettings)
+        protected.post(":projectId", "monday", "item", use: createMondayItem)
+        protected.post(":projectId", "monday", "items", use: bulkCreateMondayItems)
+        protected.get(":projectId", "monday", "boards", use: getMondayBoards)
+        protected.get(":projectId", "monday", "boards", ":boardId", "groups", use: getMondayGroups)
+        protected.get(":projectId", "monday", "boards", ":boardId", "columns", use: getMondayColumns)
+
+        // Linear integration
+        protected.patch(":projectId", "linear", use: updateLinearSettings)
+        protected.post(":projectId", "linear", "issue", use: createLinearIssue)
+        protected.post(":projectId", "linear", "issues", use: bulkCreateLinearIssues)
+        protected.get(":projectId", "linear", "teams", use: getLinearTeams)
+        protected.get(":projectId", "linear", "projects", ":teamId", use: getLinearProjects)
+        protected.get(":projectId", "linear", "states", ":teamId", use: getLinearWorkflowStates)
+        protected.get(":projectId", "linear", "labels", ":teamId", use: getLinearLabels)
+
         // Invite management
         protected.get(":projectId", "invites", use: listInvites)
         protected.delete(":projectId", "invites", ":inviteId", use: cancelInvite)
@@ -1463,6 +1480,576 @@ struct ProjectController: RouteCollection {
                 NotionPropertyDTO(id: prop.id, name: name, type: prop.type)
             }
         )
+    }
+
+    // MARK: - Monday.com Integration
+
+    @Sendable
+    func updateMondaySettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectMondayDTO.self)
+
+        if let token = dto.mondayToken {
+            project.mondayToken = token.isEmpty ? nil : token
+        }
+        if let boardId = dto.mondayBoardId {
+            project.mondayBoardId = boardId.isEmpty ? nil : boardId
+        }
+        if let boardName = dto.mondayBoardName {
+            project.mondayBoardName = boardName.isEmpty ? nil : boardName
+        }
+        if let groupId = dto.mondayGroupId {
+            project.mondayGroupId = groupId.isEmpty ? nil : groupId
+        }
+        if let groupName = dto.mondayGroupName {
+            project.mondayGroupName = groupName.isEmpty ? nil : groupName
+        }
+        if let syncStatus = dto.mondaySyncStatus {
+            project.mondaySyncStatus = syncStatus
+        }
+        if let syncComments = dto.mondaySyncComments {
+            project.mondaySyncComments = syncComments
+        }
+        if let statusColumnId = dto.mondayStatusColumnId {
+            project.mondayStatusColumnId = statusColumnId.isEmpty ? nil : statusColumnId
+        }
+        if let votesColumnId = dto.mondayVotesColumnId {
+            project.mondayVotesColumnId = votesColumnId.isEmpty ? nil : votesColumnId
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count,
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createMondayItem(req: Request) async throws -> CreateMondayItemResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.mondayToken,
+              let boardId = project.mondayBoardId else {
+            throw Abort(.badRequest, reason: "Monday.com integration not configured")
+        }
+
+        let dto = try req.content.decode(CreateMondayItemDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.mondayItemURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has a Monday.com item")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        // Create the item
+        let item = try await req.mondayService.createItem(
+            boardId: boardId,
+            groupId: project.mondayGroupId,
+            token: token,
+            name: feedback.title
+        )
+
+        // Build URL
+        let itemUrl = req.mondayService.buildItemURL(boardId: boardId, itemId: item.id)
+
+        // Save link to feedback
+        feedback.mondayItemURL = itemUrl
+        feedback.mondayItemId = item.id
+        try await feedback.save(on: req.db)
+
+        // Create initial update (comment) with description
+        let description = req.mondayService.buildItemDescription(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        Task {
+            _ = try? await req.mondayService.createUpdate(
+                itemId: item.id,
+                token: token,
+                body: description
+            )
+
+            // Sync initial vote count if votes column is configured
+            if let votesColumnId = project.mondayVotesColumnId {
+                try? await req.mondayService.updateItemNumber(
+                    boardId: boardId,
+                    itemId: item.id,
+                    columnId: votesColumnId,
+                    token: token,
+                    value: feedback.voteCount
+                )
+            }
+
+            // Set initial status if status column is configured
+            if let statusColumnId = project.mondayStatusColumnId {
+                try? await req.mondayService.updateItemStatus(
+                    boardId: boardId,
+                    itemId: item.id,
+                    columnId: statusColumnId,
+                    token: token,
+                    status: feedback.status.mondayStatusName
+                )
+            }
+        }
+
+        return CreateMondayItemResponseDTO(
+            feedbackId: feedback.id!,
+            itemUrl: itemUrl,
+            itemId: item.id
+        )
+    }
+
+    @Sendable
+    func bulkCreateMondayItems(req: Request) async throws -> BulkCreateMondayItemsResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.mondayToken,
+              let boardId = project.mondayBoardId else {
+            throw Abort(.badRequest, reason: "Monday.com integration not configured")
+        }
+
+        let dto = try req.content.decode(BulkCreateMondayItemsDTO.self)
+
+        var created: [CreateMondayItemResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.mondayItemURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let item = try await req.mondayService.createItem(
+                    boardId: boardId,
+                    groupId: project.mondayGroupId,
+                    token: token,
+                    name: feedback.title
+                )
+
+                let itemUrl = req.mondayService.buildItemURL(boardId: boardId, itemId: item.id)
+
+                feedback.mondayItemURL = itemUrl
+                feedback.mondayItemId = item.id
+                try await feedback.save(on: req.db)
+
+                // Create update with description (fire and forget)
+                let description = req.mondayService.buildItemDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                Task {
+                    _ = try? await req.mondayService.createUpdate(
+                        itemId: item.id,
+                        token: token,
+                        body: description
+                    )
+                }
+
+                created.append(CreateMondayItemResponseDTO(
+                    feedbackId: feedback.id!,
+                    itemUrl: itemUrl,
+                    itemId: item.id
+                ))
+            } catch {
+                req.logger.error("Failed to create Monday.com item for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateMondayItemsResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getMondayBoards(req: Request) async throws -> [MondayBoardDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.mondayToken else {
+            throw Abort(.badRequest, reason: "Monday.com token not configured")
+        }
+
+        let boards = try await req.mondayService.getBoards(token: token)
+        return boards.map { MondayBoardDTO(id: $0.id, name: $0.name) }
+    }
+
+    @Sendable
+    func getMondayGroups(req: Request) async throws -> [MondayGroupDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.mondayToken else {
+            throw Abort(.badRequest, reason: "Monday.com token not configured")
+        }
+
+        guard let boardId = req.parameters.get("boardId") else {
+            throw Abort(.badRequest, reason: "Board ID required")
+        }
+
+        let groups = try await req.mondayService.getGroups(boardId: boardId, token: token)
+        return groups.map { MondayGroupDTO(id: $0.id, title: $0.title) }
+    }
+
+    @Sendable
+    func getMondayColumns(req: Request) async throws -> [MondayColumnDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.mondayToken else {
+            throw Abort(.badRequest, reason: "Monday.com token not configured")
+        }
+
+        guard let boardId = req.parameters.get("boardId") else {
+            throw Abort(.badRequest, reason: "Board ID required")
+        }
+
+        let columns = try await req.mondayService.getColumns(boardId: boardId, token: token)
+        return columns.map { MondayColumnDTO(id: $0.id, title: $0.title, type: $0.type) }
+    }
+
+    // MARK: - Linear Integration
+
+    @Sendable
+    func updateLinearSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectLinearDTO.self)
+
+        if let token = dto.linearToken {
+            project.linearToken = token.isEmpty ? nil : token
+        }
+        if let teamId = dto.linearTeamId {
+            project.linearTeamId = teamId.isEmpty ? nil : teamId
+        }
+        if let teamName = dto.linearTeamName {
+            project.linearTeamName = teamName.isEmpty ? nil : teamName
+        }
+        if let projectId = dto.linearProjectId {
+            project.linearProjectId = projectId.isEmpty ? nil : projectId
+        }
+        if let projectName = dto.linearProjectName {
+            project.linearProjectName = projectName.isEmpty ? nil : projectName
+        }
+        if let labelIds = dto.linearDefaultLabelIds {
+            project.linearDefaultLabelIds = labelIds.isEmpty ? nil : labelIds
+        }
+        if let syncStatus = dto.linearSyncStatus {
+            project.linearSyncStatus = syncStatus
+        }
+        if let syncComments = dto.linearSyncComments {
+            project.linearSyncComments = syncComments
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count,
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createLinearIssue(req: Request) async throws -> CreateLinearIssueResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.linearToken,
+              let teamId = project.linearTeamId else {
+            throw Abort(.badRequest, reason: "Linear integration not configured")
+        }
+
+        let dto = try req.content.decode(CreateLinearIssueDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.linearIssueURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has a Linear issue")
+        }
+
+        // Build label IDs
+        var labelIds = project.linearDefaultLabelIds ?? []
+        if let additional = dto.additionalLabelIds {
+            labelIds.append(contentsOf: additional)
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        let description = req.linearService.buildIssueDescription(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        let issue = try await req.linearService.createIssue(
+            teamId: teamId,
+            projectId: project.linearProjectId,
+            title: feedback.title,
+            description: description,
+            labelIds: labelIds.isEmpty ? nil : labelIds,
+            token: token
+        )
+
+        feedback.linearIssueURL = issue.url
+        feedback.linearIssueId = issue.id
+        try await feedback.save(on: req.db)
+
+        return CreateLinearIssueResponseDTO(
+            feedbackId: feedback.id!,
+            issueUrl: issue.url,
+            issueId: issue.id,
+            identifier: issue.identifier
+        )
+    }
+
+    @Sendable
+    func bulkCreateLinearIssues(req: Request) async throws -> BulkCreateLinearIssuesResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.linearToken,
+              let teamId = project.linearTeamId else {
+            throw Abort(.badRequest, reason: "Linear integration not configured")
+        }
+
+        let dto = try req.content.decode(BulkCreateLinearIssuesDTO.self)
+
+        var created: [CreateLinearIssueResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.linearIssueURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                var labelIds = project.linearDefaultLabelIds ?? []
+                if let additional = dto.additionalLabelIds {
+                    labelIds.append(contentsOf: additional)
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let description = req.linearService.buildIssueDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                let issue = try await req.linearService.createIssue(
+                    teamId: teamId,
+                    projectId: project.linearProjectId,
+                    title: feedback.title,
+                    description: description,
+                    labelIds: labelIds.isEmpty ? nil : labelIds,
+                    token: token
+                )
+
+                feedback.linearIssueURL = issue.url
+                feedback.linearIssueId = issue.id
+                try await feedback.save(on: req.db)
+
+                created.append(CreateLinearIssueResponseDTO(
+                    feedbackId: feedback.id!,
+                    issueUrl: issue.url,
+                    issueId: issue.id,
+                    identifier: issue.identifier
+                ))
+            } catch {
+                req.logger.error("Failed to create Linear issue for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateLinearIssuesResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getLinearTeams(req: Request) async throws -> [LinearTeamDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.linearToken else {
+            throw Abort(.badRequest, reason: "Linear token not configured")
+        }
+
+        let teams = try await req.linearService.getTeams(token: token)
+        return teams.map { LinearTeamDTO(id: $0.id, name: $0.name, key: $0.key) }
+    }
+
+    @Sendable
+    func getLinearProjects(req: Request) async throws -> [LinearProjectDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.linearToken else {
+            throw Abort(.badRequest, reason: "Linear token not configured")
+        }
+
+        guard let teamId = req.parameters.get("teamId") else {
+            throw Abort(.badRequest, reason: "Team ID required")
+        }
+
+        let projects = try await req.linearService.getProjects(teamId: teamId, token: token)
+        return projects.map { LinearProjectDTO(id: $0.id, name: $0.name, state: $0.state) }
+    }
+
+    @Sendable
+    func getLinearWorkflowStates(req: Request) async throws -> [LinearWorkflowStateDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.linearToken else {
+            throw Abort(.badRequest, reason: "Linear token not configured")
+        }
+
+        guard let teamId = req.parameters.get("teamId") else {
+            throw Abort(.badRequest, reason: "Team ID required")
+        }
+
+        let states = try await req.linearService.getWorkflowStates(teamId: teamId, token: token)
+        return states.map { LinearWorkflowStateDTO(id: $0.id, name: $0.name, type: $0.type, position: $0.position) }
+    }
+
+    @Sendable
+    func getLinearLabels(req: Request) async throws -> [LinearLabelDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.linearToken else {
+            throw Abort(.badRequest, reason: "Linear token not configured")
+        }
+
+        guard let teamId = req.parameters.get("teamId") else {
+            throw Abort(.badRequest, reason: "Team ID required")
+        }
+
+        let labels = try await req.linearService.getLabels(teamId: teamId, token: token)
+        return labels.map { LinearLabelDTO(id: $0.id, name: $0.name, color: $0.color) }
     }
 
     // MARK: - Helpers

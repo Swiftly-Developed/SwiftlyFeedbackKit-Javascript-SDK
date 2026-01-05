@@ -641,4 +641,146 @@ final class FeedbackViewModel {
             return false
         }
     }
+
+    // MARK: - Monday.com Integration
+
+    func createMondayItem(projectId: UUID, feedbackId: UUID) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.createMondayItem(
+                projectId: projectId,
+                feedbackId: feedbackId
+            )
+
+            // Refresh to get updated Monday fields
+            await refreshFeedbacks()
+
+            AppLogger.viewModel.info("✅ Monday.com item created: \(response.itemUrl)")
+            showSuccess(message: "Monday.com item created")
+            isLoading = false
+            return true
+        } catch {
+            AppLogger.viewModel.error("❌ Failed to create Monday.com item: \(error.localizedDescription)")
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
+    func bulkCreateMondayItems(projectId: UUID) async -> Bool {
+        // Get feedbacks that don't already have Monday items
+        let feedbackIds = selectedFeedbacks
+            .filter { !$0.hasMondayItem }
+            .map { $0.id }
+
+        guard !feedbackIds.isEmpty else {
+            showError(message: "No feedbacks to push to Monday.com (all selected items already have items)")
+            return false
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.bulkCreateMondayItems(
+                projectId: projectId,
+                feedbackIds: feedbackIds
+            )
+
+            // Refresh to get updated Monday fields
+            await refreshFeedbacks()
+
+            // Clear selection
+            clearSelection()
+
+            if response.failed.isEmpty {
+                AppLogger.viewModel.info("✅ Monday.com items created: \(response.created.count)")
+                showSuccess(message: "Created \(response.created.count) Monday.com items")
+            } else {
+                AppLogger.viewModel.warning("⚠️ Monday.com items created with some failures: \(response.created.count) created, \(response.failed.count) failed")
+                showSuccess(message: "Created \(response.created.count) Monday.com items (\(response.failed.count) failed)")
+            }
+
+            isLoading = false
+            return true
+        } catch {
+            AppLogger.viewModel.error("❌ Failed to create Monday.com items: \(error.localizedDescription)")
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
+    // MARK: - Linear Integration
+
+    func createLinearIssue(projectId: UUID, feedbackId: UUID) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.createLinearIssue(
+                projectId: projectId,
+                feedbackId: feedbackId
+            )
+
+            // Refresh to get updated Linear fields
+            await refreshFeedbacks()
+
+            AppLogger.viewModel.info("✅ Linear issue created: \(response.issueUrl)")
+            showSuccess(message: "Linear issue \(response.identifier) created")
+            isLoading = false
+            return true
+        } catch {
+            AppLogger.viewModel.error("❌ Failed to create Linear issue: \(error.localizedDescription)")
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
+    func bulkCreateLinearIssues(projectId: UUID) async -> Bool {
+        // Get feedbacks that don't already have Linear issues
+        let feedbackIds = selectedFeedbacks
+            .filter { !$0.hasLinearIssue }
+            .map { $0.id }
+
+        guard !feedbackIds.isEmpty else {
+            showError(message: "No feedbacks to push to Linear (all selected items already have issues)")
+            return false
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.bulkCreateLinearIssues(
+                projectId: projectId,
+                feedbackIds: feedbackIds
+            )
+
+            // Refresh to get updated Linear fields
+            await refreshFeedbacks()
+
+            // Clear selection
+            clearSelection()
+
+            if response.failed.isEmpty {
+                AppLogger.viewModel.info("✅ Linear issues created: \(response.created.count)")
+                showSuccess(message: "Created \(response.created.count) Linear issues")
+            } else {
+                AppLogger.viewModel.warning("⚠️ Linear issues created with some failures: \(response.created.count) created, \(response.failed.count) failed")
+                showSuccess(message: "Created \(response.created.count) Linear issues (\(response.failed.count) failed)")
+            }
+
+            isLoading = false
+            return true
+        } catch {
+            AppLogger.viewModel.error("❌ Failed to create Linear issues: \(error.localizedDescription)")
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
 }

@@ -1019,6 +1019,271 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Monday.com Integration API
+
+    func updateProjectMondaySettings(
+        projectId: UUID,
+        mondayToken: String?,
+        mondayBoardId: String?,
+        mondayBoardName: String?,
+        mondayGroupId: String?,
+        mondayGroupName: String?,
+        mondaySyncStatus: Bool?,
+        mondaySyncComments: Bool?,
+        mondayStatusColumnId: String?,
+        mondayVotesColumnId: String?
+    ) async throws -> Project {
+        let path = "projects/\(projectId)/monday"
+        let body = UpdateProjectMondayRequest(
+            mondayToken: mondayToken,
+            mondayBoardId: mondayBoardId,
+            mondayBoardName: mondayBoardName,
+            mondayGroupId: mondayGroupId,
+            mondayGroupName: mondayGroupName,
+            mondaySyncStatus: mondaySyncStatus,
+            mondaySyncComments: mondaySyncComments,
+            mondayStatusColumnId: mondayStatusColumnId,
+            mondayVotesColumnId: mondayVotesColumnId
+        )
+
+        AppLogger.api.info("🟠 PATCH \(path) (Monday.com settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createMondayItem(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateMondayItemResponse {
+        let path = "projects/\(projectId)/monday/item"
+        let body = CreateMondayItemRequest(feedbackId: feedbackId)
+
+        AppLogger.api.info("🟢 POST \(path) (create Monday.com item)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateMondayItemResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateMondayItems(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateMondayItemsResponse {
+        let path = "projects/\(projectId)/monday/items"
+        let body = BulkCreateMondayItemsRequest(feedbackIds: feedbackIds)
+
+        AppLogger.api.info("🟢 POST \(path) (bulk create Monday.com items)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateMondayItemsResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - decoded: \(decoded.created.count) created, \(decoded.failed.count) failed")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getMondayBoards(projectId: UUID) async throws -> [MondayBoard] {
+        let path = "projects/\(projectId)/monday/boards"
+        AppLogger.api.info("🔵 GET \(path) (Monday.com boards)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([MondayBoard].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) boards")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getMondayGroups(projectId: UUID, boardId: String) async throws -> [MondayGroup] {
+        let path = "projects/\(projectId)/monday/boards/\(boardId)/groups"
+        AppLogger.api.info("🔵 GET \(path) (Monday.com groups)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([MondayGroup].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) groups")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getMondayColumns(projectId: UUID, boardId: String) async throws -> [MondayColumn] {
+        let path = "projects/\(projectId)/monday/boards/\(boardId)/columns"
+        AppLogger.api.info("🔵 GET \(path) (Monday.com columns)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([MondayColumn].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) columns")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    // MARK: - Linear Integration API
+
+    func updateLinearSettings(projectId: UUID, request: UpdateProjectLinearRequest) async throws -> Project {
+        let path = "projects/\(projectId)/linear"
+        let body = request
+
+        AppLogger.api.info("🟠 PATCH \(path) (Linear settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createLinearIssue(
+        projectId: UUID,
+        feedbackId: UUID,
+        additionalLabelIds: [String]? = nil
+    ) async throws -> CreateLinearIssueResponse {
+        let path = "projects/\(projectId)/linear/issue"
+        let body = CreateLinearIssueRequest(
+            feedbackId: feedbackId,
+            additionalLabelIds: additionalLabelIds
+        )
+
+        AppLogger.api.info("🟢 POST \(path) (create Linear issue)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateLinearIssueResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateLinearIssues(
+        projectId: UUID,
+        feedbackIds: [UUID],
+        additionalLabelIds: [String]? = nil
+    ) async throws -> BulkCreateLinearIssuesResponse {
+        let path = "projects/\(projectId)/linear/issues"
+        let body = BulkCreateLinearIssuesRequest(
+            feedbackIds: feedbackIds,
+            additionalLabelIds: additionalLabelIds
+        )
+
+        AppLogger.api.info("🟢 POST \(path) (bulk create Linear issues)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateLinearIssuesResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - decoded: \(decoded.created.count) created, \(decoded.failed.count) failed")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getLinearTeams(projectId: UUID) async throws -> [LinearTeam] {
+        let path = "projects/\(projectId)/linear/teams"
+        AppLogger.api.info("🔵 GET \(path) (Linear teams)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([LinearTeam].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) teams")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getLinearProjects(projectId: UUID, teamId: String) async throws -> [LinearProject] {
+        let path = "projects/\(projectId)/linear/projects/\(teamId)"
+        AppLogger.api.info("🔵 GET \(path) (Linear projects)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([LinearProject].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) projects")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getLinearWorkflowStates(projectId: UUID, teamId: String) async throws -> [LinearWorkflowState] {
+        let path = "projects/\(projectId)/linear/states/\(teamId)"
+        AppLogger.api.info("🔵 GET \(path) (Linear workflow states)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([LinearWorkflowState].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) states")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getLinearLabels(projectId: UUID, teamId: String) async throws -> [LinearLabel] {
+        let path = "projects/\(projectId)/linear/labels/\(teamId)"
+        AppLogger.api.info("🔵 GET \(path) (Linear labels)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([LinearLabel].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) labels")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Merge Feedback API
 
     func mergeFeedback(primaryId: UUID, secondaryIds: [UUID]) async throws -> MergeFeedbackResponse {

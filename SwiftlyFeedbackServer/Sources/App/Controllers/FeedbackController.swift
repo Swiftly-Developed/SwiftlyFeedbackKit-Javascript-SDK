@@ -375,6 +375,52 @@ struct FeedbackController: RouteCollection {
                     }
                 }
             }
+
+            // Sync to Monday.com if configured
+            if let itemId = feedback.mondayItemId,
+               project.mondaySyncStatus,
+               let token = project.mondayToken,
+               let boardId = project.mondayBoardId,
+               let statusColumnId = project.mondayStatusColumnId,
+               !statusColumnId.isEmpty {
+                let mondayStatus = newStatus.mondayStatusName
+                Task {
+                    do {
+                        try await req.mondayService.updateItemStatus(
+                            boardId: boardId,
+                            itemId: itemId,
+                            columnId: statusColumnId,
+                            token: token,
+                            status: mondayStatus
+                        )
+                    } catch {
+                        req.logger.error("Failed to sync Monday.com item status: \(error)")
+                    }
+                }
+            }
+
+            // Sync to Linear if configured
+            if let issueId = feedback.linearIssueId,
+               project.linearSyncStatus,
+               let token = project.linearToken,
+               let teamId = project.linearTeamId {
+                let targetStateType = newStatus.linearStateType
+                Task {
+                    do {
+                        // Fetch workflow states for the team and find matching state by type
+                        let states = try await req.linearService.getWorkflowStates(teamId: teamId, token: token)
+                        if let targetState = states.first(where: { $0.type == targetStateType }) {
+                            try await req.linearService.updateIssueState(
+                                issueId: issueId,
+                                stateId: targetState.id,
+                                token: token
+                            )
+                        }
+                    } catch {
+                        req.logger.error("Failed to sync Linear issue status: \(error)")
+                    }
+                }
+            }
         }
 
         try await feedback.$votes.load(on: req.db)

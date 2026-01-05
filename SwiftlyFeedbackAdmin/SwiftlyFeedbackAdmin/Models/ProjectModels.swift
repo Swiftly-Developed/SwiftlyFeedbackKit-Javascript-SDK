@@ -42,6 +42,25 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let notionSyncComments: Bool
     let notionStatusProperty: String?
     let notionVotesProperty: String?
+    // Monday.com integration fields
+    let mondayToken: String?
+    let mondayBoardId: String?
+    let mondayBoardName: String?
+    let mondayGroupId: String?
+    let mondayGroupName: String?
+    let mondaySyncStatus: Bool
+    let mondaySyncComments: Bool
+    let mondayStatusColumnId: String?
+    let mondayVotesColumnId: String?
+    // Linear integration fields
+    let linearToken: String?
+    let linearTeamId: String?
+    let linearTeamName: String?
+    let linearProjectId: String?
+    let linearProjectName: String?
+    let linearDefaultLabelIds: [String]?
+    let linearSyncStatus: Bool
+    let linearSyncComments: Bool
 
     /// Whether Slack integration is configured
     var isSlackConfigured: Bool {
@@ -63,9 +82,19 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         notionToken != nil && notionDatabaseId != nil
     }
 
+    /// Whether Monday.com integration is configured
+    var isMondayConfigured: Bool {
+        mondayToken != nil && mondayBoardId != nil
+    }
+
+    /// Whether Linear integration is configured
+    var isLinearConfigured: Bool {
+        linearToken != nil && linearTeamId != nil
+    }
+
     /// Whether any integration is configured
     var hasAnyIntegration: Bool {
-        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured
+        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured || isMondayConfigured || isLinearConfigured
     }
 
     // Custom decoder to handle backwards compatibility when allowedStatuses is missing
@@ -114,6 +143,25 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         notionSyncComments = try container.decodeIfPresent(Bool.self, forKey: .notionSyncComments) ?? false
         notionStatusProperty = try container.decodeIfPresent(String.self, forKey: .notionStatusProperty)
         notionVotesProperty = try container.decodeIfPresent(String.self, forKey: .notionVotesProperty)
+        // Monday.com fields (backwards compatibility)
+        mondayToken = try container.decodeIfPresent(String.self, forKey: .mondayToken)
+        mondayBoardId = try container.decodeIfPresent(String.self, forKey: .mondayBoardId)
+        mondayBoardName = try container.decodeIfPresent(String.self, forKey: .mondayBoardName)
+        mondayGroupId = try container.decodeIfPresent(String.self, forKey: .mondayGroupId)
+        mondayGroupName = try container.decodeIfPresent(String.self, forKey: .mondayGroupName)
+        mondaySyncStatus = try container.decodeIfPresent(Bool.self, forKey: .mondaySyncStatus) ?? false
+        mondaySyncComments = try container.decodeIfPresent(Bool.self, forKey: .mondaySyncComments) ?? false
+        mondayStatusColumnId = try container.decodeIfPresent(String.self, forKey: .mondayStatusColumnId)
+        mondayVotesColumnId = try container.decodeIfPresent(String.self, forKey: .mondayVotesColumnId)
+        // Linear fields (backwards compatibility)
+        linearToken = try container.decodeIfPresent(String.self, forKey: .linearToken)
+        linearTeamId = try container.decodeIfPresent(String.self, forKey: .linearTeamId)
+        linearTeamName = try container.decodeIfPresent(String.self, forKey: .linearTeamName)
+        linearProjectId = try container.decodeIfPresent(String.self, forKey: .linearProjectId)
+        linearProjectName = try container.decodeIfPresent(String.self, forKey: .linearProjectName)
+        linearDefaultLabelIds = try container.decodeIfPresent([String].self, forKey: .linearDefaultLabelIds)
+        linearSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .linearSyncStatus) ?? false
+        linearSyncComments = try container.decodeIfPresent(Bool.self, forKey: .linearSyncComments) ?? false
     }
 
     init(
@@ -154,7 +202,24 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         notionSyncStatus: Bool = false,
         notionSyncComments: Bool = false,
         notionStatusProperty: String? = nil,
-        notionVotesProperty: String? = nil
+        notionVotesProperty: String? = nil,
+        mondayToken: String? = nil,
+        mondayBoardId: String? = nil,
+        mondayBoardName: String? = nil,
+        mondayGroupId: String? = nil,
+        mondayGroupName: String? = nil,
+        mondaySyncStatus: Bool = false,
+        mondaySyncComments: Bool = false,
+        mondayStatusColumnId: String? = nil,
+        mondayVotesColumnId: String? = nil,
+        linearToken: String? = nil,
+        linearTeamId: String? = nil,
+        linearTeamName: String? = nil,
+        linearProjectId: String? = nil,
+        linearProjectName: String? = nil,
+        linearDefaultLabelIds: [String]? = nil,
+        linearSyncStatus: Bool = false,
+        linearSyncComments: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -194,6 +259,23 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         self.notionSyncComments = notionSyncComments
         self.notionStatusProperty = notionStatusProperty
         self.notionVotesProperty = notionVotesProperty
+        self.mondayToken = mondayToken
+        self.mondayBoardId = mondayBoardId
+        self.mondayBoardName = mondayBoardName
+        self.mondayGroupId = mondayGroupId
+        self.mondayGroupName = mondayGroupName
+        self.mondaySyncStatus = mondaySyncStatus
+        self.mondaySyncComments = mondaySyncComments
+        self.mondayStatusColumnId = mondayStatusColumnId
+        self.mondayVotesColumnId = mondayVotesColumnId
+        self.linearToken = linearToken
+        self.linearTeamId = linearTeamId
+        self.linearTeamName = linearTeamName
+        self.linearProjectId = linearProjectId
+        self.linearProjectName = linearProjectName
+        self.linearDefaultLabelIds = linearDefaultLabelIds
+        self.linearSyncStatus = linearSyncStatus
+        self.linearSyncComments = linearSyncComments
     }
 }
 
@@ -449,4 +531,114 @@ struct NotionProperty: Codable, Identifiable, Hashable {
     let id: String
     let name: String
     let type: String
+}
+
+// MARK: - Monday.com Integration
+
+struct UpdateProjectMondayRequest: Encodable {
+    let mondayToken: String?
+    let mondayBoardId: String?
+    let mondayBoardName: String?
+    let mondayGroupId: String?
+    let mondayGroupName: String?
+    let mondaySyncStatus: Bool?
+    let mondaySyncComments: Bool?
+    let mondayStatusColumnId: String?
+    let mondayVotesColumnId: String?
+}
+
+struct CreateMondayItemRequest: Encodable {
+    let feedbackId: UUID
+}
+
+struct CreateMondayItemResponse: Decodable {
+    let feedbackId: UUID
+    let itemUrl: String
+    let itemId: String
+}
+
+struct BulkCreateMondayItemsRequest: Encodable {
+    let feedbackIds: [UUID]
+}
+
+struct BulkCreateMondayItemsResponse: Decodable {
+    let created: [CreateMondayItemResponse]
+    let failed: [UUID]
+}
+
+struct MondayBoard: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+}
+
+struct MondayGroup: Codable, Identifiable, Hashable {
+    let id: String
+    let title: String
+}
+
+struct MondayColumn: Codable, Identifiable, Hashable {
+    let id: String
+    let title: String
+    let type: String
+}
+
+// MARK: - Linear Integration
+
+struct UpdateProjectLinearRequest: Encodable {
+    let linearToken: String?
+    let linearTeamId: String?
+    let linearTeamName: String?
+    let linearProjectId: String?
+    let linearProjectName: String?
+    let linearDefaultLabelIds: [String]?
+    let linearSyncStatus: Bool?
+    let linearSyncComments: Bool?
+}
+
+struct CreateLinearIssueRequest: Encodable {
+    let feedbackId: UUID
+    let additionalLabelIds: [String]?
+}
+
+struct CreateLinearIssueResponse: Decodable {
+    let feedbackId: UUID
+    let issueUrl: String
+    let issueId: String
+    let identifier: String
+}
+
+struct BulkCreateLinearIssuesRequest: Encodable {
+    let feedbackIds: [UUID]
+    let additionalLabelIds: [String]?
+}
+
+struct BulkCreateLinearIssuesResponse: Decodable {
+    let created: [CreateLinearIssueResponse]
+    let failed: [UUID]
+}
+
+// Linear hierarchy models
+struct LinearTeam: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let key: String
+}
+
+struct LinearProject: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let state: String
+}
+
+struct LinearWorkflowState: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let type: String
+    let position: Double
+}
+
+struct LinearLabel: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let color: String
 }

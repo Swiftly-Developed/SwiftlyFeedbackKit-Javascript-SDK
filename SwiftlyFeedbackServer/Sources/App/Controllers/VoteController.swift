@@ -86,6 +86,23 @@ struct VoteController: RouteCollection {
             }
         }
 
+        // Sync vote count to Monday.com if configured
+        if let votesColumnId = project.mondayVotesColumnId,
+           !votesColumnId.isEmpty,
+           let itemId = feedback.mondayItemId,
+           let boardId = project.mondayBoardId,
+           let token = project.mondayToken {
+            Task {
+                try? await req.mondayService.updateItemNumber(
+                    boardId: boardId,
+                    itemId: itemId,
+                    columnId: votesColumnId,
+                    token: token,
+                    value: feedback.voteCount
+                )
+            }
+        }
+
         return VoteResponseDTO(feedbackId: feedbackId, voteCount: feedback.voteCount, hasVoted: true)
     }
 
@@ -147,6 +164,23 @@ struct VoteController: RouteCollection {
                     pageId: pageId,
                     token: token,
                     propertyName: votesProperty,
+                    value: feedback.voteCount
+                )
+            }
+        }
+
+        // Sync vote count to Monday.com if configured
+        if let votesColumnId = project.mondayVotesColumnId,
+           !votesColumnId.isEmpty,
+           let itemId = feedback.mondayItemId,
+           let boardId = project.mondayBoardId,
+           let token = project.mondayToken {
+            Task {
+                try? await req.mondayService.updateItemNumber(
+                    boardId: boardId,
+                    itemId: itemId,
+                    columnId: votesColumnId,
+                    token: token,
                     value: feedback.voteCount
                 )
             }

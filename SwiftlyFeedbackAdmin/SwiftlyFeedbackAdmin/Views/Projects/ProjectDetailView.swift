@@ -16,6 +16,8 @@ struct ProjectDetailView: View {
     @State private var showingGitHubSheet = false
     @State private var showingClickUpSheet = false
     @State private var showingNotionSheet = false
+    @State private var showingMondaySheet = false
+    @State private var showingLinearSheet = false
     @State private var copiedToClipboard = false
 
     private var isCompact: Bool {
@@ -99,6 +101,18 @@ struct ProjectDetailView: View {
                                 showingNotionSheet = true
                             } label: {
                                 Label("Notion", systemImage: "doc.text")
+                            }
+
+                            Button {
+                                showingMondaySheet = true
+                            } label: {
+                                Label("Monday.com", systemImage: "calendar")
+                            }
+
+                            Button {
+                                showingLinearSheet = true
+                            } label: {
+                                Label("Linear", systemImage: "arrow.triangle.branch")
                             }
                         } label: {
                             Label("Integrations", systemImage: "puzzlepiece.extension")
@@ -221,6 +235,22 @@ struct ProjectDetailView: View {
         .sheet(isPresented: $showingNotionSheet) {
             if let project = viewModel.selectedProject {
                 NotionSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 500)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingMondaySheet) {
+            if let project = viewModel.selectedProject {
+                MondaySettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 500)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingLinearSheet) {
+            if let project = viewModel.selectedProject {
+                LinearSettingsView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 500, minHeight: 500)
                     #endif
@@ -514,6 +544,36 @@ struct ProjectDetailView: View {
                         detail: project.notionDatabaseName ?? "Connected"
                     ) {
                         showingNotionSheet = true
+                    }
+                }
+
+                if project.isMondayConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "calendar",
+                        iconColor: Color(red: 1.0, green: 0.27, blue: 0.38),
+                        name: "Monday.com",
+                        detail: project.mondayBoardName ?? "Connected"
+                    ) {
+                        showingMondaySheet = true
+                    }
+                }
+
+                if project.isLinearConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "arrow.triangle.branch",
+                        iconColor: Color(red: 0.35, green: 0.39, blue: 0.95),
+                        name: "Linear",
+                        detail: project.linearTeamName ?? "Connected"
+                    ) {
+                        showingLinearSheet = true
                     }
                 }
             }

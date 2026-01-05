@@ -106,6 +106,59 @@ final class Project: Model, Content, @unchecked Sendable {
     @OptionalField(key: "notion_votes_property")
     var notionVotesProperty: String?
 
+    // Monday.com integration fields
+    @OptionalField(key: "monday_token")
+    var mondayToken: String?
+
+    @OptionalField(key: "monday_board_id")
+    var mondayBoardId: String?
+
+    @OptionalField(key: "monday_board_name")
+    var mondayBoardName: String?
+
+    @OptionalField(key: "monday_group_id")
+    var mondayGroupId: String?
+
+    @OptionalField(key: "monday_group_name")
+    var mondayGroupName: String?
+
+    @Field(key: "monday_sync_status")
+    var mondaySyncStatus: Bool
+
+    @Field(key: "monday_sync_comments")
+    var mondaySyncComments: Bool
+
+    @OptionalField(key: "monday_status_column_id")
+    var mondayStatusColumnId: String?
+
+    @OptionalField(key: "monday_votes_column_id")
+    var mondayVotesColumnId: String?
+
+    // Linear integration fields
+    @OptionalField(key: "linear_token")
+    var linearToken: String?
+
+    @OptionalField(key: "linear_team_id")
+    var linearTeamId: String?
+
+    @OptionalField(key: "linear_team_name")
+    var linearTeamName: String?
+
+    @OptionalField(key: "linear_project_id")
+    var linearProjectId: String?
+
+    @OptionalField(key: "linear_project_name")
+    var linearProjectName: String?
+
+    @OptionalField(key: "linear_default_label_ids")
+    var linearDefaultLabelIds: [String]?
+
+    @Field(key: "linear_sync_status")
+    var linearSyncStatus: Bool
+
+    @Field(key: "linear_sync_comments")
+    var linearSyncComments: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -152,7 +205,24 @@ final class Project: Model, Content, @unchecked Sendable {
         notionSyncStatus: Bool = false,
         notionSyncComments: Bool = false,
         notionStatusProperty: String? = nil,
-        notionVotesProperty: String? = nil
+        notionVotesProperty: String? = nil,
+        mondayToken: String? = nil,
+        mondayBoardId: String? = nil,
+        mondayBoardName: String? = nil,
+        mondayGroupId: String? = nil,
+        mondayGroupName: String? = nil,
+        mondaySyncStatus: Bool = false,
+        mondaySyncComments: Bool = false,
+        mondayStatusColumnId: String? = nil,
+        mondayVotesColumnId: String? = nil,
+        linearToken: String? = nil,
+        linearTeamId: String? = nil,
+        linearTeamName: String? = nil,
+        linearProjectId: String? = nil,
+        linearProjectName: String? = nil,
+        linearDefaultLabelIds: [String]? = nil,
+        linearSyncStatus: Bool = false,
+        linearSyncComments: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -186,6 +256,23 @@ final class Project: Model, Content, @unchecked Sendable {
         self.notionSyncComments = notionSyncComments
         self.notionStatusProperty = notionStatusProperty
         self.notionVotesProperty = notionVotesProperty
+        self.mondayToken = mondayToken
+        self.mondayBoardId = mondayBoardId
+        self.mondayBoardName = mondayBoardName
+        self.mondayGroupId = mondayGroupId
+        self.mondayGroupName = mondayGroupName
+        self.mondaySyncStatus = mondaySyncStatus
+        self.mondaySyncComments = mondaySyncComments
+        self.mondayStatusColumnId = mondayStatusColumnId
+        self.mondayVotesColumnId = mondayVotesColumnId
+        self.linearToken = linearToken
+        self.linearTeamId = linearTeamId
+        self.linearTeamName = linearTeamName
+        self.linearProjectId = linearProjectId
+        self.linearProjectName = linearProjectName
+        self.linearDefaultLabelIds = linearDefaultLabelIds
+        self.linearSyncStatus = linearSyncStatus
+        self.linearSyncComments = linearSyncComments
     }
 }
 

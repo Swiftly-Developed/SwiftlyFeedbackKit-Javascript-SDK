@@ -154,6 +154,19 @@ struct FeedbackListView: View {
                 .disabled(viewModel.selectedFeedbacks.allSatisfy { $0.hasNotionPage })
             }
 
+            // Linear push button (only show if Linear is configured)
+            if project.isLinearConfigured {
+                Button {
+                    Task {
+                        await viewModel.bulkCreateLinearIssues(projectId: project.id)
+                    }
+                } label: {
+                    Label("Push to Linear", systemImage: "lineweight")
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.selectedFeedbacks.allSatisfy { $0.hasLinearIssue })
+            }
+
             Button {
                 viewModel.startMergeWithSelection()
             } label: {
@@ -446,6 +459,26 @@ struct FeedbackListView: View {
             Divider()
         }
 
+        // Linear options
+        if project.isLinearConfigured {
+            if feedback.hasLinearIssue {
+                if let issueUrl = feedback.linearIssueUrl, let url = URL(string: issueUrl) {
+                    Link(destination: url) {
+                        Label("View Linear Issue", systemImage: "link")
+                    }
+                }
+            } else {
+                Button {
+                    Task {
+                        await viewModel.createLinearIssue(projectId: project.id, feedbackId: feedback.id)
+                    }
+                } label: {
+                    Label("Push to Linear", systemImage: "lineweight")
+                }
+            }
+            Divider()
+        }
+
         // Merge option (shows when this + selected >= 2)
         let canMergeThis = viewModel.selectedFeedbackIds.count >= 1 || viewModel.selectedFeedbackIds.contains(feedback.id)
         if canMergeThis {
@@ -606,6 +639,12 @@ struct FeedbackListRowView: View {
                 if feedback.hasNotionPage {
                     NotionBadge()
                 }
+                if feedback.hasMondayItem {
+                    MondayBadge()
+                }
+                if feedback.hasLinearIssue {
+                    LinearBadge()
+                }
                 Spacer()
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.up")
@@ -728,6 +767,44 @@ struct NotionBadge: View {
         .padding(.vertical, 3)
         .background(Color.black.opacity(0.1))
         .foregroundStyle(.primary.opacity(0.7))
+        .clipShape(Capsule())
+    }
+}
+
+// MARK: - Monday.com Badge
+
+struct MondayBadge: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "calendar")
+                .font(.caption2)
+            Text("Monday")
+                .font(.caption2)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color(red: 1.0, green: 0.27, blue: 0.38).opacity(0.15))
+        .foregroundStyle(Color(red: 1.0, green: 0.27, blue: 0.38))
+        .clipShape(Capsule())
+    }
+}
+
+// MARK: - Linear Badge
+
+struct LinearBadge: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "lineweight")
+                .font(.caption2)
+            Text("Linear")
+                .font(.caption2)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color(red: 0.35, green: 0.35, blue: 0.85).opacity(0.15))
+        .foregroundStyle(Color(red: 0.35, green: 0.35, blue: 0.85))
         .clipShape(Capsule())
     }
 }
@@ -912,6 +989,26 @@ struct KanbanColumnView: View {
             Divider()
         }
 
+        // Linear options
+        if project.isLinearConfigured {
+            if feedback.hasLinearIssue {
+                if let issueUrl = feedback.linearIssueUrl, let url = URL(string: issueUrl) {
+                    Link(destination: url) {
+                        Label("View Linear Issue", systemImage: "link")
+                    }
+                }
+            } else {
+                Button {
+                    Task {
+                        await viewModel.createLinearIssue(projectId: project.id, feedbackId: feedback.id)
+                    }
+                } label: {
+                    Label("Push to Linear", systemImage: "lineweight")
+                }
+            }
+            Divider()
+        }
+
         // Merge option
         if viewModel.selectedFeedbackIds.count >= 1 {
             Button {
@@ -992,6 +1089,12 @@ struct KanbanCardView: View {
                 }
                 if feedback.hasNotionPage {
                     NotionBadge()
+                }
+                if feedback.hasMondayItem {
+                    MondayBadge()
+                }
+                if feedback.hasLinearIssue {
+                    LinearBadge()
                 }
                 Spacer()
                 if isSelected {

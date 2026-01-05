@@ -521,6 +521,137 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Monday.com Settings
+
+    func updateMondaySettings(
+        projectId: UUID,
+        mondayToken: String?,
+        mondayBoardId: String?,
+        mondayBoardName: String?,
+        mondayGroupId: String?,
+        mondayGroupName: String?,
+        mondaySyncStatus: Bool?,
+        mondaySyncComments: Bool?,
+        mondayStatusColumnId: String?,
+        mondayVotesColumnId: String?
+    ) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            selectedProject = try await AdminAPIClient.shared.updateProjectMondaySettings(
+                projectId: projectId,
+                mondayToken: mondayToken,
+                mondayBoardId: mondayBoardId,
+                mondayBoardName: mondayBoardName,
+                mondayGroupId: mondayGroupId,
+                mondayGroupName: mondayGroupName,
+                mondaySyncStatus: mondaySyncStatus,
+                mondaySyncComments: mondaySyncComments,
+                mondayStatusColumnId: mondayStatusColumnId,
+                mondayVotesColumnId: mondayVotesColumnId
+            )
+            isLoading = false
+            return true
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
+    func loadMondayBoards(projectId: UUID) async -> [MondayBoard] {
+        do {
+            return try await AdminAPIClient.shared.getMondayBoards(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadMondayGroups(projectId: UUID, boardId: String) async -> [MondayGroup] {
+        do {
+            return try await AdminAPIClient.shared.getMondayGroups(projectId: projectId, boardId: boardId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadMondayColumns(projectId: UUID, boardId: String) async -> [MondayColumn] {
+        do {
+            return try await AdminAPIClient.shared.getMondayColumns(projectId: projectId, boardId: boardId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    // MARK: - Linear Integration
+
+    func updateLinearSettings(
+        projectId: UUID,
+        linearToken: String?,
+        linearTeamId: String?,
+        linearTeamName: String?,
+        linearProjectId: String?,
+        linearProjectName: String?,
+        linearDefaultLabelIds: [String]?,
+        linearSyncStatus: Bool?,
+        linearSyncComments: Bool?
+    ) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let request = UpdateProjectLinearRequest(
+                linearToken: linearToken,
+                linearTeamId: linearTeamId,
+                linearTeamName: linearTeamName,
+                linearProjectId: linearProjectId,
+                linearProjectName: linearProjectName,
+                linearDefaultLabelIds: linearDefaultLabelIds,
+                linearSyncStatus: linearSyncStatus,
+                linearSyncComments: linearSyncComments
+            )
+            let updated = try await AdminAPIClient.shared.updateLinearSettings(projectId: projectId, request: request)
+            selectedProject = updated
+            isLoading = false
+            return true
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
+    func loadLinearTeams(projectId: UUID) async -> [LinearTeam] {
+        do {
+            return try await AdminAPIClient.shared.getLinearTeams(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadLinearProjects(projectId: UUID, teamId: String) async -> [LinearProject] {
+        do {
+            return try await AdminAPIClient.shared.getLinearProjects(projectId: projectId, teamId: teamId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadLinearLabels(projectId: UUID, teamId: String) async -> [LinearLabel] {
+        do {
+            return try await AdminAPIClient.shared.getLinearLabels(projectId: projectId, teamId: teamId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
     // MARK: - Accept Invite
 
     var inviteCode = ""

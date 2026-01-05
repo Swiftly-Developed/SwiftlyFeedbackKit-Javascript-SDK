@@ -50,7 +50,9 @@ SwiftlyFeedbackAdmin/
 │   │   ├── SlackSettingsView.swift    # Configure Slack webhook notifications
 │   │   ├── GitHubSettingsView.swift   # Configure GitHub Issues integration
 │   │   ├── ClickUpSettingsView.swift  # Configure ClickUp Tasks integration
-│   │   └── NotionSettingsView.swift   # Configure Notion database integration
+│   │   ├── NotionSettingsView.swift   # Configure Notion database integration
+│   │   ├── MondaySettingsView.swift   # Configure Monday.com integration
+│   │   └── LinearSettingsView.swift   # Configure Linear integration
 │   ├── Feedback/
 │   │   ├── FeedbackDashboardView.swift # Dashboard with List/Kanban views
 │   │   ├── FeedbackListView.swift      # Feedback list with row view
@@ -129,12 +131,16 @@ The `ProjectDetailView` displays configured integrations in a dedicated card:
 | GitHub | `arrow.triangle.branch` (black) | "owner/repo" |
 | ClickUp | `checklist` (purple) | List name or "Connected" |
 | Notion | `doc.text` (black) | Database name or "Connected" |
+| Monday.com | `calendar` (red) | Board name or "Connected" |
+| Linear | `arrow.triangle.branch` (purple) | Team name or "Connected" |
 
 ### Configuration Check Properties (ProjectModels.swift)
 - `isSlackConfigured` - true if `slackWebhookUrl` is set and non-empty
 - `isGitHubConfigured` - true if owner, repo, and token are all set
 - `isClickUpConfigured` - true if token and listId are both set
 - `isNotionConfigured` - true if token and databaseId are both set
+- `isMondayConfigured` - true if token and boardId are both set
+- `isLinearConfigured` - true if token and teamId are both set
 - `hasAnyIntegration` - true if any of the above are configured
 
 ## Cross-Platform Considerations
@@ -594,3 +600,102 @@ To re-integrate RevenueCat when ready:
 2. Update `SubscriptionService.swift` to use RevenueCat SDK
 3. Update `SubscriptionView.swift` to use PaywallView and CustomerCenterView
 4. See `TODO_MONETIZATION.md` for full implementation checklist
+
+## Monday.com Integration
+
+Push feedback items to Monday.com as board items for tracking in your project management workflow.
+
+### Setup
+1. Get your Monday.com API token from Settings > Developers > My Access Tokens
+2. In Admin app: Project Details > Menu (⋯) > Integrations > Monday.com
+3. Enter your API token and select the target board via the picker
+4. Optionally select a group and configure status sync, comment sync, and vote count sync
+
+### MondaySettingsView Features
+- API token SecureField
+- Board picker: dynamically loads boards accessible to user
+- Group picker: optionally select a group within the board
+- Status column picker: select Status-type column for status sync
+- Votes column picker: select Number-type column for vote count sync
+- Status sync toggle: auto-update Monday.com item status when feedback status changes
+- Comment sync toggle: sync comments to Monday.com items as updates
+- Remove integration button
+
+### Status Mapping
+When status sync is enabled:
+- **pending** → "Pending"
+- **approved** → "Approved"
+- **in_progress** → "Working on it"
+- **testflight** → "In Review"
+- **completed** → "Done"
+- **rejected** → "Stuck"
+
+### Feedback Context Menu Actions
+- **Push to Monday**: Create a Monday.com item from feedback (only shown if Monday configured and no existing item)
+- **View Monday Item**: Open the linked item in browser (only shown if feedback has an item)
+
+### Bulk Actions
+When selecting multiple feedback items, the action bar includes "Monday" button to create items for all selected items that don't already have Monday.com items.
+
+### Visual Indicators
+- Red Monday.com badge (calendar icon) on feedback cards that have linked items
+- Success toast showing item creation when created
+
+### Files
+- `MondaySettingsView.swift` - Settings sheet for Monday.com integration with board picker
+- `FeedbackDashboardView.swift` - Context menu with Push/View Monday actions
+- `FeedbackListView.swift` - Row context menu with Monday actions, MondayBadge component
+- `FeedbackViewModel.swift` - `createMondayItem()` and `bulkCreateMondayItems()` methods
+- `ProjectViewModel.swift` - `updateMondaySettings()`, `loadMondayBoards()`, `loadMondayGroups()`, `loadMondayColumns()` methods
+- `AdminAPIClient.swift` - All Monday.com API calls (settings, items, boards)
+- `ProjectModels.swift` - Monday.com request/response DTOs
+
+## Linear Integration
+
+Push feedback items to Linear as issues for tracking in your product development workflow.
+
+### Setup
+1. Get your Linear Personal API Key from Settings > API
+2. In Admin app: Project Details > Menu (⋯) > Integrations > Linear
+3. Enter your API token and select the target team via the picker
+4. Optionally select a project and configure default labels, status sync, and comment sync
+
+### LinearSettingsView Features
+- API token SecureField
+- Team picker: dynamically loads teams accessible to user
+- Project picker: optionally select a project within the team
+- Labels picker: select default labels to apply to all issues
+- Status sync toggle: auto-update Linear issue workflow state when feedback status changes
+- Comment sync toggle: sync comments to Linear issues
+- Remove integration button
+
+### Status Mapping
+When status sync is enabled, feedback status maps to Linear workflow state types:
+- **pending** → `backlog`
+- **approved** → `unstarted`
+- **in_progress** → `started`
+- **testflight** → `started`
+- **completed** → `completed`
+- **rejected** → `canceled`
+
+Note: Linear finds the matching workflow state by type within the configured team.
+
+### Feedback Context Menu Actions
+- **Push to Linear**: Create a Linear issue from feedback (only shown if Linear configured and no existing issue)
+- **View Linear Issue**: Open the linked issue in browser (only shown if feedback has an issue)
+
+### Bulk Actions
+When selecting multiple feedback items, the action bar includes "Push to Linear" button to create issues for all selected items that don't already have Linear issues.
+
+### Visual Indicators
+- Purple Linear badge (lineweight icon) on feedback cards that have linked issues
+- Success toast showing issue identifier (e.g., "ENG-123") when created
+
+### Files
+- `LinearSettingsView.swift` - Settings sheet for Linear integration with team picker
+- `FeedbackDashboardView.swift` - Context menu with Push/View Linear actions
+- `FeedbackListView.swift` - Row context menu with Linear actions, LinearBadge component
+- `FeedbackViewModel.swift` - `createLinearIssue()` and `bulkCreateLinearIssues()` methods
+- `ProjectViewModel.swift` - `updateLinearSettings()`, `loadLinearTeams()`, `loadLinearProjects()`, `loadLinearLabels()` methods
+- `AdminAPIClient.swift` - All Linear API calls (settings, issues, teams)
+- `ProjectModels.swift` - Linear request/response DTOs

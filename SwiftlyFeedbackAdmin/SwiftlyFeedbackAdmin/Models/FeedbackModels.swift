@@ -30,6 +30,12 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     // Notion integration fields
     let notionPageUrl: String?
     let notionPageId: String?
+    // Monday.com integration fields
+    let mondayItemUrl: String?
+    let mondayItemId: String?
+    // Linear integration fields
+    let linearIssueUrl: String?
+    let linearIssueId: String?
 
     /// Formatted total MRR string for display (always shows, even if $0)
     var formattedMrr: String {
@@ -68,6 +74,16 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     /// Whether this feedback has a linked Notion page
     var hasNotionPage: Bool {
         notionPageUrl != nil
+    }
+
+    /// Whether this feedback has a linked Monday.com item
+    var hasMondayItem: Bool {
+        mondayItemUrl != nil
+    }
+
+    /// Whether this feedback has a linked Linear issue
+    var hasLinearIssue: Bool {
+        linearIssueUrl != nil
     }
 }
 

@@ -67,7 +67,9 @@ Sources/App/
 │   ├── SlackService.swift    # Slack webhook notifications
 │   ├── GitHubService.swift   # GitHub Issues integration
 │   ├── ClickUpService.swift  # ClickUp Tasks integration
-│   └── NotionService.swift   # Notion database integration
+│   ├── NotionService.swift   # Notion database integration
+│   ├── MondayService.swift   # Monday.com Items integration
+│   └── LinearService.swift   # Linear Issues integration
 ├── configure.swift       # App configuration
 ├── routes.swift          # Route registration
 └── entrypoint.swift      # Main entry point
@@ -122,6 +124,19 @@ All routes prefixed with `/api/v1`.
 - `POST /projects/:id/notion/pages` - Bulk create Notion pages (owner/admin only)
 - `GET /projects/:id/notion/databases` - Get Notion databases for picker
 - `GET /projects/:id/notion/database/:databaseId/properties` - Get database properties
+- `PATCH /projects/:id/monday` - Update Monday.com settings (owner/admin only)
+- `POST /projects/:id/monday/item` - Create Monday.com item from feedback (owner/admin only)
+- `POST /projects/:id/monday/items` - Bulk create Monday.com items (owner/admin only)
+- `GET /projects/:id/monday/boards` - Get Monday.com boards for picker
+- `GET /projects/:id/monday/boards/:boardId/groups` - Get groups in board
+- `GET /projects/:id/monday/boards/:boardId/columns` - Get columns in board
+- `PATCH /projects/:id/linear` - Update Linear settings (owner/admin only)
+- `POST /projects/:id/linear/issue` - Create Linear issue from feedback (owner/admin only)
+- `POST /projects/:id/linear/issues` - Bulk create Linear issues (owner/admin only)
+- `GET /projects/:id/linear/teams` - Get Linear teams for picker
+- `GET /projects/:id/linear/projects/:teamId` - Get projects in team
+- `GET /projects/:id/linear/states/:teamId` - Get workflow states
+- `GET /projects/:id/linear/labels/:teamId` - Get labels
 
 ### Project Members (Bearer token required)
 - `GET /projects/:id/members` - List members
@@ -517,3 +532,226 @@ Handles Notion API interactions:
 
 ### Migration
 `AddProjectNotionIntegration` adds Notion fields to projects and feedbacks tables.
+
+## Monday.com Integration
+
+Push feedback items to Monday.com as board items for tracking in your project management workflow.
+
+### Configuration Endpoint
+`PATCH /projects/:id/monday` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "monday_token": "xxxxx",
+  "monday_board_id": "12345",
+  "monday_board_name": "Feedback Board",
+  "monday_group_id": "new_group",
+  "monday_group_name": "New Items",
+  "monday_sync_status": true,
+  "monday_sync_comments": true,
+  "monday_status_column_id": "status",
+  "monday_votes_column_id": "numbers"
+}
+```
+
+### Create Item Endpoint
+`POST /projects/:id/monday/item` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "feedback_id": "uuid"
+}
+```
+
+Response:
+```json
+{
+  "feedback_id": "uuid",
+  "item_url": "https://monday.com/boards/12345/pulses/67890",
+  "item_id": "67890"
+}
+```
+
+### Bulk Create Items Endpoint
+`POST /projects/:id/monday/items` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "feedback_ids": ["uuid", "uuid"]
+}
+```
+
+Response:
+```json
+{
+  "created": [{"feedback_id": "uuid", "item_url": "...", "item_id": "..."}],
+  "failed": ["uuid"]
+}
+```
+
+### Board Discovery Endpoints
+- `GET /projects/:id/monday/boards` - Get boards accessible to user
+- `GET /projects/:id/monday/boards/:boardId/groups` - Get groups in board
+- `GET /projects/:id/monday/boards/:boardId/columns` - Get columns in board
+
+### Database Fields
+
+**Project model:**
+- `monday_token` (String?) - Monday.com API token
+- `monday_board_id` (String?) - Target board ID
+- `monday_board_name` (String?) - Board name for display
+- `monday_group_id` (String?) - Target group ID within board
+- `monday_group_name` (String?) - Group name for display
+- `monday_sync_status` (Bool) - Sync feedback status to item status
+- `monday_sync_comments` (Bool) - Sync comments to Monday.com items
+- `monday_status_column_id` (String?) - Column ID for status sync
+- `monday_votes_column_id` (String?) - Column ID for vote count sync
+
+**Feedback model:**
+- `monday_item_url` (String?) - URL of linked Monday.com item
+- `monday_item_id` (String?) - Item ID for API calls
+
+### Status Sync
+When `monday_sync_status` is enabled, feedback status maps to Monday.com status:
+- **pending** → "Pending"
+- **approved** → "Approved"
+- **in_progress** → "Working on it"
+- **testflight** → "In Review"
+- **completed** → "Done"
+- **rejected** → "Stuck"
+
+### Comment Sync
+When `monday_sync_comments` is enabled, new comments on feedback are synced to the linked Monday.com item as updates.
+
+### MondayService
+Handles Monday.com GraphQL API interactions:
+- `createItem()` - Creates a new board item with formatted body
+- `updateItemStatus()` - Updates item status column when feedback status changes
+- `updateItemNumber()` - Updates vote count number column
+- `createUpdate()` - Syncs comments to Monday.com item
+- `getBoards/Groups/Columns()` - Hierarchy navigation for board picker
+- `buildItemDescription()` - Formats feedback details for item body
+- `buildItemURL()` - Constructs item URL from board and item IDs
+
+### Monday.com API Details
+- **Base URL**: `https://api.monday.com/v2` (GraphQL)
+- **Auth Header**: `Authorization: {token}` (no "Bearer" prefix)
+- **API Version Header**: `API-Version: 2024-10`
+
+### Migration
+`AddProjectMondayIntegration` adds Monday.com fields to projects and feedbacks tables.
+
+## Linear Integration
+
+Push feedback items to Linear as issues for tracking in your product development workflow.
+
+### Configuration Endpoint
+`PATCH /projects/:id/linear` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "linear_token": "lin_api_xxxxx",
+  "linear_team_id": "abc123",
+  "linear_team_name": "Engineering",
+  "linear_project_id": "def456",
+  "linear_project_name": "Feedback",
+  "linear_default_label_ids": ["label1", "label2"],
+  "linear_sync_status": true,
+  "linear_sync_comments": true
+}
+```
+
+### Create Issue Endpoint
+`POST /projects/:id/linear/issue` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "feedback_id": "uuid",
+  "additional_label_ids": ["label3"]
+}
+```
+
+Response:
+```json
+{
+  "feedback_id": "uuid",
+  "issue_url": "https://linear.app/team/issue/ENG-123",
+  "issue_id": "abc123",
+  "identifier": "ENG-123"
+}
+```
+
+### Bulk Create Issues Endpoint
+`POST /projects/:id/linear/issues` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "feedback_ids": ["uuid", "uuid"]
+}
+```
+
+Response:
+```json
+{
+  "created": [{"feedback_id": "uuid", "issue_url": "...", "issue_id": "...", "identifier": "..."}],
+  "failed": ["uuid"]
+}
+```
+
+### Team Discovery Endpoints
+- `GET /projects/:id/linear/teams` - Get teams
+- `GET /projects/:id/linear/projects/:teamId` - Get projects in team
+- `GET /projects/:id/linear/states/:teamId` - Get workflow states
+- `GET /projects/:id/linear/labels/:teamId` - Get labels
+
+### Database Fields
+
+**Project model:**
+- `linear_token` (String?) - Linear Personal API Key
+- `linear_team_id` (String?) - Target team ID
+- `linear_team_name` (String?) - Team name for display
+- `linear_project_id` (String?) - Target project ID (optional)
+- `linear_project_name` (String?) - Project name for display
+- `linear_default_label_ids` ([String]?) - Label IDs applied to all issues
+- `linear_sync_status` (Bool) - Sync feedback status to issue state
+- `linear_sync_comments` (Bool) - Sync comments to Linear issues
+
+**Feedback model:**
+- `linear_issue_url` (String?) - URL of linked Linear issue
+- `linear_issue_id` (String?) - Issue ID for API calls
+
+### Status Sync
+When `linear_sync_status` is enabled, feedback status maps to Linear workflow state types:
+- **pending** → `backlog`
+- **approved** → `unstarted`
+- **in_progress** → `started`
+- **testflight** → `started`
+- **completed** → `completed`
+- **rejected** → `canceled`
+
+Note: Linear finds the matching workflow state by type within the configured team.
+
+### Comment Sync
+When `linear_sync_comments` is enabled, new comments on feedback are synced to the linked Linear issue.
+
+### LinearService
+Handles Linear GraphQL API interactions:
+- `createIssue()` - Creates a new issue with formatted markdown description
+- `updateIssueState()` - Updates issue workflow state when feedback status changes
+- `createComment()` - Syncs comments to Linear issue
+- `getTeams/Projects/WorkflowStates/Labels()` - Discovery endpoints for team picker
+- `buildIssueDescription()` - Formats feedback details for issue body
+
+### Linear API Details
+- **Base URL**: `https://api.linear.app/graphql` (GraphQL)
+- **Auth Header**: `Authorization: Bearer {token}`
+- **Content-Type**: `application/json`
+
+### Migration
+`AddProjectLinearIntegration` adds Linear fields to projects and feedbacks tables.

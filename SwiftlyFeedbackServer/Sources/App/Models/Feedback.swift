@@ -74,6 +74,20 @@ final class Feedback: Model, Content, @unchecked Sendable {
     @OptionalField(key: "notion_page_id")
     var notionPageId: String?
 
+    // Monday.com integration fields
+    @OptionalField(key: "monday_item_url")
+    var mondayItemURL: String?
+
+    @OptionalField(key: "monday_item_id")
+    var mondayItemId: String?
+
+    // Linear integration fields
+    @OptionalField(key: "linear_issue_url")
+    var linearIssueURL: String?
+
+    @OptionalField(key: "linear_issue_id")
+    var linearIssueId: String?
+
     /// Whether this feedback has been merged into another
     var isMerged: Bool {
         mergedIntoId != nil
@@ -97,6 +111,16 @@ final class Feedback: Model, Content, @unchecked Sendable {
     /// Whether this feedback has a linked Notion page
     var hasNotionPage: Bool {
         notionPageURL != nil
+    }
+
+    /// Whether this feedback has a linked Monday.com item
+    var hasMondayItem: Bool {
+        mondayItemURL != nil
+    }
+
+    /// Whether this feedback has a linked Linear issue
+    var hasLinearIssue: Bool {
+        linearIssueURL != nil
     }
 
     init() {}
@@ -171,6 +195,43 @@ enum FeedbackStatus: String, Codable, CaseIterable {
             return "Complete"
         case .rejected:
             return "Closed"
+        }
+    }
+
+    /// Maps SwiftlyFeedback status to Monday.com status label names
+    var mondayStatusName: String {
+        switch self {
+        case .pending:
+            return "Pending"
+        case .approved:
+            return "Approved"
+        case .inProgress:
+            return "Working on it"
+        case .testflight:
+            return "In Review"
+        case .completed:
+            return "Done"
+        case .rejected:
+            return "Stuck"
+        }
+    }
+
+    /// Maps SwiftlyFeedback status to Linear workflow state types
+    /// Linear states have types: backlog, unstarted, started, completed, canceled
+    var linearStateType: String {
+        switch self {
+        case .pending:
+            return "backlog"
+        case .approved:
+            return "unstarted"
+        case .inProgress:
+            return "started"
+        case .testflight:
+            return "started"
+        case .completed:
+            return "completed"
+        case .rejected:
+            return "canceled"
         }
     }
 }
