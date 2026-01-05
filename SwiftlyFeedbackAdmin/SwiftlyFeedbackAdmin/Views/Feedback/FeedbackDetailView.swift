@@ -475,7 +475,9 @@ struct CommentRowView: View {
                 githubIssueUrl: nil,
                 githubIssueNumber: nil,
                 clickupTaskUrl: nil,
-                clickupTaskId: nil
+                clickupTaskId: nil,
+                notionPageUrl: nil,
+                notionPageId: nil
             ),
             apiKey: "test-key",
             allowedStatuses: [.pending, .approved, .inProgress, .completed, .rejected],

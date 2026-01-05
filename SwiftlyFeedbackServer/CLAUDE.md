@@ -66,7 +66,8 @@ Sources/App/
 │   ├── EmailService.swift    # Email notifications via Resend
 │   ├── SlackService.swift    # Slack webhook notifications
 │   ├── GitHubService.swift   # GitHub Issues integration
-│   └── ClickUpService.swift  # ClickUp Tasks integration
+│   ├── ClickUpService.swift  # ClickUp Tasks integration
+│   └── NotionService.swift   # Notion database integration
 ├── configure.swift       # App configuration
 ├── routes.swift          # Route registration
 └── entrypoint.swift      # Main entry point
@@ -116,6 +117,11 @@ All routes prefixed with `/api/v1`.
 - `GET /projects/:id/clickup/lists/:folderId` - Get ClickUp lists in folder
 - `GET /projects/:id/clickup/folderless-lists/:spaceId` - Get ClickUp lists without folder
 - `GET /projects/:id/clickup/custom-fields` - Get ClickUp number fields for vote count
+- `PATCH /projects/:id/notion` - Update Notion settings (owner/admin only)
+- `POST /projects/:id/notion/page` - Create Notion page from feedback (owner/admin only)
+- `POST /projects/:id/notion/pages` - Bulk create Notion pages (owner/admin only)
+- `GET /projects/:id/notion/databases` - Get Notion databases for picker
+- `GET /projects/:id/notion/database/:databaseId/properties` - Get database properties
 
 ### Project Members (Bearer token required)
 - `GET /projects/:id/members` - List members
@@ -401,3 +407,113 @@ Handles ClickUp API interactions:
 
 ### Migration
 `AddProjectClickUpIntegration` adds ClickUp fields to projects and feedbacks tables.
+
+## Notion Integration
+
+Push feedback items to Notion as database pages for tracking in your knowledge management workflow.
+
+### Configuration Endpoint
+`PATCH /projects/:id/notion` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "notion_token": "secret_xxxxx",
+  "notion_database_id": "abc123def456",
+  "notion_database_name": "Feedback",
+  "notion_sync_status": true,
+  "notion_sync_comments": true,
+  "notion_status_property": "Status",
+  "notion_votes_property": "Votes"
+}
+```
+
+### Create Page Endpoint
+`POST /projects/:id/notion/page` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "feedback_id": "uuid"
+}
+```
+
+Response:
+```json
+{
+  "feedback_id": "uuid",
+  "page_url": "https://notion.so/abc123",
+  "page_id": "abc123def456"
+}
+```
+
+### Bulk Create Pages Endpoint
+`POST /projects/:id/notion/pages` (Bearer token + owner/admin required)
+
+Request body:
+```json
+{
+  "feedback_ids": ["uuid", "uuid"]
+}
+```
+
+Response:
+```json
+{
+  "created": [{"feedback_id": "uuid", "page_url": "...", "page_id": "..."}],
+  "failed": ["uuid"]
+}
+```
+
+### Database Discovery Endpoints
+- `GET /projects/:id/notion/databases` - Get databases shared with integration
+- `GET /projects/:id/notion/database/:databaseId/properties` - Get database properties (for status/votes field selection)
+
+### Database Fields
+
+**Project model:**
+- `notion_token` (String?) - Notion Internal Integration Secret
+- `notion_database_id` (String?) - Target database ID
+- `notion_database_name` (String?) - Database name for display
+- `notion_sync_status` (Bool) - Sync feedback status to page status
+- `notion_sync_comments` (Bool) - Sync comments to Notion page
+- `notion_status_property` (String?) - Name of Status property in database
+- `notion_votes_property` (String?) - Name of Votes (number) property
+
+**Feedback model:**
+- `notion_page_url` (String?) - URL of linked Notion page
+- `notion_page_id` (String?) - Page ID for API calls
+
+### Status Sync
+When `notion_sync_status` is enabled, feedback status maps to Notion status:
+- **pending** → "To Do"
+- **approved** → "Approved"
+- **in_progress** → "In Progress"
+- **testflight** → "In Review"
+- **completed** → "Complete"
+- **rejected** → "Closed"
+
+### Comment Sync
+When `notion_sync_comments` is enabled, new comments on feedback are synced to the linked Notion page.
+
+### Vote Count Sync
+When `notion_votes_property` is set, vote count changes are synced to the specified Notion number property.
+
+### NotionService
+Handles Notion API interactions:
+- `createPage()` - Creates a new database page with formatted content
+- `updatePageStatus()` - Updates page status when feedback status changes
+- `updatePageNumber()` - Updates vote count property
+- `createComment()` - Syncs comments to Notion page
+- `searchDatabases()` - Get databases shared with integration
+- `getDatabase()` - Get database schema for property selection
+- `buildPageContent()` - Formats feedback details for page body
+
+### Notion API Details
+- **Base URL**: `https://api.notion.com/v1`
+- **Auth Header**: `Authorization: Bearer {token}`
+- **Version Header**: `Notion-Version: 2022-06-28`
+- **Rate Limit**: ~3 requests/second average
+
+### Migration
+`AddProjectNotionIntegration` adds Notion fields to projects and feedbacks tables.

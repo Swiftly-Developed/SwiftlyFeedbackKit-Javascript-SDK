@@ -84,6 +84,28 @@ final class Project: Model, Content, @unchecked Sendable {
     @OptionalField(key: "clickup_votes_field_id")
     var clickupVotesFieldId: String?
 
+    // Notion integration fields
+    @OptionalField(key: "notion_token")
+    var notionToken: String?
+
+    @OptionalField(key: "notion_database_id")
+    var notionDatabaseId: String?
+
+    @OptionalField(key: "notion_database_name")
+    var notionDatabaseName: String?
+
+    @Field(key: "notion_sync_status")
+    var notionSyncStatus: Bool
+
+    @Field(key: "notion_sync_comments")
+    var notionSyncComments: Bool
+
+    @OptionalField(key: "notion_status_property")
+    var notionStatusProperty: String?
+
+    @OptionalField(key: "notion_votes_property")
+    var notionVotesProperty: String?
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -123,7 +145,14 @@ final class Project: Model, Content, @unchecked Sendable {
         clickupDefaultTags: [String]? = nil,
         clickupSyncStatus: Bool = false,
         clickupSyncComments: Bool = false,
-        clickupVotesFieldId: String? = nil
+        clickupVotesFieldId: String? = nil,
+        notionToken: String? = nil,
+        notionDatabaseId: String? = nil,
+        notionDatabaseName: String? = nil,
+        notionSyncStatus: Bool = false,
+        notionSyncComments: Bool = false,
+        notionStatusProperty: String? = nil,
+        notionVotesProperty: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -150,6 +179,13 @@ final class Project: Model, Content, @unchecked Sendable {
         self.clickupSyncStatus = clickupSyncStatus
         self.clickupSyncComments = clickupSyncComments
         self.clickupVotesFieldId = clickupVotesFieldId
+        self.notionToken = notionToken
+        self.notionDatabaseId = notionDatabaseId
+        self.notionDatabaseName = notionDatabaseName
+        self.notionSyncStatus = notionSyncStatus
+        self.notionSyncComments = notionSyncComments
+        self.notionStatusProperty = notionStatusProperty
+        self.notionVotesProperty = notionVotesProperty
     }
 }
 

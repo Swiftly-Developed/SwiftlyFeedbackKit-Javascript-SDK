@@ -141,6 +141,19 @@ struct FeedbackListView: View {
                 .disabled(viewModel.selectedFeedbacks.allSatisfy { $0.hasClickUpTask })
             }
 
+            // Notion push button (only show if Notion is configured)
+            if project.isNotionConfigured {
+                Button {
+                    Task {
+                        await viewModel.bulkCreateNotionPages(projectId: project.id)
+                    }
+                } label: {
+                    Label("Push to Notion", systemImage: "doc.text")
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.selectedFeedbacks.allSatisfy { $0.hasNotionPage })
+            }
+
             Button {
                 viewModel.startMergeWithSelection()
             } label: {
@@ -413,6 +426,26 @@ struct FeedbackListView: View {
             Divider()
         }
 
+        // Notion options
+        if project.isNotionConfigured {
+            if feedback.hasNotionPage {
+                if let pageUrl = feedback.notionPageUrl, let url = URL(string: pageUrl) {
+                    Link(destination: url) {
+                        Label("View Notion Page", systemImage: "link")
+                    }
+                }
+            } else {
+                Button {
+                    Task {
+                        await viewModel.createNotionPage(projectId: project.id, feedbackId: feedback.id)
+                    }
+                } label: {
+                    Label("Push to Notion", systemImage: "doc.text")
+                }
+            }
+            Divider()
+        }
+
         // Merge option (shows when this + selected >= 2)
         let canMergeThis = viewModel.selectedFeedbackIds.count >= 1 || viewModel.selectedFeedbackIds.contains(feedback.id)
         if canMergeThis {
@@ -570,6 +603,9 @@ struct FeedbackListRowView: View {
                 if feedback.hasClickUpTask {
                     ClickUpBadge()
                 }
+                if feedback.hasNotionPage {
+                    NotionBadge()
+                }
                 Spacer()
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.up")
@@ -673,6 +709,25 @@ struct ClickUpBadge: View {
         .padding(.vertical, 3)
         .background(Color.purple.opacity(0.15))
         .foregroundStyle(.purple)
+        .clipShape(Capsule())
+    }
+}
+
+// MARK: - Notion Badge
+
+struct NotionBadge: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "doc.text")
+                .font(.caption2)
+            Text("Notion")
+                .font(.caption2)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.black.opacity(0.1))
+        .foregroundStyle(.primary.opacity(0.7))
         .clipShape(Capsule())
     }
 }
@@ -837,6 +892,26 @@ struct KanbanColumnView: View {
             Divider()
         }
 
+        // Notion options
+        if project.isNotionConfigured {
+            if feedback.hasNotionPage {
+                if let pageUrl = feedback.notionPageUrl, let url = URL(string: pageUrl) {
+                    Link(destination: url) {
+                        Label("View Notion Page", systemImage: "link")
+                    }
+                }
+            } else {
+                Button {
+                    Task {
+                        await viewModel.createNotionPage(projectId: project.id, feedbackId: feedback.id)
+                    }
+                } label: {
+                    Label("Push to Notion", systemImage: "doc.text")
+                }
+            }
+            Divider()
+        }
+
         // Merge option
         if viewModel.selectedFeedbackIds.count >= 1 {
             Button {
@@ -914,6 +989,9 @@ struct KanbanCardView: View {
                 }
                 if feedback.hasClickUpTask {
                     ClickUpBadge()
+                }
+                if feedback.hasNotionPage {
+                    NotionBadge()
                 }
                 Spacer()
                 if isSelected {

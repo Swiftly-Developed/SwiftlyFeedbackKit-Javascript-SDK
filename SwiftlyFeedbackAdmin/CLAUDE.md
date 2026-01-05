@@ -49,7 +49,8 @@ SwiftlyFeedbackAdmin/
 │   │   ├── AcceptInviteView.swift     # Accept project invite
 │   │   ├── SlackSettingsView.swift    # Configure Slack webhook notifications
 │   │   ├── GitHubSettingsView.swift   # Configure GitHub Issues integration
-│   │   └── ClickUpSettingsView.swift  # Configure ClickUp Tasks integration
+│   │   ├── ClickUpSettingsView.swift  # Configure ClickUp Tasks integration
+│   │   └── NotionSettingsView.swift   # Configure Notion database integration
 │   ├── Feedback/
 │   │   ├── FeedbackDashboardView.swift # Dashboard with List/Kanban views
 │   │   ├── FeedbackListView.swift      # Feedback list with row view
@@ -127,11 +128,13 @@ The `ProjectDetailView` displays configured integrations in a dedicated card:
 | Slack | `number` (teal) | "Notifications enabled" |
 | GitHub | `arrow.triangle.branch` (black) | "owner/repo" |
 | ClickUp | `checklist` (purple) | List name or "Connected" |
+| Notion | `doc.text` (black) | Database name or "Connected" |
 
 ### Configuration Check Properties (ProjectModels.swift)
 - `isSlackConfigured` - true if `slackWebhookUrl` is set and non-empty
 - `isGitHubConfigured` - true if owner, repo, and token are all set
 - `isClickUpConfigured` - true if token and listId are both set
+- `isNotionConfigured` - true if token and databaseId are both set
 - `hasAnyIntegration` - true if any of the above are configured
 
 ## Cross-Platform Considerations
@@ -444,6 +447,56 @@ When selecting multiple feedback items, the action bar includes "Push to ClickUp
 - `ProjectViewModel.swift` - `updateClickUpSettings()` and hierarchy loading methods
 - `AdminAPIClient.swift` - All ClickUp API calls (settings, tasks, hierarchy)
 - `ProjectModels.swift` - ClickUp request/response DTOs and hierarchy models
+
+## Notion Integration
+
+Push feedback items to Notion as database pages for tracking in your knowledge management workflow.
+
+### Setup
+1. Create a Notion Internal Integration at https://www.notion.so/my-integrations
+2. Copy the "Internal Integration Secret" (starts with `secret_`)
+3. Share your target database with the integration (database page → ⋯ → Add connections)
+4. In Admin app: Project Details > Menu (⋯) > Integrations > Notion
+5. Enter your token and select the target database via the picker
+6. Optionally configure status sync, comment sync, and vote count property
+
+### NotionSettingsView Features
+- Integration token SecureField
+- Database picker: dynamically loads databases shared with integration
+- Status property picker: select Status-type property for status sync
+- Votes property picker: select Number-type property for vote count sync
+- Status sync toggle: auto-update Notion page status when feedback status changes
+- Comment sync toggle: sync comments to Notion pages
+- Remove integration button
+
+### Status Mapping
+When status sync is enabled:
+- **pending** → "To Do"
+- **approved** → "Approved"
+- **in_progress** → "In Progress"
+- **testflight** → "In Review"
+- **completed** → "Complete"
+- **rejected** → "Closed"
+
+### Feedback Context Menu Actions
+- **Push to Notion**: Create a Notion page from feedback (only shown if Notion configured and no existing page)
+- **View Notion Page**: Open the linked page in browser (only shown if feedback has a page)
+
+### Bulk Actions
+When selecting multiple feedback items, the action bar includes "Push to Notion" button to create pages for all selected items that don't already have Notion pages.
+
+### Visual Indicators
+- Black Notion badge on feedback cards that have linked pages
+- Success toast showing page creation when created
+
+### Files
+- `NotionSettingsView.swift` - Settings sheet for Notion integration with database picker
+- `FeedbackDashboardView.swift` - Context menu with Push/View Notion actions
+- `FeedbackListView.swift` - Row context menu with Notion actions, NotionBadge component
+- `FeedbackViewModel.swift` - `createNotionPage()` and `bulkCreateNotionPages()` methods
+- `ProjectViewModel.swift` - `updateNotionSettings()`, `loadNotionDatabases()`, `loadNotionDatabaseProperties()` methods
+- `AdminAPIClient.swift` - All Notion API calls (settings, pages, databases)
+- `ProjectModels.swift` - Notion request/response DTOs
 
 ## Subscription Integration (Stub)
 

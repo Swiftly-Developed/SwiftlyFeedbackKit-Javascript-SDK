@@ -570,4 +570,75 @@ final class FeedbackViewModel {
             return false
         }
     }
+
+    // MARK: - Notion Integration
+
+    func createNotionPage(projectId: UUID, feedbackId: UUID) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.createNotionPage(
+                projectId: projectId,
+                feedbackId: feedbackId
+            )
+
+            // Refresh to get updated Notion fields
+            await refreshFeedbacks()
+
+            AppLogger.viewModel.info("✅ Notion page created: \(response.pageUrl)")
+            showSuccess(message: "Notion page created")
+            isLoading = false
+            return true
+        } catch {
+            AppLogger.viewModel.error("❌ Failed to create Notion page: \(error.localizedDescription)")
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
+    func bulkCreateNotionPages(projectId: UUID) async -> Bool {
+        // Get feedbacks that don't already have Notion pages
+        let feedbackIds = selectedFeedbacks
+            .filter { !$0.hasNotionPage }
+            .map { $0.id }
+
+        guard !feedbackIds.isEmpty else {
+            showError(message: "No feedbacks to push to Notion (all selected items already have pages)")
+            return false
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.bulkCreateNotionPages(
+                projectId: projectId,
+                feedbackIds: feedbackIds
+            )
+
+            // Refresh to get updated Notion fields
+            await refreshFeedbacks()
+
+            // Clear selection
+            clearSelection()
+
+            if response.failed.isEmpty {
+                AppLogger.viewModel.info("✅ Notion pages created: \(response.created.count)")
+                showSuccess(message: "Created \(response.created.count) Notion pages")
+            } else {
+                AppLogger.viewModel.warning("⚠️ Notion pages created with some failures: \(response.created.count) created, \(response.failed.count) failed")
+                showSuccess(message: "Created \(response.created.count) Notion pages (\(response.failed.count) failed)")
+            }
+
+            isLoading = false
+            return true
+        } catch {
+            AppLogger.viewModel.error("❌ Failed to create Notion pages: \(error.localizedDescription)")
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
 }

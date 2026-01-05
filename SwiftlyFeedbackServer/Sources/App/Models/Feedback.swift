@@ -67,6 +67,13 @@ final class Feedback: Model, Content, @unchecked Sendable {
     @OptionalField(key: "clickup_task_id")
     var clickupTaskId: String?
 
+    // Notion integration fields
+    @OptionalField(key: "notion_page_url")
+    var notionPageURL: String?
+
+    @OptionalField(key: "notion_page_id")
+    var notionPageId: String?
+
     /// Whether this feedback has been merged into another
     var isMerged: Bool {
         mergedIntoId != nil
@@ -85,6 +92,11 @@ final class Feedback: Model, Content, @unchecked Sendable {
     /// Whether this feedback has a linked ClickUp task
     var hasClickUpTask: Bool {
         clickupTaskURL != nil
+    }
+
+    /// Whether this feedback has a linked Notion page
+    var hasNotionPage: Bool {
+        notionPageURL != nil
     }
 
     init() {}
@@ -141,6 +153,24 @@ enum FeedbackStatus: String, Codable, CaseIterable {
             return "complete"
         case .rejected:
             return "closed"
+        }
+    }
+
+    /// Maps SwiftlyFeedback status to Notion status names
+    var notionStatusName: String {
+        switch self {
+        case .pending:
+            return "To Do"
+        case .approved:
+            return "Approved"
+        case .inProgress:
+            return "In Progress"
+        case .testflight:
+            return "In Review"
+        case .completed:
+            return "Complete"
+        case .rejected:
+            return "Closed"
         }
     }
 }

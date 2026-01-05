@@ -127,6 +127,49 @@ struct ClickUpCustomFieldDTO: Content {
     var type: String
 }
 
+// MARK: - Notion Integration DTOs
+
+struct UpdateProjectNotionDTO: Content {
+    var notionToken: String?
+    var notionDatabaseId: String?
+    var notionDatabaseName: String?
+    var notionSyncStatus: Bool?
+    var notionSyncComments: Bool?
+    var notionStatusProperty: String?
+    var notionVotesProperty: String?
+}
+
+struct CreateNotionPageDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateNotionPageResponseDTO: Content {
+    var feedbackId: UUID
+    var pageUrl: String
+    var pageId: String
+}
+
+struct BulkCreateNotionPagesDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateNotionPagesResponseDTO: Content {
+    var created: [CreateNotionPageResponseDTO]
+    var failed: [UUID]
+}
+
+struct NotionDatabaseDTO: Content {
+    var id: String
+    var name: String
+    var properties: [NotionPropertyDTO]
+}
+
+struct NotionPropertyDTO: Content {
+    var id: String
+    var name: String
+    var type: String
+}
+
 struct AddMemberDTO: Content, Validatable {
     let email: String
     let role: ProjectRole
@@ -174,6 +217,14 @@ struct ProjectResponseDTO: Content {
     let clickupSyncStatus: Bool
     let clickupSyncComments: Bool
     let clickupVotesFieldId: String?
+    // Notion integration fields
+    let notionToken: String?
+    let notionDatabaseId: String?
+    let notionDatabaseName: String?
+    let notionSyncStatus: Bool
+    let notionSyncComments: Bool
+    let notionStatusProperty: String?
+    let notionVotesProperty: String?
 
     init(project: Project, feedbackCount: Int = 0, memberCount: Int = 0, ownerEmail: String? = nil) {
         self.id = project.id!
@@ -207,6 +258,13 @@ struct ProjectResponseDTO: Content {
         self.clickupSyncStatus = project.clickupSyncStatus
         self.clickupSyncComments = project.clickupSyncComments
         self.clickupVotesFieldId = project.clickupVotesFieldId
+        self.notionToken = project.notionToken
+        self.notionDatabaseId = project.notionDatabaseId
+        self.notionDatabaseName = project.notionDatabaseName
+        self.notionSyncStatus = project.notionSyncStatus
+        self.notionSyncComments = project.notionSyncComments
+        self.notionStatusProperty = project.notionStatusProperty
+        self.notionVotesProperty = project.notionVotesProperty
     }
 }
 

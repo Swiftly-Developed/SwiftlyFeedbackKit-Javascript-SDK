@@ -22,4 +22,7 @@
    <FileRef
       location = "group:CLICKUP_INTEGRATION.md">
    </FileRef>
+   <FileRef
+      location = "group:NOTION_IMPLEMENTATION_PLAN.md">
+   </FileRef>
 </Workspace>

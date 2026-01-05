@@ -27,6 +27,9 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     // ClickUp integration fields
     let clickupTaskUrl: String?
     let clickupTaskId: String?
+    // Notion integration fields
+    let notionPageUrl: String?
+    let notionPageId: String?
 
     /// Formatted total MRR string for display (always shows, even if $0)
     var formattedMrr: String {
@@ -60,6 +63,11 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     /// Whether this feedback has a linked ClickUp task
     var hasClickUpTask: Bool {
         clickupTaskUrl != nil
+    }
+
+    /// Whether this feedback has a linked Notion page
+    var hasNotionPage: Bool {
+        notionPageUrl != nil
     }
 }
 

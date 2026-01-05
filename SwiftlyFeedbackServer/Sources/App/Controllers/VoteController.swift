@@ -71,6 +71,21 @@ struct VoteController: RouteCollection {
             }
         }
 
+        // Sync vote count to Notion if configured
+        if let votesProperty = project.notionVotesProperty,
+           !votesProperty.isEmpty,
+           let pageId = feedback.notionPageId,
+           let token = project.notionToken {
+            Task {
+                try? await req.notionService.updatePageNumber(
+                    pageId: pageId,
+                    token: token,
+                    propertyName: votesProperty,
+                    value: feedback.voteCount
+                )
+            }
+        }
+
         return VoteResponseDTO(feedbackId: feedbackId, voteCount: feedback.voteCount, hasVoted: true)
     }
 
@@ -117,6 +132,21 @@ struct VoteController: RouteCollection {
                     taskId: taskId,
                     fieldId: votesFieldId,
                     token: token,
+                    value: feedback.voteCount
+                )
+            }
+        }
+
+        // Sync vote count to Notion if configured
+        if let votesProperty = project.notionVotesProperty,
+           !votesProperty.isEmpty,
+           let pageId = feedback.notionPageId,
+           let token = project.notionToken {
+            Task {
+                try? await req.notionService.updatePageNumber(
+                    pageId: pageId,
+                    token: token,
+                    propertyName: votesProperty,
                     value: feedback.voteCount
                 )
             }

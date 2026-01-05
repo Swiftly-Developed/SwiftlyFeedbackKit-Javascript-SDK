@@ -51,6 +51,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddProjectAllowedStatuses())
     app.migrations.add(AddProjectGitHubIntegration())
     app.migrations.add(AddProjectClickUpIntegration())
+    app.migrations.add(AddProjectNotionIntegration())
 
     try await app.autoMigrate()
 

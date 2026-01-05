@@ -34,6 +34,14 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let clickupSyncStatus: Bool
     let clickupSyncComments: Bool
     let clickupVotesFieldId: String?
+    // Notion integration fields
+    let notionToken: String?
+    let notionDatabaseId: String?
+    let notionDatabaseName: String?
+    let notionSyncStatus: Bool
+    let notionSyncComments: Bool
+    let notionStatusProperty: String?
+    let notionVotesProperty: String?
 
     /// Whether Slack integration is configured
     var isSlackConfigured: Bool {
@@ -50,9 +58,14 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         clickupToken != nil && clickupListId != nil
     }
 
+    /// Whether Notion integration is configured
+    var isNotionConfigured: Bool {
+        notionToken != nil && notionDatabaseId != nil
+    }
+
     /// Whether any integration is configured
     var hasAnyIntegration: Bool {
-        isSlackConfigured || isGitHubConfigured || isClickUpConfigured
+        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured
     }
 
     // Custom decoder to handle backwards compatibility when allowedStatuses is missing
@@ -93,6 +106,14 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         clickupSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .clickupSyncStatus) ?? false
         clickupSyncComments = try container.decodeIfPresent(Bool.self, forKey: .clickupSyncComments) ?? false
         clickupVotesFieldId = try container.decodeIfPresent(String.self, forKey: .clickupVotesFieldId)
+        // Notion fields (backwards compatibility)
+        notionToken = try container.decodeIfPresent(String.self, forKey: .notionToken)
+        notionDatabaseId = try container.decodeIfPresent(String.self, forKey: .notionDatabaseId)
+        notionDatabaseName = try container.decodeIfPresent(String.self, forKey: .notionDatabaseName)
+        notionSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .notionSyncStatus) ?? false
+        notionSyncComments = try container.decodeIfPresent(Bool.self, forKey: .notionSyncComments) ?? false
+        notionStatusProperty = try container.decodeIfPresent(String.self, forKey: .notionStatusProperty)
+        notionVotesProperty = try container.decodeIfPresent(String.self, forKey: .notionVotesProperty)
     }
 
     init(
@@ -126,7 +147,14 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         clickupDefaultTags: [String]? = nil,
         clickupSyncStatus: Bool = false,
         clickupSyncComments: Bool = false,
-        clickupVotesFieldId: String? = nil
+        clickupVotesFieldId: String? = nil,
+        notionToken: String? = nil,
+        notionDatabaseId: String? = nil,
+        notionDatabaseName: String? = nil,
+        notionSyncStatus: Bool = false,
+        notionSyncComments: Bool = false,
+        notionStatusProperty: String? = nil,
+        notionVotesProperty: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -159,6 +187,13 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         self.clickupSyncStatus = clickupSyncStatus
         self.clickupSyncComments = clickupSyncComments
         self.clickupVotesFieldId = clickupVotesFieldId
+        self.notionToken = notionToken
+        self.notionDatabaseId = notionDatabaseId
+        self.notionDatabaseName = notionDatabaseName
+        self.notionSyncStatus = notionSyncStatus
+        self.notionSyncComments = notionSyncComments
+        self.notionStatusProperty = notionStatusProperty
+        self.notionVotesProperty = notionVotesProperty
     }
 }
 
@@ -371,4 +406,47 @@ struct AcceptInviteResponse: Codable, Sendable {
     let projectId: UUID
     let projectName: String
     let role: ProjectRole
+}
+
+// MARK: - Notion Integration
+
+struct UpdateProjectNotionRequest: Encodable {
+    let notionToken: String?
+    let notionDatabaseId: String?
+    let notionDatabaseName: String?
+    let notionSyncStatus: Bool?
+    let notionSyncComments: Bool?
+    let notionStatusProperty: String?
+    let notionVotesProperty: String?
+}
+
+struct CreateNotionPageRequest: Encodable {
+    let feedbackId: UUID
+}
+
+struct CreateNotionPageResponse: Decodable {
+    let feedbackId: UUID
+    let pageUrl: String
+    let pageId: String
+}
+
+struct BulkCreateNotionPagesRequest: Encodable {
+    let feedbackIds: [UUID]
+}
+
+struct BulkCreateNotionPagesResponse: Decodable {
+    let created: [CreateNotionPageResponse]
+    let failed: [UUID]
+}
+
+struct NotionDatabase: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let properties: [NotionProperty]
+}
+
+struct NotionProperty: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let type: String
 }

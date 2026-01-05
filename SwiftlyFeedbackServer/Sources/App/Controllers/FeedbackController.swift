@@ -354,6 +354,27 @@ struct FeedbackController: RouteCollection {
                     }
                 }
             }
+
+            // Sync to Notion if configured
+            if let pageId = feedback.notionPageId,
+               project.notionSyncStatus,
+               let token = project.notionToken,
+               let statusProperty = project.notionStatusProperty,
+               !statusProperty.isEmpty {
+                let notionStatus = newStatus.notionStatusName
+                Task {
+                    do {
+                        try await req.notionService.updatePageStatus(
+                            pageId: pageId,
+                            token: token,
+                            statusProperty: statusProperty,
+                            statusValue: notionStatus
+                        )
+                    } catch {
+                        req.logger.error("Failed to sync Notion page status: \(error)")
+                    }
+                }
+            }
         }
 
         try await feedback.$votes.load(on: req.db)

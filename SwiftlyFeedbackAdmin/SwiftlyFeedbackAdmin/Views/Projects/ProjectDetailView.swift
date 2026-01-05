@@ -15,6 +15,7 @@ struct ProjectDetailView: View {
     @State private var showingStatusSheet = false
     @State private var showingGitHubSheet = false
     @State private var showingClickUpSheet = false
+    @State private var showingNotionSheet = false
     @State private var copiedToClipboard = false
 
     private var isCompact: Bool {
@@ -92,6 +93,12 @@ struct ProjectDetailView: View {
                                 showingClickUpSheet = true
                             } label: {
                                 Label("ClickUp", systemImage: "checklist")
+                            }
+
+                            Button {
+                                showingNotionSheet = true
+                            } label: {
+                                Label("Notion", systemImage: "doc.text")
                             }
                         } label: {
                             Label("Integrations", systemImage: "puzzlepiece.extension")
@@ -206,6 +213,14 @@ struct ProjectDetailView: View {
         .sheet(isPresented: $showingClickUpSheet) {
             if let project = viewModel.selectedProject {
                 ClickUpSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 500)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingNotionSheet) {
+            if let project = viewModel.selectedProject {
+                NotionSettingsView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 500, minHeight: 500)
                     #endif
@@ -484,6 +499,21 @@ struct ProjectDetailView: View {
                         detail: project.clickupListName ?? "Connected"
                     ) {
                         showingClickUpSheet = true
+                    }
+                }
+
+                if project.isNotionConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "doc.text",
+                        iconColor: .black,
+                        name: "Notion",
+                        detail: project.notionDatabaseName ?? "Connected"
+                    ) {
+                        showingNotionSheet = true
                     }
                 }
             }

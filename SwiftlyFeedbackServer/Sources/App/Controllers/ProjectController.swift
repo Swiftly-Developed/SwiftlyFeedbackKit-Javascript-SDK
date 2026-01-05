@@ -49,6 +49,13 @@ struct ProjectController: RouteCollection {
         protected.get(":projectId", "clickup", "folderless-lists", ":spaceId", use: getClickUpFolderlessLists)
         protected.get(":projectId", "clickup", "custom-fields", use: getClickUpCustomFields)
 
+        // Notion integration
+        protected.patch(":projectId", "notion", use: updateNotionSettings)
+        protected.post(":projectId", "notion", "page", use: createNotionPage)
+        protected.post(":projectId", "notion", "pages", use: bulkCreateNotionPages)
+        protected.get(":projectId", "notion", "databases", use: getNotionDatabases)
+        protected.get(":projectId", "notion", "database", ":databaseId", "properties", use: getNotionDatabaseProperties)
+
         // Invite management
         protected.get(":projectId", "invites", use: listInvites)
         protected.delete(":projectId", "invites", ":inviteId", use: cancelInvite)
@@ -1201,6 +1208,261 @@ struct ProjectController: RouteCollection {
         return fields
             .filter { $0.type == "number" }
             .map { ClickUpCustomFieldDTO(id: $0.id, name: $0.name, type: $0.type) }
+    }
+
+    // MARK: - Notion Integration
+
+    @Sendable
+    func updateNotionSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectNotionDTO.self)
+
+        if let token = dto.notionToken {
+            project.notionToken = token.isEmpty ? nil : token
+        }
+        if let databaseId = dto.notionDatabaseId {
+            project.notionDatabaseId = databaseId.isEmpty ? nil : databaseId
+        }
+        if let databaseName = dto.notionDatabaseName {
+            project.notionDatabaseName = databaseName.isEmpty ? nil : databaseName
+        }
+        if let syncStatus = dto.notionSyncStatus {
+            project.notionSyncStatus = syncStatus
+        }
+        if let syncComments = dto.notionSyncComments {
+            project.notionSyncComments = syncComments
+        }
+        if let statusProperty = dto.notionStatusProperty {
+            project.notionStatusProperty = statusProperty.isEmpty ? nil : statusProperty
+        }
+        if let votesProperty = dto.notionVotesProperty {
+            project.notionVotesProperty = votesProperty.isEmpty ? nil : votesProperty
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count,
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createNotionPage(req: Request) async throws -> CreateNotionPageResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.notionToken,
+              let databaseId = project.notionDatabaseId else {
+            throw Abort(.badRequest, reason: "Notion integration not configured")
+        }
+
+        let dto = try req.content.decode(CreateNotionPageDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.notionPageURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has a Notion page")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        let content = req.notionService.buildPageContent(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        let properties = req.notionService.buildPageProperties(
+            feedback: feedback,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil,
+            statusProperty: project.notionStatusProperty,
+            votesProperty: project.notionVotesProperty
+        )
+
+        let response = try await req.notionService.createPage(
+            databaseId: databaseId,
+            token: token,
+            title: feedback.title,
+            properties: properties,
+            content: content
+        )
+
+        feedback.notionPageURL = response.url
+        feedback.notionPageId = response.id
+        try await feedback.save(on: req.db)
+
+        return CreateNotionPageResponseDTO(
+            feedbackId: feedback.id!,
+            pageUrl: response.url,
+            pageId: response.id
+        )
+    }
+
+    @Sendable
+    func bulkCreateNotionPages(req: Request) async throws -> BulkCreateNotionPagesResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.notionToken,
+              let databaseId = project.notionDatabaseId else {
+            throw Abort(.badRequest, reason: "Notion integration not configured")
+        }
+
+        let dto = try req.content.decode(BulkCreateNotionPagesDTO.self)
+
+        var created: [CreateNotionPageResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.notionPageURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let content = req.notionService.buildPageContent(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                let properties = req.notionService.buildPageProperties(
+                    feedback: feedback,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil,
+                    statusProperty: project.notionStatusProperty,
+                    votesProperty: project.notionVotesProperty
+                )
+
+                let response = try await req.notionService.createPage(
+                    databaseId: databaseId,
+                    token: token,
+                    title: feedback.title,
+                    properties: properties,
+                    content: content
+                )
+
+                feedback.notionPageURL = response.url
+                feedback.notionPageId = response.id
+                try await feedback.save(on: req.db)
+
+                created.append(CreateNotionPageResponseDTO(
+                    feedbackId: feedback.id!,
+                    pageUrl: response.url,
+                    pageId: response.id
+                ))
+            } catch {
+                req.logger.error("Failed to create Notion page for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateNotionPagesResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getNotionDatabases(req: Request) async throws -> [NotionDatabaseDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.notionToken else {
+            throw Abort(.badRequest, reason: "Notion token not configured")
+        }
+
+        let databases = try await req.notionService.searchDatabases(token: token)
+        return databases.map { db in
+            NotionDatabaseDTO(
+                id: db.id,
+                name: db.name,
+                properties: db.properties.map { (name, prop) in
+                    NotionPropertyDTO(id: prop.id, name: name, type: prop.type)
+                }
+            )
+        }
+    }
+
+    @Sendable
+    func getNotionDatabaseProperties(req: Request) async throws -> NotionDatabaseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.notionToken else {
+            throw Abort(.badRequest, reason: "Notion token not configured")
+        }
+
+        guard let databaseId = req.parameters.get("databaseId") else {
+            throw Abort(.badRequest, reason: "Database ID required")
+        }
+
+        let database = try await req.notionService.getDatabase(databaseId: databaseId, token: token)
+        return NotionDatabaseDTO(
+            id: database.id,
+            name: database.name,
+            properties: database.properties.map { (name, prop) in
+                NotionPropertyDTO(id: prop.id, name: name, type: prop.type)
+            }
+        )
     }
 
     // MARK: - Helpers

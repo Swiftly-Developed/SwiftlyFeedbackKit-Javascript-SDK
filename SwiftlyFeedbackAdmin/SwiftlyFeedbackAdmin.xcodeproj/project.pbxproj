@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D0F3F61A2F0BF9A4006C891E /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = D0F3F6192F0BF9A4006C891E /* CLAUDE.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		D0B8F2652F08C02600C707DC /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		D0B8F2572F08C02500C707DC /* SwiftlyFeedbackAdmin.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftlyFeedbackAdmin.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0B8F2642F08C02600C707DC /* SwiftlyFeedbackAdminTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftlyFeedbackAdminTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D0B8F26E2F08C02600C707DC /* SwiftlyFeedbackAdminUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SwiftlyFeedbackAdminUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D0F3F6192F0BF9A4006C891E /* CLAUDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CLAUDE.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +80,7 @@
 		D0B8F24E2F08C02500C707DC = {
 			isa = PBXGroup;
 			children = (
+				D0F3F6192F0BF9A4006C891E /* CLAUDE.md */,
 				D0B8F2592F08C02500C707DC /* SwiftlyFeedbackAdmin */,
 				D0B8F2672F08C02600C707DC /* SwiftlyFeedbackAdminTests */,
 				D0B8F2712F08C02600C707DC /* SwiftlyFeedbackAdminUITests */,
@@ -215,6 +221,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D0F3F61A2F0BF9A4006C891E /* CLAUDE.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

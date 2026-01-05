@@ -145,6 +145,27 @@ struct CommentController: RouteCollection {
             }
         }
 
+        // Sync comment to Notion if enabled
+        if project.notionSyncComments,
+           let pageId = feedback.notionPageId,
+           let token = project.notionToken {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterType = isAdmin ? "Admin" : "User"
+            let commentText = "[\(commenterType)] \(comment.content)"
+
+            Task {
+                do {
+                    _ = try await req.notionService.createComment(
+                        pageId: pageId,
+                        token: token,
+                        text: commentText
+                    )
+                } catch {
+                    req.logger.error("Failed to sync comment to Notion: \(error)")
+                }
+            }
+        }
+
         return CommentResponseDTO(comment: comment)
     }
 

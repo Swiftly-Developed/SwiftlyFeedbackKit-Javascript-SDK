@@ -468,6 +468,59 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Notion Settings
+
+    func updateNotionSettings(
+        projectId: UUID,
+        notionToken: String?,
+        notionDatabaseId: String?,
+        notionDatabaseName: String?,
+        notionSyncStatus: Bool?,
+        notionSyncComments: Bool?,
+        notionStatusProperty: String?,
+        notionVotesProperty: String?
+    ) async -> Bool {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            selectedProject = try await AdminAPIClient.shared.updateProjectNotionSettings(
+                projectId: projectId,
+                notionToken: notionToken,
+                notionDatabaseId: notionDatabaseId,
+                notionDatabaseName: notionDatabaseName,
+                notionSyncStatus: notionSyncStatus,
+                notionSyncComments: notionSyncComments,
+                notionStatusProperty: notionStatusProperty,
+                notionVotesProperty: notionVotesProperty
+            )
+            isLoading = false
+            return true
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return false
+        }
+    }
+
+    func loadNotionDatabases(projectId: UUID) async -> [NotionDatabase] {
+        do {
+            return try await AdminAPIClient.shared.getNotionDatabases(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadNotionDatabaseProperties(projectId: UUID, databaseId: String) async -> NotionDatabase? {
+        do {
+            return try await AdminAPIClient.shared.getNotionDatabaseProperties(projectId: projectId, databaseId: databaseId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return nil
+        }
+    }
+
     // MARK: - Accept Invite
 
     var inviteCode = ""

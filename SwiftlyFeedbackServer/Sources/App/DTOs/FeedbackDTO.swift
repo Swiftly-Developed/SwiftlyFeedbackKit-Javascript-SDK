@@ -40,6 +40,9 @@ struct FeedbackResponseDTO: Content {
     // ClickUp integration fields
     let clickupTaskUrl: String?
     let clickupTaskId: String?
+    // Notion integration fields
+    let notionPageUrl: String?
+    let notionPageId: String?
 
     init(feedback: Feedback, hasVoted: Bool = false, commentCount: Int = 0, totalMrr: Double? = nil) {
         self.id = feedback.id!
@@ -62,5 +65,7 @@ struct FeedbackResponseDTO: Content {
         self.githubIssueNumber = feedback.githubIssueNumber
         self.clickupTaskUrl = feedback.clickupTaskURL
         self.clickupTaskId = feedback.clickupTaskId
+        self.notionPageUrl = feedback.notionPageURL
+        self.notionPageId = feedback.notionPageId
     }
 }

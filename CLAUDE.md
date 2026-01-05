@@ -413,6 +413,108 @@ When enabled, feedback status changes sync to GitHub:
 - **View issue**: Right-click feedback with issue > "View GitHub Issue"
 - **Badge**: Feedback cards show GitHub icon when linked to an issue
 
+## Notion Integration
+
+Projects can push feedback items to Notion as database entries for tracking in your knowledge management workflow. Configuration is done per-project in the Admin app.
+
+### Setup
+1. Create a Notion Internal Integration at https://www.notion.so/my-integrations
+2. Copy the "Internal Integration Secret" (starts with `secret_`)
+3. Share your target database with the integration (database page → ⋯ → Add connections)
+4. In Admin app: Project Details > Menu (⋯) > Notion Integration
+5. Enter your integration token and select the target database via the picker
+6. Optionally configure status sync and comment sync
+
+### Features
+- **Create Page**: Push individual feedback to Notion as a database page
+- **Bulk Create**: Push multiple selected feedback items at once
+- **Status Sync**: Automatically update Notion page status when feedback status changes
+- **Comment Sync**: Sync comments from SwiftlyFeedback to Notion pages
+- **Link Tracking**: Notion page URL stored on feedback for quick access
+
+### Page Creation
+When feedback is pushed to Notion:
+- Page title = Feedback title
+- Page body includes description, category, vote count, MRR, and submitter email
+- Properties: Title, Status, Category, Votes, MRR, Submitter Email, Created Date
+- Feedback card shows Notion badge with link to page
+
+### Status Sync (Optional)
+When enabled, feedback status changes map to Notion statuses:
+- **pending** → "To Do"
+- **approved** → "Approved"
+- **in_progress** → "In Progress"
+- **testflight** → "In Review"
+- **completed** → "Complete"
+- **rejected** → "Closed"
+
+Note: Status options must exist in your Notion database's Status property.
+
+### Server Endpoints
+- `PATCH /projects/:id/notion` - Update Notion settings (bearer auth, owner/admin only)
+- `POST /projects/:id/notion/page` - Create single page (bearer auth, owner/admin only)
+- `POST /projects/:id/notion/pages` - Bulk create pages (bearer auth, owner/admin only)
+- `GET /projects/:id/notion/databases` - Get accessible databases for picker
+- `GET /projects/:id/notion/database/:databaseId/properties` - Get database schema
+
+**Update settings request:**
+```json
+{
+  "notion_token": "secret_...",
+  "notion_database_id": "abc123def456",
+  "notion_database_name": "Feedback",
+  "notion_sync_status": true,
+  "notion_sync_comments": true,
+  "notion_status_property": "Status",
+  "notion_votes_property": "Votes"
+}
+```
+
+**Create page request:**
+```json
+{
+  "feedback_id": "uuid"
+}
+```
+
+**Create page response:**
+```json
+{
+  "feedback_id": "uuid",
+  "page_url": "https://notion.so/abc123",
+  "page_id": "abc123def456"
+}
+```
+
+### Database Fields
+
+**Project model:**
+- `notion_token` (String?, optional) - Notion Internal Integration Secret
+- `notion_database_id` (String?, optional) - Target database ID
+- `notion_database_name` (String?, optional) - Database name for display
+- `notion_sync_status` (Bool, default: false) - Enable status sync
+- `notion_sync_comments` (Bool, default: false) - Enable comment sync
+- `notion_status_property` (String?, optional) - Name of Status property in database
+- `notion_votes_property` (String?, optional) - Name of Votes (number) property
+
+**Feedback model:**
+- `notion_page_url` (String?, optional) - URL of linked Notion page
+- `notion_page_id` (String?, optional) - Page ID for API calls
+
+### Admin App UI
+- **Settings**: Project Details > Menu (⋯) > Notion Integration
+- **Push single**: Right-click feedback > "Push to Notion"
+- **Push bulk**: Select multiple items > "Push to Notion" button in action bar
+- **View page**: Right-click feedback with page > "View Notion Page"
+- **Badge**: Feedback cards show black Notion icon when linked to a page
+
+### Notion API Details
+- **Base URL**: `https://api.notion.com/v1`
+- **Auth Header**: `Authorization: Bearer {token}`
+- **Version Header**: `Notion-Version: 2022-06-28`
+- **Rate Limit**: ~3 requests/second average (handle 429 with Retry-After header)
+- **Tokens don't expire**: Users authorize once
+
 ## ClickUp Integration
 
 Projects can push feedback items to ClickUp as tasks for tracking in your project management workflow. Configuration is done per-project in the Admin app.

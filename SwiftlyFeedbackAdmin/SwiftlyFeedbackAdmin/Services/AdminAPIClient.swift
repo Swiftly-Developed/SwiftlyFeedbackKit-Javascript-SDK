@@ -908,6 +908,117 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Notion Integration API
+
+    func updateProjectNotionSettings(
+        projectId: UUID,
+        notionToken: String?,
+        notionDatabaseId: String?,
+        notionDatabaseName: String?,
+        notionSyncStatus: Bool?,
+        notionSyncComments: Bool?,
+        notionStatusProperty: String?,
+        notionVotesProperty: String?
+    ) async throws -> Project {
+        let path = "projects/\(projectId)/notion"
+        let body = UpdateProjectNotionRequest(
+            notionToken: notionToken,
+            notionDatabaseId: notionDatabaseId,
+            notionDatabaseName: notionDatabaseName,
+            notionSyncStatus: notionSyncStatus,
+            notionSyncComments: notionSyncComments,
+            notionStatusProperty: notionStatusProperty,
+            notionVotesProperty: notionVotesProperty
+        )
+
+        AppLogger.api.info("🟠 PATCH \(path) (Notion settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createNotionPage(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateNotionPageResponse {
+        let path = "projects/\(projectId)/notion/page"
+        let body = CreateNotionPageRequest(feedbackId: feedbackId)
+
+        AppLogger.api.info("🟢 POST \(path) (create Notion page)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateNotionPageResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateNotionPages(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateNotionPagesResponse {
+        let path = "projects/\(projectId)/notion/pages"
+        let body = BulkCreateNotionPagesRequest(feedbackIds: feedbackIds)
+
+        AppLogger.api.info("🟢 POST \(path) (bulk create Notion pages)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateNotionPagesResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - decoded: \(decoded.created.count) created, \(decoded.failed.count) failed")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getNotionDatabases(projectId: UUID) async throws -> [NotionDatabase] {
+        let path = "projects/\(projectId)/notion/databases"
+        AppLogger.api.info("🔵 GET \(path) (Notion databases)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([NotionDatabase].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) databases")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getNotionDatabaseProperties(projectId: UUID, databaseId: String) async throws -> NotionDatabase {
+        let path = "projects/\(projectId)/notion/database/\(databaseId)/properties"
+        AppLogger.api.info("🔵 GET \(path) (Notion database properties)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(NotionDatabase.self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded database with \(decoded.properties.count) properties")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Merge Feedback API
 
     func mergeFeedback(primaryId: UUID, secondaryIds: [UUID]) async throws -> MergeFeedbackResponse {
