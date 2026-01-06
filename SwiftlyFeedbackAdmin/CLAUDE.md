@@ -192,6 +192,35 @@ The macOS app uses `NavigationSplitView` with a sidebar (`MainTabView.swift`):
 - Sidebar has `.navigationTitle("SwiftlyFeedback")` for proper top area rendering
 - Each detail section has its own `NavigationStack` for consistent title styling
 - Detail views provide their own `.navigationTitle()` (e.g., "Projects", "Feedback", "Settings")
+- Sidebar is split into two sections with a Spacer and Divider:
+  - **Top section**: Home, Projects, Feedback, Users, Events
+  - **Bottom section**: Feature Requests, Settings
+
+## Feature Requests Tab
+
+The Admin app integrates SwiftlyFeedbackKit to collect feedback from its own users ("eating your own dog food").
+
+### Configuration
+
+In `SwiftlyFeedbackAdminApp.swift`:
+```swift
+import SwiftlyFeedbackKit
+
+init() {
+    // Configure SwiftlyFeedbackKit SDK for in-app feature requests
+    SwiftlyFeedback.configure(with: "sf_your_api_key")
+    SwiftlyFeedback.theme.primaryColor = .color(.blue)
+}
+```
+
+### Navigation Placement
+- **macOS**: Bottom of sidebar after Divider, before Settings
+- **iOS/iPadOS**: Tab with lightbulb icon, uses `.tabViewStyle(.sidebarAdaptable)` for iPad optimization
+
+### Implementation
+- Uses `SwiftlyFeedbackKit.FeedbackListView()` directly (no custom wrapper needed)
+- SDK is configured once at app launch with a hardcoded API key
+- Users can submit feature requests, vote, and view existing feedback
 
 ## Shared Project Filter
 

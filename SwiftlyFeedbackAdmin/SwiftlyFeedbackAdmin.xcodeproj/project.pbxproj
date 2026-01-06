@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		D0F3F61A2F0BF9A4006C891E /* CLAUDE.md in Resources */ = {isa = PBXBuildFile; fileRef = D0F3F6192F0BF9A4006C891E /* CLAUDE.md */; };
+		D0F3F6202F0CF000006C891E /* SwiftlyFeedbackKit in Frameworks */ = {isa = PBXBuildFile; productRef = D0F3F61F2F0CF000006C891E /* SwiftlyFeedbackKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D0F3F6202F0CF000006C891E /* SwiftlyFeedbackKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 			);
 			name = SwiftlyFeedbackAdmin;
 			packageProductDependencies = (
+				D0F3F61F2F0CF000006C891E /* SwiftlyFeedbackKit */,
 			);
 			productName = SwiftlyFeedbackAdmin;
 			productReference = D0B8F2572F08C02500C707DC /* SwiftlyFeedbackAdmin.app */;
@@ -203,6 +206,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				D0F3F6122F0A9705006C891E /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+				D0F3F61E2F0CF000006C891E /* XCLocalSwiftPackageReference "../SwiftlyFeedbackKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D0B8F2582F08C02500C707DC /* Products */;
@@ -648,6 +652,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		D0F3F61E2F0CF000006C891E /* XCLocalSwiftPackageReference "../SwiftlyFeedbackKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../SwiftlyFeedbackKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		D0F3F6122F0A9705006C891E /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -658,6 +669,13 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D0F3F61F2F0CF000006C891E /* SwiftlyFeedbackKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SwiftlyFeedbackKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D0B8F24F2F08C02500C707DC /* Project object */;
 }

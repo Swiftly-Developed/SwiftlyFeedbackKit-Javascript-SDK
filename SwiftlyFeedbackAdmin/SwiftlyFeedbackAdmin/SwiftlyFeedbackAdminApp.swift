@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftlyFeedbackKit
 
 #if os(macOS)
 import AppKit
@@ -47,6 +48,10 @@ struct SwiftlyFeedbackAdminApp: App {
     init() {
         // Configure subscription service at app launch
         SubscriptionService.shared.configure()
+
+        // Configure SwiftlyFeedbackKit SDK for in-app feature requests
+        SwiftlyFeedback.configure(with: "sf_fY0dPzpz85eVw04ncj3uYnKtGBISDAiD")
+        SwiftlyFeedback.theme.primaryColor = .color(.blue)
     }
 
     var body: some Scene {
