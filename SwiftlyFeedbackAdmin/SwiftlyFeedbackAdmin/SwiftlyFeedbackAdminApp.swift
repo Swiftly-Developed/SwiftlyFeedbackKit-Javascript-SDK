@@ -45,6 +45,8 @@ struct SwiftlyFeedbackAdminApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
+    @State private var deepLinkManager = DeepLinkManager.shared
+
     init() {
         // Configure subscription service at app launch
         SubscriptionService.shared.configure()
@@ -57,6 +59,10 @@ struct SwiftlyFeedbackAdminApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environment(deepLinkManager)
+                .onOpenURL { url in
+                    deepLinkManager.handleURL(url)
+                }
         }
         #if os(macOS)
         .commands {

@@ -29,12 +29,19 @@ struct EmailService {
         """
     }
 
-    private func emailFooter(message: String) -> String {
-        """
+    private func emailFooter(message: String, showUnsubscribe: Bool = false) -> String {
+        let unsubscribeLink = showUnsubscribe ? """
+        <p style="font-size: 11px; color: #bbb; text-align: center; margin-top: 10px;">
+            <a href="feedbackkit://settings/notifications" style="color: #999; text-decoration: underline;">Manage email preferences</a>
+        </p>
+        """ : ""
+
+        return """
         <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 25px 0;">
         <p style="font-size: 12px; color: #999; text-align: center;">
             \(message)
         </p>
+        \(unsubscribeLink)
         <p style="font-size: 11px; color: #bbb; text-align: center; margin-top: 15px;">
             Powered by <span style="color: \(primaryColor); font-weight: 600;">Feedback Kit</span>
         </p>
@@ -178,7 +185,7 @@ struct EmailService {
                 <p style="font-size: 14px; color: #666; margin-top: 25px; text-align: center;">
                     Open the Feedback Kit app to view and respond to this feedback.
                 </p>
-                \(emailFooter(message: "You received this email because you are a member of \(projectName)."))
+                \(emailFooter(message: "You received this email because you are a member of \(projectName).", showUnsubscribe: true))
             </div>
         </body>
         </html>
@@ -231,7 +238,7 @@ struct EmailService {
                 <p style="font-size: 14px; color: #666; margin-top: 25px; text-align: center;">
                     Open the Feedback Kit app to view and respond to this comment.
                 </p>
-                \(emailFooter(message: "You received this email because you are a member of \(projectName)."))
+                \(emailFooter(message: "You received this email because you are a member of \(projectName).", showUnsubscribe: true))
             </div>
         </body>
         </html>
@@ -299,7 +306,7 @@ struct EmailService {
                 <p style="font-size: 14px; color: #555; margin-top: 20px;">
                     \(statusMessage)
                 </p>
-                \(emailFooter(message: "You received this email because you submitted or voted on this feedback."))
+                \(emailFooter(message: "You received this email because you submitted or voted on this feedback.", showUnsubscribe: true))
             </div>
         </body>
         </html>

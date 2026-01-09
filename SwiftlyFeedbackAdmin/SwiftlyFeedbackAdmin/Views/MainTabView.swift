@@ -6,6 +6,7 @@ struct MainTabView: View {
     @State private var projectViewModel = ProjectViewModel()
     @State private var homeDashboardViewModel = HomeDashboardViewModel()
     @State private var hasLoadedProjects = false
+    @Environment(DeepLinkManager.self) private var deepLinkManager
 
     var body: some View {
         #if os(macOS)
@@ -36,51 +37,75 @@ struct iOSTabView: View {
     @Bindable var projectViewModel: ProjectViewModel
     @Bindable var homeDashboardViewModel: HomeDashboardViewModel
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(DeepLinkManager.self) private var deepLinkManager
+    @State private var selectedTab: Tab = .home
+
+    enum Tab: Hashable {
+        case home, projects, feedback, users, events, featureRequests, settings
+    }
 
     var body: some View {
-        TabView {
-            Tab("Home", systemImage: "house") {
+        TabView(selection: $selectedTab) {
+            SwiftUI.Tab("Home", systemImage: "house", value: Tab.home) {
                 NavigationStack {
                     HomeDashboardView(viewModel: homeDashboardViewModel)
                 }
             }
 
-            Tab("Projects", systemImage: "folder") {
+            SwiftUI.Tab("Projects", systemImage: "folder", value: Tab.projects) {
                 NavigationStack {
                     ProjectListView(viewModel: projectViewModel)
                 }
             }
 
-            Tab("Feedback", systemImage: "bubble.left.and.bubble.right") {
+            SwiftUI.Tab("Feedback", systemImage: "bubble.left.and.bubble.right", value: Tab.feedback) {
                 NavigationStack {
                     FeedbackDashboardView(projectViewModel: projectViewModel)
                 }
             }
 
-            Tab("Users", systemImage: "person.2") {
+            SwiftUI.Tab("Users", systemImage: "person.2", value: Tab.users) {
                 NavigationStack {
                     UsersDashboardView(projectViewModel: projectViewModel)
                 }
             }
 
-            Tab("Events", systemImage: "chart.bar.xaxis") {
+            SwiftUI.Tab("Events", systemImage: "chart.bar.xaxis", value: Tab.events) {
                 NavigationStack {
                     EventsDashboardView(projectViewModel: projectViewModel)
                 }
             }
 
             // Feature Requests - uses SwiftlyFeedbackKit
-            Tab("Feature Requests", systemImage: "lightbulb") {
+            SwiftUI.Tab("Feature Requests", systemImage: "lightbulb", value: Tab.featureRequests) {
                 SwiftlyFeedbackKit.FeedbackListView()
             }
 
-            Tab("Settings", systemImage: "gear") {
+            SwiftUI.Tab("Settings", systemImage: "gear", value: Tab.settings) {
                 NavigationStack {
                     SettingsView(authViewModel: authViewModel, projectViewModel: projectViewModel)
                 }
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .onChange(of: deepLinkManager.pendingDestination) { _, destination in
+            handleDeepLink(destination)
+        }
+        .onAppear {
+            // Handle deep link if app was launched via URL
+            handleDeepLink(deepLinkManager.pendingDestination)
+        }
+    }
+
+    private func handleDeepLink(_ destination: DeepLinkDestination?) {
+        guard let destination else { return }
+
+        switch destination {
+        case .settings, .settingsNotifications:
+            selectedTab = .settings
+        }
+
+        deepLinkManager.clearPendingDestination()
     }
 }
 #endif
@@ -93,6 +118,7 @@ struct MacNavigationView: View {
     @Bindable var projectViewModel: ProjectViewModel
     @Bindable var homeDashboardViewModel: HomeDashboardViewModel
     @State private var selectedSection: SidebarSection? = .home
+    @Environment(DeepLinkManager.self) private var deepLinkManager
 
     enum SidebarSection: String, Identifiable {
         case home = "Home"
@@ -188,6 +214,24 @@ struct MacNavigationView: View {
                 ContentUnavailableView("Select a Section", systemImage: "sidebar.left", description: Text("Choose a section from the sidebar"))
             }
         }
+        .onChange(of: deepLinkManager.pendingDestination) { _, destination in
+            handleDeepLink(destination)
+        }
+        .onAppear {
+            // Handle deep link if app was launched via URL
+            handleDeepLink(deepLinkManager.pendingDestination)
+        }
+    }
+
+    private func handleDeepLink(_ destination: DeepLinkDestination?) {
+        guard let destination else { return }
+
+        switch destination {
+        case .settings, .settingsNotifications:
+            selectedSection = .settings
+        }
+
+        deepLinkManager.clearPendingDestination()
     }
 }
 #endif

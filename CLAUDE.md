@@ -134,6 +134,8 @@ Via Resend API. User preferences in Settings:
 
 **Email templates** are defined in `SwiftlyFeedbackServer/Sources/App/Services/EmailService.swift` with reusable `emailHeader()` and `emailFooter()` helpers.
 
+**Unsubscribe Link:** Notification emails (new feedback, new comments, status changes) include a "Manage email preferences" link in the footer. This uses the `feedbackkit://settings/notifications` URL scheme to deep link users to the app's Settings screen where they can toggle email preferences.
+
 ## Password Reset
 
 1. User requests reset via email
@@ -177,6 +179,19 @@ Controlled by `AppEnvironment.isDeveloperMode` (DEBUG || TestFlight) and `AppEnv
 ## Project Icons
 
 `colorIndex` (0-7) maps to gradient pairs. Archived projects show gray.
+
+## Deep Linking (URL Scheme)
+
+The Admin app supports the `feedbackkit://` URL scheme for deep linking.
+
+**Supported URLs:**
+- `feedbackkit://settings` - Opens the Settings tab
+- `feedbackkit://settings/notifications` - Opens the Settings tab (for managing email preferences)
+
+**Implementation:**
+- `DeepLinkManager` (singleton) handles URL parsing and navigation state
+- `SwiftlyFeedbackAdminApp` uses `.onOpenURL` to capture incoming URLs
+- `MainTabView` (iOS) and `MacNavigationView` (macOS) respond to `pendingDestination` changes
 
 ## Code Conventions
 
