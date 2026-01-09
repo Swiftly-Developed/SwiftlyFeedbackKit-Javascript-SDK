@@ -11,10 +11,11 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /build
 
-# Copy Package.swift and Package.resolved first for better layer caching
-COPY Package.swift Package.resolved ./
+# Copy Package.swift first for better layer caching
+# Note: Package.resolved is generated during swift package resolve
+COPY Package.swift ./
 
-# Resolve dependencies
+# Resolve dependencies (generates Package.resolved)
 RUN swift package resolve
 
 # Copy source code
