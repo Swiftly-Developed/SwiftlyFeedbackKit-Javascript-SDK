@@ -18,8 +18,9 @@ COPY Package.swift ./
 # Resolve dependencies (generates Package.resolved)
 RUN swift package resolve
 
-# Copy source code
+# Copy source code and tests (Package.swift references Tests/)
 COPY Sources ./Sources
+COPY Tests ./Tests
 
 # Build the application in release mode
 RUN swift build -c release --static-swift-stdlib
