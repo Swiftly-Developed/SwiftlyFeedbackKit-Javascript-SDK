@@ -90,7 +90,13 @@ struct DeveloperCommandsView: View {
                     // Localhost toggle
                     Toggle(isOn: Binding(
                         get: { appConfiguration.useLocalhost },
-                        set: { appConfiguration.useLocalhost = $0; Task { await testConnection() } }
+                        set: { newValue in
+                            appConfiguration.useLocalhost = newValue
+                            Task {
+                                await AdminAPIClient.shared.updateBaseURL()
+                                await testConnection()
+                            }
+                        }
                     )) {
                         Label("Use Localhost", systemImage: "house")
                     }
@@ -109,7 +115,10 @@ struct DeveloperCommandsView: View {
                         Button("Reset to Default") {
                             appConfiguration.resetToDefault()
                             selectedEnvironment = appConfiguration.environment
-                            Task { await testConnection() }
+                            Task {
+                                await AdminAPIClient.shared.updateBaseURL()
+                                await testConnection()
+                            }
                         }
                     } else {
                         Text("Environment switching disabled in \(BuildEnvironment.displayName) builds")
@@ -702,11 +711,12 @@ struct DeveloperCommandsView: View {
 
     private func changeEnvironment(to newEnvironment: AppEnvironment) {
         appConfiguration.switchTo(newEnvironment)
+        connectionTestResult = nil
         Task {
             await AdminAPIClient.shared.updateBaseURL()
+            AppLogger.api.info("Changed server environment to: \(newEnvironment.displayName)")
+            AppLogger.api.info("AdminAPIClient now pointing to: \(newEnvironment.baseURL)")
         }
-        connectionTestResult = nil
-        AppLogger.api.info("Changed server environment to: \(newEnvironment.displayName)")
     }
 
     private func testConnection() async {
