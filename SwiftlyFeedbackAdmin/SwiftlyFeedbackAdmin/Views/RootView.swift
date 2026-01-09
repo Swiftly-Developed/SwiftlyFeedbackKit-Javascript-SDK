@@ -39,6 +39,10 @@ struct RootView: View {
         .animation(.default, value: authViewModel.isAuthenticated)
         .animation(.default, value: authViewModel.needsEmailVerification)
         .animation(.default, value: onboardingManager.hasCompletedOnboarding)
+        .task {
+            // Initialize AdminAPIClient with the correct baseURL from AppConfiguration
+            await AdminAPIClient.shared.initializeBaseURL()
+        }
     }
 }
 
