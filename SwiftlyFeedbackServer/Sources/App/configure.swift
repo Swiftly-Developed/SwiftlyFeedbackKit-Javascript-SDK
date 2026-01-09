@@ -64,6 +64,11 @@ func configure(_ app: Application) async throws {
         app.logger.info("Using individual DB vars: \(hostname):\(port)/\(database)")
     }
 
+    // Log detected environment
+    let appEnv = AppEnvironment.shared
+    app.logger.info("Environment detected: \(appEnv.type.name)")
+    app.logger.info("Server URL: \(appEnv.serverURL)")
+
     // Migrations - order matters!
     app.migrations.add(CreateUser())
     app.migrations.add(CreateUserToken())

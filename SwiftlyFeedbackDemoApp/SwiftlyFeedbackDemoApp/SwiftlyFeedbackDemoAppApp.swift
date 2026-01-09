@@ -13,8 +13,11 @@ struct SwiftlyFeedbackDemoAppApp: App {
     @State private var settings = AppSettings()
 
     init() {
-        // Configure the SDK with your API key
-        SwiftlyFeedback.configure(with: "sf_G3VStALGZ3Ja8LhWPKJTRJk9S8RaZwMk")
+        // Configure the SDK with automatic environment detection
+        // DEBUG → localhost:8080
+        // TestFlight → staging server
+        // App Store → production server
+        SwiftlyFeedback.configureAuto(with: "sf_G3VStALGZ3Ja8LhWPKJTRJk9S8RaZwMk")
 
         // Customize theme
         SwiftlyFeedback.theme.primaryColor = .color(.blue)

@@ -1,29 +1,5 @@
 import SwiftUI
 
-// MARK: - Environment Detection
-
-enum AppEnvironment {
-    static var isDebug: Bool {
-        #if DEBUG
-        return true
-        #else
-        return false
-        #endif
-    }
-
-    static var isTestFlight: Bool {
-        #if  TESTFLIGHT
-        return true
-        #else
-        return false
-        #endif
-    }
-
-    static var isDeveloperMode: Bool {
-        isDebug || isTestFlight
-    }
-}
-
 // MARK: - Developer Commands View
 
 struct DeveloperCommandsView: View {
@@ -43,9 +19,16 @@ struct DeveloperCommandsView: View {
     @State private var commentCount = 5
 
     // Server environment
-    @State private var selectedEnvironment = ServerEnvironment.current
+    @State private var appConfiguration = AppConfiguration.shared
+    @State private var selectedEnvironment: AppEnvironment
     @State private var isTestingConnection = false
     @State private var connectionTestResult: String?
+
+    init(projectViewModel: ProjectViewModel, isStandaloneWindow: Bool = false) {
+        self.projectViewModel = projectViewModel
+        self.isStandaloneWindow = isStandaloneWindow
+        self.selectedEnvironment = AppConfiguration.shared.environment
+    }
 
     struct GenerationResult: Identifiable {
         let id = UUID()
@@ -67,7 +50,7 @@ struct DeveloperCommandsView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Developer Mode")
                                 .font(.headline)
-                            Text(AppEnvironment.isDebug ? "DEBUG Build" : "TestFlight Build")
+                            Text(BuildEnvironment.displayName)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -93,21 +76,54 @@ struct DeveloperCommandsView: View {
                             .frame(width: 8, height: 8)
                     }
 
-                    // Environment picker
-                    Picker("Server Environment", selection: $selectedEnvironment) {
-                        ForEach(ServerEnvironment.allCases) { env in
-                            HStack {
-                                Text(env.displayName)
-                                Spacer()
-                                Text(env.baseURL.host ?? "")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .tag(env)
-                        }
+                    // Show current base URL
+                    HStack {
+                        Label("Base URL", systemImage: "link")
+                        Spacer()
+                        Text(appConfiguration.baseURL)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
                     }
-                    .onChange(of: selectedEnvironment) { oldValue, newValue in
-                        changeEnvironment(to: newValue)
+
+                    // Localhost toggle
+                    Toggle(isOn: Binding(
+                        get: { appConfiguration.useLocalhost },
+                        set: { newValue in
+                            appConfiguration.useLocalhost = newValue
+                            Task {
+                                await AdminAPIClient.shared.updateBaseURL()
+                                await testConnection()
+                            }
+                        }
+                    )) {
+                        Label("Use Localhost", systemImage: "house")
+                    }
+
+                    // Only show environment picker if allowed
+                    if appConfiguration.canSwitchEnvironment {
+                        Picker("Server Environment", selection: $selectedEnvironment) {
+                            ForEach(AppEnvironment.allCases, id: \.self) { env in
+                                Text(env.displayName).tag(env)
+                            }
+                        }
+                        .onChange(of: selectedEnvironment) { oldValue, newValue in
+                            changeEnvironment(to: newValue)
+                        }
+
+                        Button("Reset to Default") {
+                            appConfiguration.resetToDefault()
+                            selectedEnvironment = appConfiguration.environment
+                            Task {
+                                await AdminAPIClient.shared.updateBaseURL()
+                                await testConnection()
+                            }
+                        }
+                    } else {
+                        Text("Environment switching disabled in \(BuildEnvironment.displayName) builds")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
 
                     // Test connection button
@@ -139,7 +155,11 @@ struct DeveloperCommandsView: View {
                 } header: {
                     Label("Server Environment", systemImage: "server.rack")
                 } footer: {
-                    Text("Switch between localhost, dev, staging, and production servers. Current: \(selectedEnvironment.baseURL.absoluteString)")
+                    if appConfiguration.canSwitchEnvironment {
+                        Text("Switch between environments in \(BuildEnvironment.displayName) builds. Production builds are locked to production.")
+                    } else {
+                        Text("Production builds automatically connect to the production server.")
+                    }
                 }
 
                 // Project Generation
@@ -280,7 +300,7 @@ struct DeveloperCommandsView: View {
                 }
 
                 // Full Reset Section (DEBUG only)
-                if AppEnvironment.isDebug {
+                if BuildEnvironment.isDebug {
                     Section {
                         Button(role: .destructive) {
                             showingFullResetConfirmation = true
@@ -681,28 +701,28 @@ struct DeveloperCommandsView: View {
 
     // MARK: - Server Environment Functions
 
-    private func colorForEnvironment(_ env: ServerEnvironment) -> Color {
-        switch env.color {
-        case "blue": return .blue
-        case "orange": return .orange
-        case "red": return .red
-        default: return .gray
+    private func colorForEnvironment(_ env: AppEnvironment) -> Color {
+        switch env {
+        case .development: return .blue
+        case .staging: return .orange
+        case .production: return .red
         }
     }
 
-    private func changeEnvironment(to newEnvironment: ServerEnvironment) {
-        ServerEnvironment.current = newEnvironment
+    private func changeEnvironment(to newEnvironment: AppEnvironment) {
+        appConfiguration.switchTo(newEnvironment)
+        connectionTestResult = nil
         Task {
             await AdminAPIClient.shared.updateBaseURL()
+            AppLogger.api.info("Changed server environment to: \(newEnvironment.displayName)")
+            AppLogger.api.info("AdminAPIClient now pointing to: \(newEnvironment.baseURL)")
         }
-        connectionTestResult = nil
-        AppLogger.api.info("Changed server environment to: \(newEnvironment.displayName)")
     }
 
     private func testConnection() async {
         isTestingConnection = true
         connectionTestResult = nil
-        AppLogger.api.info("Testing connection to: \(selectedEnvironment.baseURL.absoluteString)")
+        AppLogger.api.info("Testing connection to: \(appConfiguration.baseURL)")
 
         do {
             let success = try await AdminAPIClient.shared.testConnection()
