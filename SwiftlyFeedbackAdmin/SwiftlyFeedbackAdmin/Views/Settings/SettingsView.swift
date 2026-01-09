@@ -6,6 +6,7 @@ struct SettingsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var subscriptionService = SubscriptionService.shared
+    @State private var appConfiguration = AppConfiguration.shared
     @State private var showingLogoutConfirmation = false
     @State private var showingChangePassword = false
     @State private var showingDeleteAccount = false
@@ -96,7 +97,7 @@ struct SettingsView: View {
 
             // Developer Commands (DEBUG or TestFlight only, iOS only - macOS uses menu)
             #if os(iOS)
-            if AppEnvironment.isDeveloperMode, let projectViewModel = projectViewModel {
+            if BuildEnvironment.canShowTestingFeatures, let projectViewModel = projectViewModel {
                 developerSection(projectViewModel: projectViewModel)
             }
             #endif
@@ -340,7 +341,7 @@ struct SettingsView: View {
                 icon: "server.rack",
                 iconColor: .purple,
                 title: "Server",
-                value: "localhost:8080"
+                value: appConfiguration.baseURL
             )
 
             Link(destination: URL(string: "https://swiftly-developed.com/feedbackkit-privacypolicy")!) {
@@ -436,7 +437,7 @@ struct SettingsView: View {
                 .fontWeight(.semibold)
                 .textCase(.uppercase)
         } footer: {
-            Text(AppEnvironment.isDebug ? "DEBUG build detected" : "TestFlight build detected")
+            Text(BuildEnvironment.isDebug ? "DEBUG build detected" : "TestFlight build detected")
         }
     }
     #endif
