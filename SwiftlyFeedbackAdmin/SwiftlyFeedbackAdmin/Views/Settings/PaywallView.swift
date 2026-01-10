@@ -9,51 +9,93 @@ import SwiftUI
 import RevenueCat
 
 struct PaywallView: View {
+    /// The minimum tier required for the feature that triggered the paywall
+    let requiredTier: SubscriptionTier
+
     @State private var subscriptionService = SubscriptionService.shared
     @State private var selectedPackage: Package?
     @State private var showError = false
     @State private var errorMessage = ""
     @Environment(\.dismiss) private var dismiss
 
+    /// Initialize with a required tier (defaults to .pro for backwards compatibility)
+    init(requiredTier: SubscriptionTier = .pro) {
+        self.requiredTier = requiredTier
+    }
+
+    /// Whether the environment override is active (DEV/TestFlight)
+    private var hasEnvironmentOverride: Bool {
+        subscriptionService.hasEnvironmentOverride
+    }
+
+    /// Filter packages to show only relevant tiers based on the required tier
+    private func filteredPackages(from offering: Offering) -> [Package] {
+        offering.availablePackages.filter { package in
+            let productId = package.storeProduct.productIdentifier
+            switch requiredTier {
+            case .free:
+                // Free tier doesn't need paywall, but if shown, show all
+                return true
+            case .pro:
+                // For Pro requirement, show only Pro packages
+                return productId.contains(".pro.")
+            case .team:
+                // For Team requirement, show only Team packages
+                return productId.contains(".team.")
+            }
+        }
+    }
+
+    private var navigationTitle: String {
+        switch requiredTier {
+        case .free:
+            return "Upgrade"
+        case .pro:
+            return "Upgrade to Pro"
+        case .team:
+            return "Upgrade to Team"
+        }
+    }
+
+    private var heroTitle: String {
+        switch requiredTier {
+        case .free:
+            return "Upgrade Your Plan"
+        case .pro:
+            return "Unlock Pro Features"
+        case .team:
+            return "Unlock Team Features"
+        }
+    }
+
+    private var accentColor: Color {
+        requiredTier == .team ? .blue : .purple
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 24) {
-                    // Hero section
-                    proHeroSection
-
-                    // Package selection
-                    if let offerings = subscriptionService.offerings,
-                       let current = offerings.current {
-                        packageSelectionSection(offering: current)
-                    } else if subscriptionService.isLoading {
-                        ProgressView()
-                            .padding()
-                    } else {
-                        Text("Unable to load subscription options")
-                            .foregroundStyle(.secondary)
-                            .padding()
-                    }
-
-                    // Subscribe button
-                    subscribeButton
-
-                    // Restore & Terms
-                    footerSection
+            Group {
+                if hasEnvironmentOverride {
+                    // Environment override is active - show unlocked message
+                    environmentOverrideView
+                } else {
+                    // Normal paywall
+                    paywallContent
                 }
-                .padding()
             }
-            .navigationTitle("Upgrade to Pro")
+            .navigationTitle(hasEnvironmentOverride ? "Features Unlocked" : navigationTitle)
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(hasEnvironmentOverride ? "Done" : "Cancel") { dismiss() }
                 }
             }
             .task {
-                await subscriptionService.fetchOfferings()
+                if !hasEnvironmentOverride {
+                    await subscriptionService.fetchOfferings()
+                }
             }
             .alert("Error", isPresented: $showError) {
                 Button("OK") {}
@@ -63,28 +105,127 @@ struct PaywallView: View {
         }
     }
 
-    // MARK: - Hero Section
+    // MARK: - Environment Override View
 
     @ViewBuilder
-    private var proHeroSection: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "crown.fill")
-                .font(.system(size: 60))
+    private var environmentOverrideView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 80))
                 .foregroundStyle(.linearGradient(
-                    colors: [.purple, .pink],
+                    colors: [.orange, .yellow],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 ))
 
-            Text("Unlock Pro Features")
+            VStack(spacing: 8) {
+                Text("All Features Unlocked")
+                    .font(.title)
+                    .fontWeight(.bold)
+
+                Text("You're using \(AppConfiguration.currentEnvironment.displayName) environment")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                FeatureCheckRow(text: "Unlimited Projects")
+                FeatureCheckRow(text: "Unlimited Feedback")
+                FeatureCheckRow(text: "Team Members")
+                FeatureCheckRow(text: "All Integrations")
+                FeatureCheckRow(text: "Advanced Analytics")
+            }
+            .padding()
+            .background(.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+
+            Text("DEV/TestFlight environments have all features enabled for testing purposes.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Spacer()
+
+            Button {
+                dismiss()
+            } label: {
+                Text("Got It")
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(.orange)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .padding()
+    }
+
+    // MARK: - Paywall Content
+
+    @ViewBuilder
+    private var paywallContent: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // Hero section
+                heroSection
+
+                // Package selection
+                if let offerings = subscriptionService.offerings,
+                   let current = offerings.current {
+                    packageSelectionSection(offering: current)
+                } else if subscriptionService.isLoading {
+                    ProgressView()
+                        .padding()
+                } else {
+                    Text("Unable to load subscription options")
+                        .foregroundStyle(.secondary)
+                        .padding()
+                }
+
+                // Subscribe button
+                subscribeButton
+
+                // Restore & Terms
+                footerSection
+            }
+            .padding()
+        }
+    }
+
+    // MARK: - Hero Section
+
+    @ViewBuilder
+    private var heroSection: some View {
+        VStack(spacing: 16) {
+            Image(systemName: requiredTier == .team ? "person.3.fill" : "crown.fill")
+                .font(.system(size: 60))
+                .foregroundStyle(.linearGradient(
+                    colors: requiredTier == .team ? [.blue, .cyan] : [.purple, .pink],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ))
+
+            Text(heroTitle)
                 .font(.title)
                 .fontWeight(.bold)
 
             VStack(alignment: .leading, spacing: 12) {
-                FeatureCheckRow(text: "2 Projects (up from 1)")
-                FeatureCheckRow(text: "Unlimited Feedback per Project")
-                FeatureCheckRow(text: "Advanced Analytics & MRR Tracking")
-                FeatureCheckRow(text: "Configurable Status Workflow")
+                if requiredTier == .team {
+                    // Team features
+                    FeatureCheckRow(text: "Unlimited Projects")
+                    FeatureCheckRow(text: "Invite Team Members")
+                    FeatureCheckRow(text: "All Integrations (Slack, GitHub, etc.)")
+                    FeatureCheckRow(text: "Everything in Pro")
+                } else {
+                    // Pro features
+                    FeatureCheckRow(text: "2 Projects (up from 1)")
+                    FeatureCheckRow(text: "Unlimited Feedback per Project")
+                    FeatureCheckRow(text: "Advanced Analytics & MRR Tracking")
+                    FeatureCheckRow(text: "Configurable Status Workflow")
+                }
             }
             .padding(.top, 8)
         }
@@ -95,11 +236,13 @@ struct PaywallView: View {
 
     @ViewBuilder
     private func packageSelectionSection(offering: Offering) -> some View {
+        let packages = filteredPackages(from: offering)
         VStack(spacing: 12) {
-            ForEach(offering.availablePackages, id: \.identifier) { package in
+            ForEach(packages, id: \.identifier) { package in
                 PackageOptionView(
                     package: package,
-                    isSelected: selectedPackage?.identifier == package.identifier
+                    isSelected: selectedPackage?.identifier == package.identifier,
+                    accentColor: accentColor
                 ) {
                     selectedPackage = package
                 }
@@ -128,7 +271,7 @@ struct PaywallView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(selectedPackage == nil ? Color.gray : Color.purple)
+            .background(selectedPackage == nil ? Color.gray : accentColor)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
@@ -199,6 +342,7 @@ struct PaywallView: View {
 struct PackageOptionView: View {
     let package: Package
     let isSelected: Bool
+    var accentColor: Color = .purple
     let onTap: () -> Void
 
     var body: some View {
@@ -230,18 +374,18 @@ struct PackageOptionView: View {
 
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(isSelected ? .purple : .secondary)
+                    .foregroundStyle(isSelected ? accentColor : .secondary)
             }
             .padding()
             #if os(iOS)
-            .background(isSelected ? Color.purple.opacity(0.1) : Color(UIColor.secondarySystemBackground))
+            .background(isSelected ? accentColor.opacity(0.1) : Color(UIColor.secondarySystemBackground))
             #else
-            .background(isSelected ? Color.purple.opacity(0.1) : Color(NSColor.windowBackgroundColor))
+            .background(isSelected ? accentColor.opacity(0.1) : Color(NSColor.windowBackgroundColor))
             #endif
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.purple : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? accentColor : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)

@@ -95,6 +95,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddIntegrationActiveToggles())
     app.migrations.add(CreatePasswordReset())
     app.migrations.add(AddUserSubscriptionFields())
+    app.migrations.add(AddVoteEmailNotification())
 
     try await app.autoMigrate()
 
@@ -105,6 +106,10 @@ func configure(_ app: Application) async throws {
         allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith]
     )
     app.middleware.use(CORSMiddleware(configuration: corsConfiguration))
+
+    // Schedule feedback cleanup (runs daily at startup and every 24 hours)
+    // Only runs on non-production environments (dev, testflight)
+    FeedbackCleanupScheduler.start(app: app)
 
     // Routes
     try routes(app)

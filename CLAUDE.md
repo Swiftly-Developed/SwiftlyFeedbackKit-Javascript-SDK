@@ -107,6 +107,7 @@ xcodebuild test -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAd
 - Archived projects: reads allowed, writes blocked
 - Voting blocked on `completed`/`rejected` status feedback
 - `FeedbackStatus.canVote` indicates votability
+- Feedback creators automatically get a vote (voteCount starts at 1)
 
 ## Feedback Statuses
 
@@ -137,7 +138,39 @@ SwiftlyFeedback.config.loggingEnabled = false
 // Event tracking
 SwiftlyFeedback.view("feature_details", properties: ["id": "123"])
 SwiftlyFeedback.config.enableAutomaticViewTracking = false
+
+// Voter notifications
+SwiftlyFeedback.config.userEmail = "user@example.com"  // Pre-set email (skips dialog)
+SwiftlyFeedback.config.showVoteEmailField = true       // Show email dialog when voting
+SwiftlyFeedback.config.voteNotificationDefaultOptIn = false  // Default opt-in state
 ```
+
+## Voter Email Notifications
+
+Voters can optionally provide their email when voting to receive status change notifications.
+
+**How it works:**
+1. If `userEmail` is set, votes automatically use it (no dialog shown)
+2. If `userEmail` is not set and `showVoteEmailField` is true, users see a dialog to optionally provide email
+3. If opted-in, they receive emails when the feedback status changes
+4. Each notification email contains a one-click unsubscribe link
+5. Unsubscribe uses a unique permission key (UUID) - no authentication required
+6. Email entered via dialog is saved to `userEmail` for future votes
+
+**SDK Config:**
+- `userEmail` (default: `nil`) - Pre-configured email. If set, votes use it automatically
+- `showVoteEmailField` (default: `true`) - Show email dialog when voting (only if `userEmail` is nil)
+- `voteNotificationDefaultOptIn` (default: `false`) - Default state of the "notify me" toggle
+- `onUserEmailChanged` (default: `nil`) - Callback when email is set via vote dialog
+
+**Server endpoints:**
+- `POST /feedbacks/:id/votes` - Accepts optional `email` and `notifyStatusChange` fields
+- `GET /votes/unsubscribe?key=UUID` - One-click unsubscribe (no auth required)
+
+**Database fields added to Vote model:**
+- `email` (String, nullable) - Voter's email address
+- `notify_status_change` (Bool, default: false) - Opt-in flag
+- `permission_key` (UUID, nullable) - Unique unsubscribe token
 
 ## Swift 6 Concurrency
 
@@ -218,19 +251,142 @@ Select 2+ feedback items → Merge. Primary keeps title/description, votes are d
 
 `OnboardingManager` singleton tracks state in `UserDefaults`.
 
-## Developer Commands (Admin App)
+**Environment Note (non-production):** The completion screen shows an `EnvironmentNoteSection` for DEV/TestFlight environments informing users about:
+- All features being unlocked for testing
+- 7-day data retention policy
+
+## Developer Center (Admin App)
 
 Available in DEBUG and TestFlight builds only. Access via:
-- **macOS**: Menu bar → Feedback Kit → Developer Commands... (⌘⇧D)
+- **macOS**: Menu bar → Feedback Kit → Developer Center... (⌘⇧D)
 - **iOS**: Settings → Developer section
 
 **Features:**
+- Server environment switching (Localhost, Development, TestFlight, Production)
 - Generate dummy projects, feedback, and comments
 - Reset onboarding, auth token, UserDefaults
 - Clear project feedback, delete all projects
 - Full database reset (DEBUG only - not available in TestFlight)
 
-Controlled by `AppEnvironment.isDeveloperMode` (DEBUG || TestFlight) and `AppEnvironment.isDebug`.
+Controlled by `BuildEnvironment.canShowTestingFeatures` (DEBUG || TestFlight) and `BuildEnvironment.isDebug`.
+
+## Server Environments (Admin App)
+
+The Admin app supports multiple server environments configured via `AppEnvironment` enum:
+
+| Environment | URL | Color | Available In |
+|-------------|-----|-------|--------------|
+| Localhost | `http://localhost:8080` | Purple | DEBUG only |
+| Development | `api.feedbackkit.dev.swiftly-developed.com` | Blue | DEBUG only |
+| TestFlight | `api.feedbackkit.testflight.swiftly-developed.com` | Orange | DEBUG, TestFlight builds |
+| Production | `api.feedbackkit.prod.swiftly-developed.com` | Red | All builds |
+
+**Build type restrictions:**
+- **DEBUG**: All environments available, defaults to Development
+- **TestFlight build**: TestFlight and Production only, defaults to TestFlight
+- **App Store build**: Locked to Production
+
+**Command line arguments** (DEBUG only):
+- `--localhost` → Localhost
+- `--dev-mode` → Development
+- `--testflight-mode` → TestFlight
+- `--prod-mode` → Production
+
+**Environment switching behavior:**
+- Switching environments logs out the user (tokens are environment-specific)
+- Clears cached project data
+- Updates API client base URL
+- Shows confirmation dialog before switching
+- `RootView` listens for `.environmentDidChange` notification
+
+**Visual indicators:**
+- Settings → About section shows current environment with color indicator
+- `EnvironmentIndicator` component available for use throughout the app
+- Non-production environments display colored capsule badges
+
+**Configuration:** `SwiftlyFeedbackAdmin/Configuration/AppConfiguration.swift`
+
+## Automatic Feedback Cleanup (Server)
+
+Non-production environments (Localhost, Development, TestFlight) automatically delete feedback older than 7 days to keep test databases clean.
+
+| Environment | Cleanup | Schedule |
+|-------------|---------|----------|
+| Localhost | Enabled | Every 24 hours (starting 30s after boot) |
+| Development | Enabled | Every 24 hours (starting 30s after boot) |
+| TestFlight (staging) | Enabled | Every 24 hours (starting 30s after boot) |
+| Production | **Disabled** | N/A |
+
+**What gets deleted:**
+- Feedback items older than 7 days
+- Associated comments and votes
+- Merged feedback is preserved (items with `mergedIntoId` are skipped)
+
+**Implementation:**
+- `FeedbackCleanupScheduler` in `SwiftlyFeedbackServer/Sources/App/Jobs/FeedbackCleanupJob.swift`
+- Uses Swift Concurrency (`Task`) for scheduling - no external dependencies
+- Runs initial cleanup 30 seconds after server start, then every 24 hours
+- Environment check uses `AppEnvironment.shared.isProduction`
+- Called from `configure.swift` via `FeedbackCleanupScheduler.start(app:)`
+
+**Warning in Admin App:**
+- Developer Center shows a "7-Day Data Retention" warning banner for non-production environments
+- Users are informed that their test data will be automatically cleaned up
+
+## Environment Feature Override (Admin App)
+
+Non-production environments (Localhost, Development, TestFlight) automatically unlock all subscription features for testing:
+
+| Environment | Features | Behavior |
+|-------------|----------|----------|
+| Localhost | All unlocked | Team tier access |
+| Development | All unlocked | Team tier access |
+| TestFlight | All unlocked | Team tier access |
+| Production | Subscription-based | Normal paywall |
+
+**How it works:**
+- `SubscriptionService.hasEnvironmentOverride` returns `true` for non-production environments
+- `SubscriptionService.effectiveTier` returns `.team` when override is active
+- `SubscriptionService.meetsRequirement(_:)` checks `effectiveTier`, not `currentTier`
+
+**Visual indicators:**
+- "DEV" badge shown on features unlocked via environment override (orange capsule)
+- PaywallView shows "All Features Unlocked" screen instead of purchase options
+- Developer Center shows Feature Access section with override status
+
+**Usage in code:**
+```swift
+// Check if user has access (respects environment override)
+if subscriptionService.meetsRequirement(.pro) { ... }
+
+// Check actual subscription tier (ignores environment override)
+if subscriptionService.currentTier == .pro { ... }
+
+// Check if override is active
+if subscriptionService.hasEnvironmentOverride { ... }
+```
+
+**Configuration:** `SwiftlyFeedbackAdmin/Services/SubscriptionService.swift`
+
+## Build Environment Detection
+
+`BuildEnvironment` detects the current distribution channel:
+
+```swift
+BuildEnvironment.isDebug        // Xcode DEBUG build
+BuildEnvironment.isTestFlight   // TestFlight distribution
+BuildEnvironment.isAppStore     // App Store distribution
+BuildEnvironment.displayName    // "Debug", "TestFlight", or "App Store"
+BuildEnvironment.canShowTestingFeatures  // true for DEBUG or TestFlight
+```
+
+**Compile-time detection:** Add `TESTFLIGHT` to Active Compilation Conditions for TestFlight builds.
+
+**Runtime detection fallback:**
+- iOS: Checks `appStoreReceiptURL` for `sandboxReceipt`
+- macOS: Checks code signing certificate for TestFlight marker OID
+
+**Configuration:** `SwiftlyFeedbackAdmin/Utilities/BuildEnvironment.swift`
 
 ## Analytics
 
@@ -265,12 +421,30 @@ The Admin app supports the `feedbackkit://` URL scheme for deep linking.
 - Models: `Codable`, `Sendable`, `Equatable`
 - Platform: `#if os(macOS)` / `#if os(iOS)`
 
-## Monetization (Planned)
+## Monetization
 
-RevenueCat integration not yet complete. All users on Free tier.
+RevenueCat integration for subscription management.
 
-| Tier | Projects | Feedback | Members | Integrations |
-|------|----------|----------|---------|--------------|
-| Free | 1 | 10/project | No | No |
-| Pro | 2 | Unlimited | No | No |
-| Team | Unlimited | Unlimited | Yes | Yes |
+| Tier | Projects | Feedback | Members | Integrations | Analytics |
+|------|----------|----------|---------|--------------|-----------|
+| Free | 1 | 10/project | No | No | Basic |
+| Pro | 2 | Unlimited | No | No | Advanced + MRR |
+| Team | Unlimited | Unlimited | Yes | Yes | Advanced + MRR |
+
+**Feature Gating:**
+- Use `subscriptionService.currentTier.meetsRequirement(.tier)` to check access
+- Use `.tierBadge(.tier)` modifier to show tier badge on locked features
+- Paywall accepts `requiredTier` parameter to show relevant packages only:
+  ```swift
+  PaywallView(requiredTier: .team)  // Shows only Team packages
+  PaywallView(requiredTier: .pro)   // Shows only Pro packages (default)
+  ```
+
+**Feature → Tier Mapping:**
+- Team Members: `.team`
+- All Integrations (Slack, GitHub, Notion, etc.): `.team`
+- More than 1 project: `.pro`
+- More than 2 projects: `.team`
+- Unlimited feedback: `.pro`
+- Advanced analytics: `.pro`
+- Configurable statuses: `.pro`
