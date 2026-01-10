@@ -86,6 +86,21 @@ Sources/App/
 |--------|------|-------------|
 | POST | /feedbacks/:id/votes | Vote (blocked if archived/completed/rejected) |
 | DELETE | /feedbacks/:id/votes | Remove vote |
+| GET | /votes/unsubscribe?key=UUID | One-click unsubscribe (no auth, returns HTML) |
+
+**Vote Request Body:**
+```json
+{
+  "userId": "string",
+  "email": "string (optional)",
+  "notifyStatusChange": "bool (optional, default false)"
+}
+```
+
+**Vote Model Fields:**
+- `email` - Voter's email address (nullable)
+- `notify_status_change` - Opt-in for status notifications (default false)
+- `permission_key` - UUID for one-click unsubscribe (auto-generated when email + notify enabled)
 
 ### Comments (X-API-Key auth)
 | Method | Path | Description |
@@ -203,3 +218,30 @@ All integrations map feedback status similarly:
 `POST /feedbacks/merge`: Moves votes (de-duplicated), migrates comments with prefix, recalculates MRR, soft-deletes secondary items.
 
 Fields: `merged_into_id`, `merged_at`, `merged_feedback_ids`
+
+## Vote Email Notifications
+
+Voters can optionally provide an email to receive status change notifications.
+
+**Database Fields (votes table):**
+- `email` (VARCHAR, nullable) - Voter's email address
+- `notify_status_change` (BOOLEAN, default false) - Opt-in flag
+- `permission_key` (UUID, nullable) - Unique unsubscribe token
+
+**Flow:**
+1. Vote submitted with email + `notifyStatusChange: true`
+2. Server generates `permissionKey` UUID and stores with vote
+3. On status change, server loads votes where `notifyStatusChange=true`
+4. Each voter receives individual email with personalized unsubscribe link
+5. Unsubscribe link: `GET /votes/unsubscribe?key=UUID` (no auth required)
+6. Clicking link sets `notifyStatusChange=false` and clears `permissionKey`
+
+**Unsubscribe Endpoint:**
+- Returns HTML page (success or error)
+- One-click from email - no authentication needed
+- Permission key is single-use (cleared after unsubscribe)
+
+**Email Service:**
+- `sendFeedbackStatusChangeNotification()` accepts `unsubscribeKeys: [String: UUID]`
+- Sends individual emails for personalized unsubscribe links
+- Voters get web unsubscribe, feedback creators get app deep link

@@ -101,14 +101,12 @@ enum AppEnvironment: String, Codable, CaseIterable {
         switch self {
         case .localhost:
             // Localhost uses the same key as development
-            return "sf_67xRwr4qxTwaIQOFyXq9uyuSOrtS2uvy"
+            return "sf_G3VStALGZ3Ja8LhWPKJTRJk9S8RaZwMk"
         case .development:
             return "sf_67xRwr4qxTwaIQOFyXq9uyuSOrtS2uvy"
         case .testflight:
-            // TODO: Replace with your TestFlight API key
             return "sf_Gw8ZKcjCEtxHUNCKjpusOkFvlNbQ2Pxf"
         case .production:
-            // TODO: Replace with your Production API key
             return "sf_Tt5Oc4SFNhNgGUb9Ga7Y7AMwF9cGj571"
         }
     }

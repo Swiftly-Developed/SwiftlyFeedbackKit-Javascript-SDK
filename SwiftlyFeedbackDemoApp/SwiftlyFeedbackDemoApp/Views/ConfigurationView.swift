@@ -9,6 +9,7 @@ struct ConfigurationView: View {
             subscriptionSection
             permissionsSection
             sdkConfigurationSection
+            voteNotificationsSection
             displayOptionsSection
         }
         .navigationTitle("Settings")
@@ -59,7 +60,7 @@ struct ConfigurationView: View {
         } header: {
             Text("Profile")
         } footer: {
-            Text("Your email is used when submitting feedback so we can notify you of updates. Custom User ID links feedback to your account system.")
+            Text("Your email is used when submitting feedback and voting so you can receive status update notifications. Custom User ID links feedback to your account system.")
         }
     }
 
@@ -125,6 +126,34 @@ struct ConfigurationView: View {
             Text("Features")
         } footer: {
             Text("Configure which features are enabled in the feedback interface.")
+        }
+    }
+
+    // MARK: - Vote Notifications Section
+
+    @ViewBuilder
+    private var voteNotificationsSection: some View {
+        Section {
+            Toggle("Show Vote Email Dialog", isOn: Bindable(settings).showVoteEmailField)
+
+            Toggle("Default Opt-In to Notifications", isOn: Bindable(settings).voteNotificationDefaultOptIn)
+
+            if !settings.userEmail.isEmpty {
+                HStack {
+                    Text("Current Email")
+                    Spacer()
+                    Text(settings.userEmail)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Vote Notifications")
+        } footer: {
+            if settings.userEmail.isEmpty {
+                Text("When email is not set in Profile, users see a dialog to optionally enter their email when voting. With email set, votes automatically use it.")
+            } else {
+                Text("Email is configured. Votes will automatically use '\(settings.userEmail)' for status notifications (no dialog shown).")
+            }
         }
     }
 

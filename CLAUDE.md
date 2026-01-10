@@ -138,7 +138,39 @@ SwiftlyFeedback.config.loggingEnabled = false
 // Event tracking
 SwiftlyFeedback.view("feature_details", properties: ["id": "123"])
 SwiftlyFeedback.config.enableAutomaticViewTracking = false
+
+// Voter notifications
+SwiftlyFeedback.config.userEmail = "user@example.com"  // Pre-set email (skips dialog)
+SwiftlyFeedback.config.showVoteEmailField = true       // Show email dialog when voting
+SwiftlyFeedback.config.voteNotificationDefaultOptIn = false  // Default opt-in state
 ```
+
+## Voter Email Notifications
+
+Voters can optionally provide their email when voting to receive status change notifications.
+
+**How it works:**
+1. If `userEmail` is set, votes automatically use it (no dialog shown)
+2. If `userEmail` is not set and `showVoteEmailField` is true, users see a dialog to optionally provide email
+3. If opted-in, they receive emails when the feedback status changes
+4. Each notification email contains a one-click unsubscribe link
+5. Unsubscribe uses a unique permission key (UUID) - no authentication required
+6. Email entered via dialog is saved to `userEmail` for future votes
+
+**SDK Config:**
+- `userEmail` (default: `nil`) - Pre-configured email. If set, votes use it automatically
+- `showVoteEmailField` (default: `true`) - Show email dialog when voting (only if `userEmail` is nil)
+- `voteNotificationDefaultOptIn` (default: `false`) - Default state of the "notify me" toggle
+- `onUserEmailChanged` (default: `nil`) - Callback when email is set via vote dialog
+
+**Server endpoints:**
+- `POST /feedbacks/:id/votes` - Accepts optional `email` and `notifyStatusChange` fields
+- `GET /votes/unsubscribe?key=UUID` - One-click unsubscribe (no auth required)
+
+**Database fields added to Vote model:**
+- `email` (String, nullable) - Voter's email address
+- `notify_status_change` (Bool, default: false) - Opt-in flag
+- `permission_key` (UUID, nullable) - Unique unsubscribe token
 
 ## Swift 6 Concurrency
 

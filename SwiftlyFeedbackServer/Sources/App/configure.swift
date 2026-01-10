@@ -95,6 +95,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddIntegrationActiveToggles())
     app.migrations.add(CreatePasswordReset())
     app.migrations.add(AddUserSubscriptionFields())
+    app.migrations.add(AddVoteEmailNotification())
 
     try await app.autoMigrate()
 

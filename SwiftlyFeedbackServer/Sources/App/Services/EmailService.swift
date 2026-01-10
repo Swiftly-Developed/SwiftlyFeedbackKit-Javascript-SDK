@@ -259,7 +259,8 @@ struct EmailService {
         projectName: String,
         feedbackTitle: String,
         oldStatus: String,
-        newStatus: String
+        newStatus: String,
+        unsubscribeKeys: [String: UUID] = [:]
     ) async throws {
         guard !emails.isEmpty else { return }
 
@@ -282,44 +283,72 @@ struct EmailService {
         let formattedOldStatus = oldStatus.replacingOccurrences(of: "_", with: " ").capitalized
         let formattedNewStatus = newStatus.replacingOccurrences(of: "_", with: " ").capitalized
 
-        let html = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-            \(emailHeader(title: "\(statusEmoji) Status Update"))
-            <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 12px 12px;">
-                <p style="font-size: 16px; margin-bottom: 20px;">
-                    Your feedback in <strong>\(projectName)</strong> has a status update.
+        // Send individual emails for personalized unsubscribe links
+        for email in emails {
+            let unsubscribeLink: String
+            if let key = unsubscribeKeys[email] {
+                // Voter with permission key - use web unsubscribe
+                let serverURL = AppEnvironment.shared.serverURL
+                unsubscribeLink = """
+                <p style="font-size: 11px; color: #bbb; text-align: center; margin-top: 10px;">
+                    <a href="\(serverURL)/api/v1/votes/unsubscribe?key=\(key.uuidString)" style="color: #999; text-decoration: underline;">Unsubscribe from this feedback</a>
                 </p>
-                <div style="background: \(primaryColorLight)10; border-radius: 8px; padding: 20px; margin: 20px 0;">
-                    <h2 style="font-size: 18px; margin: 0 0 15px 0; color: #333;">\(feedbackTitle)</h2>
-                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
-                        <span style="background: #e0e0e0; color: #666; padding: 4px 12px; border-radius: 20px; font-size: 12px; text-decoration: line-through;">\(formattedOldStatus)</span>
-                        <span style="color: #999;">→</span>
-                        <span style="background: \(primaryColor); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">\(formattedNewStatus)</span>
+                """
+            } else {
+                // Feedback submitter - use app deep link
+                unsubscribeLink = """
+                <p style="font-size: 11px; color: #bbb; text-align: center; margin-top: 10px;">
+                    <a href="feedbackkit://settings/notifications" style="color: #999; text-decoration: underline;">Manage email preferences</a>
+                </p>
+                """
+            }
+
+            let html = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+                \(emailHeader(title: "\(statusEmoji) Status Update"))
+                <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 12px 12px;">
+                    <p style="font-size: 16px; margin-bottom: 20px;">
+                        Your feedback in <strong>\(projectName)</strong> has a status update.
+                    </p>
+                    <div style="background: \(primaryColorLight)10; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <h2 style="font-size: 18px; margin: 0 0 15px 0; color: #333;">\(feedbackTitle)</h2>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+                            <span style="background: #e0e0e0; color: #666; padding: 4px 12px; border-radius: 20px; font-size: 12px; text-decoration: line-through;">\(formattedOldStatus)</span>
+                            <span style="color: #999;">→</span>
+                            <span style="background: \(primaryColor); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">\(formattedNewStatus)</span>
+                        </div>
                     </div>
+                    <p style="font-size: 14px; color: #555; margin-top: 20px;">
+                        \(statusMessage)
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 25px 0;">
+                    <p style="font-size: 12px; color: #999; text-align: center;">
+                        You received this email because you submitted or voted on this feedback.
+                    </p>
+                    \(unsubscribeLink)
+                    <p style="font-size: 11px; color: #bbb; text-align: center; margin-top: 15px;">
+                        Powered by <span style="color: \(primaryColor); font-weight: 600;">Feedback Kit</span>
+                    </p>
                 </div>
-                <p style="font-size: 14px; color: #555; margin-top: 20px;">
-                    \(statusMessage)
-                </p>
-                \(emailFooter(message: "You received this email because you submitted or voted on this feedback.", showUnsubscribe: true))
-            </div>
-        </body>
-        </html>
-        """
+            </body>
+            </html>
+            """
 
-        let request = ResendEmailRequest(
-            from: "Feedback Kit <noreply@swiftly-workspace.com>",
-            to: emails,
-            subject: "[\(projectName)] \(statusEmoji) \(feedbackTitle) - \(formattedNewStatus)",
-            html: html
-        )
+            let request = ResendEmailRequest(
+                from: "Feedback Kit <noreply@swiftly-workspace.com>",
+                to: [email],
+                subject: "[\(projectName)] \(statusEmoji) \(feedbackTitle) - \(formattedNewStatus)",
+                html: html
+            )
 
-        try await sendEmail(request)
+            try await sendEmail(request)
+        }
     }
 
     func sendPasswordResetEmail(

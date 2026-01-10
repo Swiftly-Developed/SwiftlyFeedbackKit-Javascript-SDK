@@ -286,23 +286,36 @@ struct FeedbackController: RouteCollection {
             // Send email notification
             Task {
                 do {
-                    // Collect emails: feedback submitter (if provided) + voters with emails
+                    // Collect emails: feedback submitter (if provided) + opted-in voters
                     var emails: [String] = []
+                    var unsubscribeKeys: [String: UUID] = [:]
 
                     // Add feedback submitter's email if provided
                     if let submitterEmail = feedback.userEmail, !submitterEmail.isEmpty {
                         emails.append(submitterEmail)
                     }
 
-                    // Note: Votes currently don't store email addresses
-                    // To notify voters, you would need to add userEmail field to Vote model
+                    // Load votes with notification opt-in
+                    try await feedback.$votes.load(on: req.db)
+                    for vote in feedback.votes {
+                        if vote.notifyStatusChange,
+                           let email = vote.email,
+                           !email.isEmpty,
+                           !emails.contains(email) {  // De-duplicate
+                            emails.append(email)
+                            if let key = vote.permissionKey {
+                                unsubscribeKeys[email] = key
+                            }
+                        }
+                    }
 
                     try await req.emailService.sendFeedbackStatusChangeNotification(
                         to: emails,
                         projectName: project.name,
                         feedbackTitle: feedback.title,
                         oldStatus: oldStatus.rawValue,
-                        newStatus: newStatus.rawValue
+                        newStatus: newStatus.rawValue,
+                        unsubscribeKeys: unsubscribeKeys
                     )
                 } catch {
                     req.logger.error("Failed to send status change notification: \(error)")

@@ -20,8 +20,13 @@ struct SwiftlyFeedbackDemoAppApp: App {
         SwiftlyFeedback.configureAuto(with: "sf_G3VStALGZ3Ja8LhWPKJTRJk9S8RaZwMk")
 
         // Customize theme
-        SwiftlyFeedback.theme.primaryColor = .color(.blue)
-        SwiftlyFeedback.theme.statusColors.completed = .green
+        SwiftlyFeedback.theme.primaryColor = .color(.mint)
+        SwiftlyFeedback.theme.statusColors.completed = .mint
+        SwiftlyFeedback.theme.statusColors.approved = .mint
+        SwiftlyFeedback.theme.statusColors.inProgress = .mint
+        SwiftlyFeedback.theme.statusColors.pending = .mint
+        SwiftlyFeedback.theme.statusColors.rejected = .mint
+        SwiftlyFeedback.theme.statusColors.testflight = .mint
     }
 
     var body: some Scene {
