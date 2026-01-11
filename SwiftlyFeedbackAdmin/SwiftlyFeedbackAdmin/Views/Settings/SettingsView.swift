@@ -167,7 +167,7 @@ struct SettingsView: View {
                     .overlay {
                         Image(systemName: subscriptionIcon)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(subscriptionService.isPaidSubscriber ? .white : .gray)
+                            .foregroundStyle(subscriptionService.effectiveTier != .free ? .white : .gray)
                     }
 
                     Text("Subscription")
@@ -204,7 +204,7 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var subscriptionGradient: some View {
-        switch subscriptionService.currentTier {
+        switch subscriptionService.effectiveTier {
         case .free:
             Color.gray.opacity(0.3)
         case .pro:
@@ -223,7 +223,7 @@ struct SettingsView: View {
     }
 
     private var subscriptionIcon: String {
-        switch subscriptionService.currentTier {
+        switch subscriptionService.effectiveTier {
         case .free: return "crown"
         case .pro: return "crown.fill"
         case .team: return "person.3.fill"
