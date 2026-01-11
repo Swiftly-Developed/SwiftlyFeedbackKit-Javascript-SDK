@@ -6,13 +6,16 @@ final class OnboardingViewModel {
     // MARK: - Onboarding State
 
     enum OnboardingStep: Int, CaseIterable {
-        case welcome = 0
-        case createAccount = 1
-        case verifyEmail = 2
-        case projectChoice = 3
-        case createProject = 4
-        case joinProject = 5
-        case completion = 6
+        case welcome1 = 0
+        case welcome2 = 1
+        case welcome3 = 2
+        case createAccount = 3
+        case verifyEmail = 4
+        case paywall = 5
+        case projectChoice = 6
+        case createProject = 7
+        case joinProject = 8
+        case completion = 9
 
         var progress: Double {
             Double(rawValue) / Double(OnboardingStep.allCases.count - 1)
@@ -24,7 +27,7 @@ final class OnboardingViewModel {
         case join
     }
 
-    var currentStep: OnboardingStep = .welcome
+    var currentStep: OnboardingStep = .welcome1
     var projectSetupChoice: ProjectSetupChoice?
 
     // MARK: - Account Creation Fields
@@ -82,11 +85,17 @@ final class OnboardingViewModel {
     func goToNextStep() {
         withAnimation(.easeInOut(duration: 0.3)) {
             switch currentStep {
-            case .welcome:
+            case .welcome1:
+                currentStep = .welcome2
+            case .welcome2:
+                currentStep = .welcome3
+            case .welcome3:
                 currentStep = .createAccount
             case .createAccount:
                 currentStep = .verifyEmail
             case .verifyEmail:
+                currentStep = .paywall
+            case .paywall:
                 currentStep = .projectChoice
             case .projectChoice:
                 if projectSetupChoice == .create {
@@ -106,15 +115,22 @@ final class OnboardingViewModel {
     func goToPreviousStep() {
         withAnimation(.easeInOut(duration: 0.3)) {
             switch currentStep {
-            case .welcome:
+            case .welcome1:
                 break
+            case .welcome2:
+                currentStep = .welcome1
+            case .welcome3:
+                currentStep = .welcome2
             case .createAccount:
-                currentStep = .welcome
+                currentStep = .welcome3
             case .verifyEmail:
                 // Can't go back from email verification
                 break
+            case .paywall:
+                // Can't go back from paywall (after verification)
+                break
             case .projectChoice:
-                // Can't go back to verification
+                // Can't go back to paywall
                 break
             case .createProject, .joinProject:
                 currentStep = .projectChoice
@@ -129,9 +145,9 @@ final class OnboardingViewModel {
 
     var canGoBack: Bool {
         switch currentStep {
-        case .welcome, .verifyEmail, .projectChoice, .completion:
+        case .welcome1, .verifyEmail, .paywall, .projectChoice, .completion:
             return false
-        case .createAccount, .createProject, .joinProject:
+        case .welcome2, .welcome3, .createAccount, .createProject, .joinProject:
             return true
         }
     }
@@ -273,7 +289,9 @@ final class OnboardingViewModel {
         projectViewModel.newProjectName = newProjectName
         projectViewModel.newProjectDescription = newProjectDescription
 
-        if await projectViewModel.createProject() {
+        let result = await projectViewModel.createProject()
+        switch result {
+        case .success:
             AppLogger.viewModel.info("Onboarding: Project created successfully")
             // Load the projects to get the newly created one
             await projectViewModel.loadProjects()
@@ -285,9 +303,15 @@ final class OnboardingViewModel {
             }
 
             goToNextStep()
-        } else if projectViewModel.showError {
-            showError(message: projectViewModel.errorMessage ?? "Failed to create project")
-            projectViewModel.showError = false
+        case .paymentRequired:
+            // During onboarding, users are creating their first project which should always be free
+            // This shouldn't happen, but handle it gracefully
+            showError(message: "Upgrade your subscription to create more projects")
+        case .otherError:
+            if projectViewModel.showError {
+                showError(message: projectViewModel.errorMessage ?? "Failed to create project")
+                projectViewModel.showError = false
+            }
         }
 
         isLoading = false
@@ -381,7 +405,7 @@ final class OnboardingViewModel {
         await authViewModel.logout()
 
         // Reset onboarding state
-        currentStep = .welcome
+        currentStep = .welcome1
         signupName = ""
         signupEmail = ""
         signupPassword = ""

@@ -12,10 +12,11 @@ struct OnboardingCreateProjectView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
-        GeometryReader { geometry in
+        VStack(spacing: 0) {
+            // Scrollable content
             ScrollView {
                 VStack(spacing: platformSpacing) {
-                    Spacer(minLength: topSpacing(for: geometry))
+                    Spacer(minLength: 16)
 
                     // Header
                     VStack(spacing: 12) {
@@ -71,52 +72,56 @@ struct OnboardingCreateProjectView: View {
                         description: "After creating your project, you'll receive an API key to integrate the SDK into your app."
                     )
 
-                    Spacer(minLength: 20)
-
-                    // Action Buttons
-                    VStack(spacing: 16) {
-                        Button {
-                            Task {
-                                await viewModel.createProject()
-                            }
-                        } label: {
-                            if viewModel.isLoading {
-                                ProgressView()
-                                    .frame(maxWidth: buttonMaxWidth)
-                                    .frame(minHeight: 44)
-                            } else {
-                                Text("Create Project")
-                                    .font(.headline)
-                                    .frame(maxWidth: buttonMaxWidth)
-                                    .frame(minHeight: 44)
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .disabled(!viewModel.isProjectNameValid || viewModel.isLoading)
-                        .accessibilityHint(viewModel.isProjectNameValid ? "Create your new project" : "Enter a project name to continue")
-
-                        Button {
-                            onBack()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: "chevron.left")
-                                Text("Back")
-                            }
-                            .foregroundStyle(.secondary)
-                            .frame(minHeight: 44)
-                        }
-                        .buttonStyle(.plain)
-                        .font(.subheadline)
-                        .accessibilityLabel("Go back to project choice")
-                    }
-                    .padding(.bottom, bottomPadding)
+                    Spacer(minLength: 16)
                 }
                 .padding(.horizontal, horizontalPadding)
                 .frame(maxWidth: maxContentWidth)
                 .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Fixed bottom buttons
+            VStack(spacing: 16) {
+                Button {
+                    Task {
+                        await viewModel.createProject()
+                    }
+                } label: {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: buttonMaxWidth)
+                            .frame(minHeight: 44)
+                    } else {
+                        Text("Create Project")
+                            .font(.headline)
+                            .frame(maxWidth: buttonMaxWidth)
+                            .frame(minHeight: 44)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(!viewModel.isProjectNameValid || viewModel.isLoading)
+                .accessibilityHint(viewModel.isProjectNameValid ? "Create your new project" : "Enter a project name to continue")
+
+                Button {
+                    onBack()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
+                    }
+                    .foregroundStyle(.secondary)
+                    .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .font(.subheadline)
+                .accessibilityLabel("Go back to project choice")
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, 12)
+            .padding(.bottom, bottomPadding)
+            .frame(maxWidth: maxContentWidth)
+            .frame(maxWidth: .infinity)
+            .background(bottomBackground)
         }
         .onAppear {
             #if os(iOS)
@@ -245,33 +250,33 @@ struct OnboardingCreateProjectView: View {
 
     private var iconBackgroundSize: CGFloat {
         #if os(macOS)
-        return 80
+        return 60
         #else
-        return isCompactWidth ? 80 : 100
+        return isCompactWidth ? 60 : 72
         #endif
     }
 
     private var iconSize: CGFloat {
         #if os(macOS)
-        return 36
+        return 28
         #else
-        return isCompactWidth ? 36 : 44
+        return isCompactWidth ? 28 : 32
         #endif
     }
 
     private var titleFont: Font {
         #if os(macOS)
-        return .title
+        return .title2
         #else
-        return isCompactWidth ? .title2 : .title
+        return isCompactWidth ? .title3 : .title2
         #endif
     }
 
     private var platformSpacing: CGFloat {
         #if os(macOS)
-        return 24
+        return 16
         #else
-        return isCompactWidth ? 20 : 24
+        return isCompactWidth ? 16 : 20
         #endif
     }
 
@@ -301,21 +306,17 @@ struct OnboardingCreateProjectView: View {
 
     private var bottomPadding: CGFloat {
         #if os(macOS)
-        return 32
+        return 20
         #else
-        return isCompactWidth ? 16 : 32
+        return isCompactWidth ? 12 : 20
         #endif
     }
 
-    private func topSpacing(for geometry: GeometryProxy) -> CGFloat {
+    private var bottomBackground: some ShapeStyle {
         #if os(macOS)
-        return max(16, geometry.size.height * 0.03)
+        return Color(nsColor: .windowBackgroundColor)
         #else
-        if isCompactWidth {
-            return 16
-        } else {
-            return max(32, geometry.size.height * 0.05)
-        }
+        return Color(uiColor: .systemGroupedBackground)
         #endif
     }
 }

@@ -100,7 +100,7 @@ struct OnboardingPostAuthView: View {
                 // Content
                 Group {
                     switch viewModel.currentStep {
-                    case .welcome, .createAccount, .verifyEmail:
+                    case .welcome1, .welcome2, .welcome3, .createAccount, .verifyEmail, .paywall:
                         // These shouldn't happen in post-auth flow, redirect to project choice
                         OnboardingProjectChoiceView(
                             viewModel: viewModel,

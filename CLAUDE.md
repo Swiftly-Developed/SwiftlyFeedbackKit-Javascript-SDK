@@ -247,9 +247,25 @@ Select 2+ feedback items → Merge. Primary keeps title/description, votes are d
 
 ## Onboarding Flow (Admin App)
 
-1. Welcome → 2. Create Account → 3. Verify Email → 4. Project Choice → 5. Create/Join Project → 6. Completion
+**10 Steps:**
+1. **Welcome 1** - App introduction with logo and feature highlights
+2. **Welcome 2** - Collect Feedback (feature requests, bug reports)
+3. **Welcome 3** - Integrations & Team collaboration
+4. **Create Account** - Registration form (name, email, password)
+5. **Verify Email** - 8-character code verification
+6. **Paywall** - Subscription options with "Continue with Free" option
+7. **Project Choice** - Create new / Join existing / Skip
+8. **Create Project** OR **Join Project** - Project setup
+9. **Completion** - Success screen with summary
 
 `OnboardingManager` singleton tracks state in `UserDefaults`.
+
+**Progress Bar:** Shown on all steps using the system accent color.
+
+**Paywall Step:**
+- Shows subscription options (Pro/Team) with feature comparison
+- "Continue with Free" button allows skipping subscription
+- In DEV/TestFlight environments, shows "All Features Unlocked" instead
 
 **Environment Note (non-production):** The completion screen shows an `EnvironmentNoteSection` for DEV/TestFlight environments informing users about:
 - All features being unlocked for testing
