@@ -277,6 +277,39 @@ struct CommentController: RouteCollection {
             }
         }
 
+        // Sync comment to Basecamp if enabled and active
+        if project.basecampIsActive,
+           project.basecampSyncComments,
+           let todoId = feedback.basecampTodoId,
+           let bucketId = feedback.basecampBucketId,
+           let token = project.basecampAccessToken,
+           let accountId = project.basecampAccountId {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterType = isAdmin ? "Admin" : "User"
+            let commentContent = """
+            <strong>[\(commenterType)] Comment:</strong>
+
+            \(comment.content)
+
+            ---
+            <em>Synced from FeedbackKit</em>
+            """
+
+            Task {
+                do {
+                    _ = try await req.basecampService.createComment(
+                        accountId: accountId,
+                        bucketId: bucketId,
+                        todoId: todoId,
+                        token: token,
+                        content: commentContent
+                    )
+                } catch {
+                    req.logger.error("Failed to sync comment to Basecamp: \(error)")
+                }
+            }
+        }
+
         return CommentResponseDTO(comment: comment)
     }
 

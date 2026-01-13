@@ -97,6 +97,14 @@ struct ProjectController: RouteCollection {
         protected.get(":projectId", "asana", "projects", ":asanaProjectId", "sections", use: getAsanaSections)
         protected.get(":projectId", "asana", "projects", ":asanaProjectId", "custom-fields", use: getAsanaCustomFields)
 
+        // Basecamp integration
+        protected.patch(":projectId", "basecamp", use: updateBasecampSettings)
+        protected.post(":projectId", "basecamp", "todo", use: createBasecampTodo)
+        protected.post(":projectId", "basecamp", "todos", use: bulkCreateBasecampTodos)
+        protected.get(":projectId", "basecamp", "accounts", use: getBasecampAccounts)
+        protected.get(":projectId", "basecamp", "accounts", ":accountId", "projects", use: getBasecampProjects)
+        protected.get(":projectId", "basecamp", "accounts", ":accountId", "projects", ":basecampProjectId", "todolists", use: getBasecampTodolists)
+
         // Invite management
         protected.get(":projectId", "invites", use: listInvites)
         protected.delete(":projectId", "invites", ":inviteId", use: cancelInvite)
@@ -3108,6 +3116,325 @@ struct ProjectController: RouteCollection {
                 }
             )
         }
+    }
+
+    // MARK: - Basecamp Integration
+
+    @Sendable
+    func updateBasecampSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectBasecampDTO.self)
+
+        if let token = dto.basecampAccessToken {
+            project.basecampAccessToken = token.isEmpty ? nil : token
+        }
+        if let accountId = dto.basecampAccountId {
+            project.basecampAccountId = accountId.isEmpty ? nil : accountId
+        }
+        if let accountName = dto.basecampAccountName {
+            project.basecampAccountName = accountName.isEmpty ? nil : accountName
+        }
+        if let projectId = dto.basecampProjectId {
+            project.basecampProjectId = projectId.isEmpty ? nil : projectId
+        }
+        if let projectName = dto.basecampProjectName {
+            project.basecampProjectName = projectName.isEmpty ? nil : projectName
+        }
+        if let todosetId = dto.basecampTodosetId {
+            project.basecampTodosetId = todosetId.isEmpty ? nil : todosetId
+        }
+        if let todolistId = dto.basecampTodolistId {
+            project.basecampTodolistId = todolistId.isEmpty ? nil : todolistId
+        }
+        if let todolistName = dto.basecampTodolistName {
+            project.basecampTodolistName = todolistName.isEmpty ? nil : todolistName
+        }
+        if let syncStatus = dto.basecampSyncStatus {
+            project.basecampSyncStatus = syncStatus
+        }
+        if let syncComments = dto.basecampSyncComments {
+            project.basecampSyncComments = syncComments
+        }
+        if let isActive = dto.basecampIsActive {
+            project.basecampIsActive = isActive
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createBasecampTodo(req: Request) async throws -> CreateBasecampTodoResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken,
+              let accountId = project.basecampAccountId,
+              let basecampProjectId = project.basecampProjectId,
+              let todolistId = project.basecampTodolistId else {
+            throw Abort(.badRequest, reason: "Basecamp integration not configured")
+        }
+
+        guard project.basecampIsActive else {
+            throw Abort(.badRequest, reason: "Basecamp integration is not active")
+        }
+
+        let dto = try req.content.decode(CreateBasecampTodoDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.basecampTodoURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has a Basecamp to-do")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        // Build description
+        let description = req.basecampService.buildTodoDescription(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        // Create to-do
+        let todo = try await req.basecampService.createTodo(
+            accountId: accountId,
+            projectId: basecampProjectId,
+            todolistId: todolistId,
+            token: token,
+            title: feedback.title,
+            description: description
+        )
+
+        // Save link to feedback
+        feedback.basecampTodoURL = todo.appUrl
+        feedback.basecampTodoId = String(todo.id)
+        feedback.basecampBucketId = basecampProjectId
+        try await feedback.save(on: req.db)
+
+        return CreateBasecampTodoResponseDTO(
+            feedbackId: feedback.id!,
+            todoUrl: todo.appUrl,
+            todoId: String(todo.id)
+        )
+    }
+
+    @Sendable
+    func bulkCreateBasecampTodos(req: Request) async throws -> BulkCreateBasecampTodosResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken,
+              let accountId = project.basecampAccountId,
+              let basecampProjectId = project.basecampProjectId,
+              let todolistId = project.basecampTodolistId else {
+            throw Abort(.badRequest, reason: "Basecamp integration not configured")
+        }
+
+        guard project.basecampIsActive else {
+            throw Abort(.badRequest, reason: "Basecamp integration is not active")
+        }
+
+        let dto = try req.content.decode(BulkCreateBasecampTodosDTO.self)
+
+        var created: [CreateBasecampTodoResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.basecampTodoURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let description = req.basecampService.buildTodoDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                let todo = try await req.basecampService.createTodo(
+                    accountId: accountId,
+                    projectId: basecampProjectId,
+                    todolistId: todolistId,
+                    token: token,
+                    title: feedback.title,
+                    description: description
+                )
+
+                feedback.basecampTodoURL = todo.appUrl
+                feedback.basecampTodoId = String(todo.id)
+                feedback.basecampBucketId = basecampProjectId
+                try await feedback.save(on: req.db)
+
+                created.append(CreateBasecampTodoResponseDTO(
+                    feedbackId: feedback.id!,
+                    todoUrl: todo.appUrl,
+                    todoId: String(todo.id)
+                ))
+            } catch {
+                req.logger.error("Failed to create Basecamp to-do for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateBasecampTodosResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getBasecampAccounts(req: Request) async throws -> [BasecampAccountDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken else {
+            throw Abort(.badRequest, reason: "Basecamp token not configured")
+        }
+
+        let auth = try await req.basecampService.getAuthorization(token: token)
+        // Filter to Basecamp 3 accounts only
+        return auth.accounts
+            .filter { $0.product == "bc3" }
+            .map { BasecampAccountDTO(id: $0.id, name: $0.name) }
+    }
+
+    @Sendable
+    func getBasecampProjects(req: Request) async throws -> [BasecampProjectDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken else {
+            throw Abort(.badRequest, reason: "Basecamp token not configured")
+        }
+
+        guard let accountId = req.parameters.get("accountId") else {
+            throw Abort(.badRequest, reason: "Account ID required")
+        }
+
+        let basecampProjects = try await req.basecampService.getProjects(accountId: accountId, token: token)
+        return basecampProjects.map { BasecampProjectDTO(id: $0.id, name: $0.name, todosetId: $0.todosetId) }
+    }
+
+    @Sendable
+    func getBasecampTodolists(req: Request) async throws -> [BasecampTodolistDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken else {
+            throw Abort(.badRequest, reason: "Basecamp token not configured")
+        }
+
+        guard let accountId = req.parameters.get("accountId"),
+              let basecampProjectId = req.parameters.get("basecampProjectId") else {
+            throw Abort(.badRequest, reason: "Account ID and Project ID required")
+        }
+
+        // First get the project to find the todoset
+        let basecampProject = try await req.basecampService.getProject(accountId: accountId, projectId: basecampProjectId, token: token)
+
+        guard let todosetId = basecampProject.todosetId else {
+            throw Abort(.badRequest, reason: "Project has no to-do list tool enabled")
+        }
+
+        let todolists = try await req.basecampService.getTodolists(
+            accountId: accountId,
+            projectId: basecampProjectId,
+            todosetId: todosetId,
+            token: token
+        )
+        return todolists.map { BasecampTodolistDTO(id: $0.id, name: $0.name) }
     }
 
     // MARK: - Helpers

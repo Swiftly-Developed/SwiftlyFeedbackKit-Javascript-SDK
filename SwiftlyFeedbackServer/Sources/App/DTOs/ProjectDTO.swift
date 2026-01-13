@@ -449,6 +449,58 @@ struct AsanaEnumOptionDTO: Content {
     var color: String?
 }
 
+// MARK: - Basecamp Integration DTOs
+
+struct UpdateProjectBasecampDTO: Content {
+    var basecampAccessToken: String?
+    var basecampAccountId: String?
+    var basecampAccountName: String?
+    var basecampProjectId: String?
+    var basecampProjectName: String?
+    var basecampTodosetId: String?
+    var basecampTodolistId: String?
+    var basecampTodolistName: String?
+    var basecampSyncStatus: Bool?
+    var basecampSyncComments: Bool?
+    var basecampIsActive: Bool?
+}
+
+struct CreateBasecampTodoDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateBasecampTodoResponseDTO: Content {
+    var feedbackId: UUID
+    var todoUrl: String
+    var todoId: String
+}
+
+struct BulkCreateBasecampTodosDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateBasecampTodosResponseDTO: Content {
+    var created: [CreateBasecampTodoResponseDTO]
+    var failed: [UUID]
+}
+
+// Basecamp hierarchy DTOs for settings UI
+struct BasecampAccountDTO: Content {
+    var id: Int
+    var name: String
+}
+
+struct BasecampProjectDTO: Content {
+    var id: Int
+    var name: String
+    var todosetId: String?
+}
+
+struct BasecampTodolistDTO: Content {
+    var id: Int
+    var name: String
+}
+
 struct AddMemberDTO: Content, Validatable {
     let email: String
     let role: ProjectRole
@@ -565,6 +617,18 @@ struct ProjectResponseDTO: Content {
     let asanaStatusFieldId: String?
     let asanaVotesFieldId: String?
     let asanaIsActive: Bool
+    // Basecamp integration fields
+    let basecampAccessToken: String?
+    let basecampAccountId: String?
+    let basecampAccountName: String?
+    let basecampProjectId: String?
+    let basecampProjectName: String?
+    let basecampTodosetId: String?
+    let basecampTodolistId: String?
+    let basecampTodolistName: String?
+    let basecampSyncStatus: Bool
+    let basecampSyncComments: Bool
+    let basecampIsActive: Bool
 
     init(project: Project, feedbackCount: Int = 0, memberCount: Int = 0, ownerEmail: String? = nil) {
         self.id = project.id!
@@ -661,6 +725,17 @@ struct ProjectResponseDTO: Content {
         self.asanaStatusFieldId = project.asanaStatusFieldId
         self.asanaVotesFieldId = project.asanaVotesFieldId
         self.asanaIsActive = project.asanaIsActive
+        self.basecampAccessToken = project.basecampAccessToken
+        self.basecampAccountId = project.basecampAccountId
+        self.basecampAccountName = project.basecampAccountName
+        self.basecampProjectId = project.basecampProjectId
+        self.basecampProjectName = project.basecampProjectName
+        self.basecampTodosetId = project.basecampTodosetId
+        self.basecampTodolistId = project.basecampTodolistId
+        self.basecampTodolistName = project.basecampTodolistName
+        self.basecampSyncStatus = project.basecampSyncStatus
+        self.basecampSyncComments = project.basecampSyncComments
+        self.basecampIsActive = project.basecampIsActive
     }
 }
 

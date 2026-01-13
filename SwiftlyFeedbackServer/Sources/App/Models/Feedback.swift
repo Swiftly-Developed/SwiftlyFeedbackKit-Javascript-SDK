@@ -109,6 +109,16 @@ final class Feedback: Model, Content, @unchecked Sendable {
     @OptionalField(key: "asana_task_id")
     var asanaTaskId: String?
 
+    // Basecamp integration fields
+    @OptionalField(key: "basecamp_todo_url")
+    var basecampTodoURL: String?
+
+    @OptionalField(key: "basecamp_todo_id")
+    var basecampTodoId: String?
+
+    @OptionalField(key: "basecamp_bucket_id")
+    var basecampBucketId: String?
+
     /// Whether this feedback has been merged into another
     var isMerged: Bool {
         mergedIntoId != nil
@@ -157,6 +167,11 @@ final class Feedback: Model, Content, @unchecked Sendable {
     /// Whether this feedback has a linked Asana task
     var hasAsanaTask: Bool {
         asanaTaskURL != nil
+    }
+
+    /// Whether this feedback has a linked Basecamp to-do
+    var hasBasecampTodo: Bool {
+        basecampTodoURL != nil
     }
 
     init() {}
@@ -304,6 +319,16 @@ enum FeedbackStatus: String, Codable, CaseIterable {
             return "Complete"
         case .rejected:
             return "Closed"
+        }
+    }
+
+    /// Whether this status should mark a Basecamp to-do as complete
+    var basecampIsCompleted: Bool {
+        switch self {
+        case .completed, .rejected:
+            return true
+        case .pending, .approved, .inProgress, .testflight:
+            return false
         }
     }
 

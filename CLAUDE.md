@@ -324,6 +324,7 @@ All integrations support: create/bulk create, status sync, comment sync, link tr
 | Trello | Cards | List-based | Board/list selection, comment sync |
 | Airtable | Table records | Status field | Field mapping, votes field, comment sync |
 | Asana | Tasks | Custom field | Workspace/project/section selection, votes field, comment sync |
+| Basecamp | To-dos | Completion | Account/project/todolist selection, comment sync |
 
 **Status mapping** (all integrations follow similar pattern):
 - pending → backlog/to do
@@ -357,6 +358,15 @@ All integrations support: create/bulk create, status sync, comment sync, link tr
 - Status sync updates the mapped status custom field when feedback status changes
 - Vote count sync updates the mapped votes custom field when votes change
 - Comments synced as stories (comments) on the Asana task
+
+**Basecamp-specific:**
+- User provides their own OAuth2 access token via Admin app settings
+- Account selection from user's authorized Basecamp 3 accounts
+- Project selection from account projects
+- To-do list selection from project's todosets
+- To-dos created with title and description (HTML content)
+- Status sync marks to-dos as complete when feedback is completed/rejected
+- Comments synced as comments on the Basecamp to-do
 
 Configure via Admin app: Project Details > Menu (⋯) > [Integration] Integration.
 

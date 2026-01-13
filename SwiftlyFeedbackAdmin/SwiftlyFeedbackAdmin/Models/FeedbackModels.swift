@@ -51,6 +51,10 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     // Asana integration fields
     let asanaTaskUrl: String?
     let asanaTaskId: String?
+    // Basecamp integration fields
+    let basecampTodoUrl: String?
+    let basecampTodoId: String?
+    let basecampBucketId: String?
 
     /// Formatted total MRR string for display (always shows, even if $0)
     var formattedMrr: String {
@@ -114,6 +118,11 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     /// Whether this feedback has a linked Asana task
     var hasAsanaTask: Bool {
         asanaTaskUrl != nil
+    }
+
+    /// Whether this feedback has a linked Basecamp to-do
+    var hasBasecampTodo: Bool {
+        basecampTodoUrl != nil
     }
 }
 

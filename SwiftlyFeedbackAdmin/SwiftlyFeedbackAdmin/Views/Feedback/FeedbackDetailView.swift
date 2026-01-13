@@ -485,7 +485,12 @@ struct CommentRowView: View {
                 trelloCardUrl: nil,
                 trelloCardId: nil,
                 airtableRecordUrl: nil,
-                airtableRecordId: nil
+                airtableRecordId: nil,
+                asanaTaskUrl: nil,
+                asanaTaskId: nil,
+                basecampTodoUrl: nil,
+                basecampTodoId: nil,
+                basecampBucketId: nil
             ),
             apiKey: "test-key",
             allowedStatuses: [.pending, .approved, .inProgress, .completed, .rejected],

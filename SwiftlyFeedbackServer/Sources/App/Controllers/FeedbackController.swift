@@ -521,6 +521,29 @@ struct FeedbackController: RouteCollection {
                     }
                 }
             }
+
+            // Sync to Basecamp if configured and active
+            if let todoId = feedback.basecampTodoId,
+               let bucketId = feedback.basecampBucketId,
+               project.basecampIsActive,
+               project.basecampSyncStatus,
+               let token = project.basecampAccessToken,
+               let accountId = project.basecampAccountId {
+                let isCompleted = newStatus.basecampIsCompleted
+                Task {
+                    do {
+                        _ = try await req.basecampService.updateTodo(
+                            accountId: accountId,
+                            bucketId: bucketId,
+                            todoId: todoId,
+                            token: token,
+                            completed: isCompleted
+                        )
+                    } catch {
+                        req.logger.error("Failed to sync Basecamp to-do status: \(error)")
+                    }
+                }
+            }
         }
 
         try await feedback.$votes.load(on: req.db)

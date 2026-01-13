@@ -1681,6 +1681,112 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Basecamp Integration API
+
+    func updateBasecampSettings(projectId: UUID, request: UpdateProjectBasecampRequest) async throws -> Project {
+        let path = "projects/\(projectId)/basecamp"
+        AppLogger.api.info("🟡 PATCH \(path) (Basecamp settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: request, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - Basecamp settings updated")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createBasecampTodo(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateBasecampTodoResponse {
+        let path = "projects/\(projectId)/basecamp/todo"
+        let body = CreateBasecampTodoRequest(feedbackId: feedbackId)
+        AppLogger.api.info("🟢 POST \(path) (create Basecamp to-do)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateBasecampTodoResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - to-do created: \(decoded.todoUrl)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateBasecampTodos(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateBasecampTodosResponse {
+        let path = "projects/\(projectId)/basecamp/todos"
+        let body = BulkCreateBasecampTodosRequest(feedbackIds: feedbackIds)
+        AppLogger.api.info("🟢 POST \(path) (bulk create Basecamp to-dos)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateBasecampTodosResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - created \(decoded.created.count), failed \(decoded.failed.count)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getBasecampAccounts(projectId: UUID) async throws -> [BasecampAccount] {
+        let path = "projects/\(projectId)/basecamp/accounts"
+        AppLogger.api.info("🔵 GET \(path) (Basecamp accounts)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([BasecampAccount].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) accounts")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getBasecampProjects(projectId: UUID, accountId: String) async throws -> [BasecampProject] {
+        let path = "projects/\(projectId)/basecamp/accounts/\(accountId)/projects"
+        AppLogger.api.info("🔵 GET \(path) (Basecamp projects)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([BasecampProject].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) projects")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getBasecampTodolists(projectId: UUID, accountId: String, basecampProjectId: String) async throws -> [BasecampTodolist] {
+        let path = "projects/\(projectId)/basecamp/accounts/\(accountId)/projects/\(basecampProjectId)/todolists"
+        AppLogger.api.info("🔵 GET \(path) (Basecamp to-do lists)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([BasecampTodolist].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) to-do lists")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Merge Feedback API
 
     func mergeFeedback(primaryId: UUID, secondaryIds: [UUID]) async throws -> MergeFeedbackResponse {

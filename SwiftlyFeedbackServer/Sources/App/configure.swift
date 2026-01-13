@@ -99,6 +99,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddProjectTrelloIntegration())
     app.migrations.add(AddProjectAirtableIntegration())
     app.migrations.add(AddProjectAsanaIntegration())
+    app.migrations.add(AddProjectBasecampIntegration())
 
     try await app.autoMigrate()
 

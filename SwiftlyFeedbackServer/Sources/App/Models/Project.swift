@@ -279,6 +279,40 @@ final class Project: Model, Content, @unchecked Sendable {
     @Field(key: "asana_is_active")
     var asanaIsActive: Bool
 
+    // Basecamp integration fields
+    @OptionalField(key: "basecamp_access_token")
+    var basecampAccessToken: String?
+
+    @OptionalField(key: "basecamp_account_id")
+    var basecampAccountId: String?
+
+    @OptionalField(key: "basecamp_account_name")
+    var basecampAccountName: String?
+
+    @OptionalField(key: "basecamp_project_id")
+    var basecampProjectId: String?
+
+    @OptionalField(key: "basecamp_project_name")
+    var basecampProjectName: String?
+
+    @OptionalField(key: "basecamp_todoset_id")
+    var basecampTodosetId: String?
+
+    @OptionalField(key: "basecamp_todolist_id")
+    var basecampTodolistId: String?
+
+    @OptionalField(key: "basecamp_todolist_name")
+    var basecampTodolistName: String?
+
+    @Field(key: "basecamp_sync_status")
+    var basecampSyncStatus: Bool
+
+    @Field(key: "basecamp_sync_comments")
+    var basecampSyncComments: Bool
+
+    @Field(key: "basecamp_is_active")
+    var basecampIsActive: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -381,7 +415,18 @@ final class Project: Model, Content, @unchecked Sendable {
         asanaSyncComments: Bool = false,
         asanaStatusFieldId: String? = nil,
         asanaVotesFieldId: String? = nil,
-        asanaIsActive: Bool = true
+        asanaIsActive: Bool = true,
+        basecampAccessToken: String? = nil,
+        basecampAccountId: String? = nil,
+        basecampAccountName: String? = nil,
+        basecampProjectId: String? = nil,
+        basecampProjectName: String? = nil,
+        basecampTodosetId: String? = nil,
+        basecampTodolistId: String? = nil,
+        basecampTodolistName: String? = nil,
+        basecampSyncStatus: Bool = false,
+        basecampSyncComments: Bool = false,
+        basecampIsActive: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -471,6 +516,17 @@ final class Project: Model, Content, @unchecked Sendable {
         self.asanaStatusFieldId = asanaStatusFieldId
         self.asanaVotesFieldId = asanaVotesFieldId
         self.asanaIsActive = asanaIsActive
+        self.basecampAccessToken = basecampAccessToken
+        self.basecampAccountId = basecampAccountId
+        self.basecampAccountName = basecampAccountName
+        self.basecampProjectId = basecampProjectId
+        self.basecampProjectName = basecampProjectName
+        self.basecampTodosetId = basecampTodosetId
+        self.basecampTodolistId = basecampTodolistId
+        self.basecampTodolistName = basecampTodolistName
+        self.basecampSyncStatus = basecampSyncStatus
+        self.basecampSyncComments = basecampSyncComments
+        self.basecampIsActive = basecampIsActive
     }
 }
 

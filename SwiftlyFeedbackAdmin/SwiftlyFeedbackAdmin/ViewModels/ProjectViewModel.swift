@@ -929,6 +929,80 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Basecamp Integration
+
+    func updateBasecampSettings(
+        projectId: UUID,
+        basecampAccessToken: String?,
+        basecampAccountId: String?,
+        basecampAccountName: String?,
+        basecampProjectId: String?,
+        basecampProjectName: String?,
+        basecampTodosetId: String?,
+        basecampTodolistId: String?,
+        basecampTodolistName: String?,
+        basecampSyncStatus: Bool?,
+        basecampSyncComments: Bool?,
+        basecampIsActive: Bool?
+    ) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let request = UpdateProjectBasecampRequest(
+                basecampAccessToken: basecampAccessToken,
+                basecampAccountId: basecampAccountId,
+                basecampAccountName: basecampAccountName,
+                basecampProjectId: basecampProjectId,
+                basecampProjectName: basecampProjectName,
+                basecampTodosetId: basecampTodosetId,
+                basecampTodolistId: basecampTodolistId,
+                basecampTodolistName: basecampTodolistName,
+                basecampSyncStatus: basecampSyncStatus,
+                basecampSyncComments: basecampSyncComments,
+                basecampIsActive: basecampIsActive
+            )
+            let updated = try await AdminAPIClient.shared.updateBasecampSettings(projectId: projectId, request: request)
+            selectedProject = updated
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
+    func loadBasecampAccounts(projectId: UUID) async -> [BasecampAccount] {
+        do {
+            return try await AdminAPIClient.shared.getBasecampAccounts(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadBasecampProjects(projectId: UUID, accountId: String) async -> [BasecampProject] {
+        do {
+            return try await AdminAPIClient.shared.getBasecampProjects(projectId: projectId, accountId: accountId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadBasecampTodolists(projectId: UUID, accountId: String, basecampProjectId: String) async -> [BasecampTodolist] {
+        do {
+            return try await AdminAPIClient.shared.getBasecampTodolists(projectId: projectId, accountId: accountId, basecampProjectId: basecampProjectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
     // MARK: - Accept Invite
 
     var inviteCode = ""

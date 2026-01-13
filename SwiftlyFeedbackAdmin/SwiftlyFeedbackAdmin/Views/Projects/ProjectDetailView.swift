@@ -21,6 +21,7 @@ struct ProjectDetailView: View {
     @State private var showingTrelloSheet = false
     @State private var showingAirtableSheet = false
     @State private var showingAsanaSheet = false
+    @State private var showingBasecampSheet = false
     @State private var copiedToClipboard = false
     @State private var showingPaywall = false
     @State private var paywallRequiredTier: SubscriptionTier = .pro
@@ -204,6 +205,18 @@ struct ProjectDetailView: View {
                                 Label("Asana", systemImage: "list.bullet.rectangle")
                                     .tierBadge(.pro)
                             }
+
+                            Button {
+                                if subscriptionService.meetsRequirement(.pro) {
+                                    showingBasecampSheet = true
+                                } else {
+                                    paywallRequiredTier = .pro
+                                    showingPaywall = true
+                                }
+                            } label: {
+                                Label("Basecamp", systemImage: "tent")
+                                    .tierBadge(.pro)
+                            }
                         } label: {
                             Label("Integrations", systemImage: "puzzlepiece.extension")
                         }
@@ -365,6 +378,14 @@ struct ProjectDetailView: View {
         .sheet(isPresented: $showingAsanaSheet) {
             if let project = viewModel.selectedProject {
                 AsanaSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 600)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingBasecampSheet) {
+            if let project = viewModel.selectedProject {
+                BasecampSettingsView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 500, minHeight: 600)
                     #endif
@@ -745,6 +766,22 @@ struct ProjectDetailView: View {
                         isActive: project.asanaIsActive
                     ) {
                         showingAsanaSheet = true
+                    }
+                }
+
+                if project.isBasecampConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured || project.isLinearConfigured || project.isTrelloConfigured || project.isAirtableConfigured || project.isAsanaConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "tent",
+                        iconColor: Color(red: 0.13, green: 0.59, blue: 0.95),
+                        name: "Basecamp",
+                        detail: project.basecampIsActive ? (project.basecampTodolistName ?? "Connected") : "Paused",
+                        isActive: project.basecampIsActive
+                    ) {
+                        showingBasecampSheet = true
                     }
                 }
             }
