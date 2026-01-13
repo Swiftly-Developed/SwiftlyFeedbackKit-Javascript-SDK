@@ -22,4 +22,25 @@
    <FileRef
       location = "group:docs/PUSH_NOTIFICATIONS_PLAN.md">
    </FileRef>
+   <FileRef
+      location = "group:docs/TRELLO_INTEGRATION_PLAN.md">
+   </FileRef>
+   <FileRef
+      location = "group:docs/AIRTABLE_INTEGRATION_PLAN.md">
+   </FileRef>
+   <FileRef
+      location = "group:docs/ASANA_INTEGRATION_PLAN.md">
+   </FileRef>
+   <FileRef
+      location = "group:docs/BASECAMP_INTEGRATION_PLAN.md">
+   </FileRef>
+   <FileRef
+      location = "group:docs/TEAMWORK_INTEGRATION_PLAN.md">
+   </FileRef>
+   <FileRef
+      location = "group:docs/EMAIL_NOTIFICATION_STATUS_CONFIGURATION_PLAN.md">
+   </FileRef>
+   <FileRef
+      location = "group:docs/REJECTION_REASON_PLAN.md">
+   </FileRef>
 </Workspace>

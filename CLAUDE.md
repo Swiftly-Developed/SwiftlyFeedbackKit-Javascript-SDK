@@ -22,6 +22,7 @@ This workspace pushes to multiple GitHub repositories:
 |--------|------------|---------|
 | `origin` | [FeedbackKit-Workspace](https://github.com/Swiftly-Developed/FeedbackKit-Workspace.git) | Main workspace (all subprojects) |
 | `feedbackkit-sdk` | [SwiftlyFeedbackKit](https://github.com/Swiftly-Developed/SwiftlyFeedbackKit.git) | SDK-only repo (for SPM distribution) |
+| `feedbackkit-server` | [SwiftlyFeedbackServer](https://github.com/Swiftly-Developed/SwiftlyFeedbackServer.git) | Server standalone repo |
 | `feedbackkit-admin` | [SwiftlyFeedbackAdmin](https://github.com/Swiftly-Developed/SwiftlyFeedbackAdmin.git) | Admin app standalone repo |
 | `feedbackkit-demo` | [SwiftlyFeedbackDemoApp](https://github.com/Swiftly-Developed/SwiftlyFeedbackDemoApp.git) | Demo app standalone repo |
 
@@ -38,6 +39,9 @@ git push origin dev
 # Push SDK changes only (for SPM consumers)
 git push feedbackkit-sdk dev
 
+# Push Server changes
+git push feedbackkit-server dev
+
 # Push Admin app changes
 git push feedbackkit-admin dev
 
@@ -45,12 +49,13 @@ git push feedbackkit-admin dev
 git push feedbackkit-demo dev
 
 # Push all remotes at once
-git push origin dev && git push feedbackkit-sdk dev && git push feedbackkit-admin dev && git push feedbackkit-demo dev
+git push origin dev && git push feedbackkit-sdk dev && git push feedbackkit-server dev && git push feedbackkit-admin dev && git push feedbackkit-demo dev
 ```
 
 **Adding remotes (if missing):**
 ```bash
 git remote add feedbackkit-sdk https://github.com/Swiftly-Developed/SwiftlyFeedbackKit.git
+git remote add feedbackkit-server https://github.com/Swiftly-Developed/SwiftlyFeedbackServer.git
 git remote add feedbackkit-admin https://github.com/Swiftly-Developed/SwiftlyFeedbackAdmin.git
 git remote add feedbackkit-demo https://github.com/Swiftly-Developed/SwiftlyFeedbackDemoApp.git
 ```
@@ -304,6 +309,7 @@ All integrations support: create/bulk create, status sync, comment sync, link tr
 | ClickUp | Tasks | Status | Tags, votes custom field |
 | Linear | Issues | Workflow states | Labels, projects |
 | Monday.com | Board items | Status column | Votes column |
+| Trello | Cards | List-based | Board/list selection, comment sync |
 
 **Status mapping** (all integrations follow similar pattern):
 - pending → backlog/to do
@@ -311,6 +317,12 @@ All integrations support: create/bulk create, status sync, comment sync, link tr
 - in_progress → in progress/started
 - completed → complete/done
 - rejected → closed/canceled
+
+**Trello-specific:**
+- Requires `TRELLO_API_KEY` environment variable on server
+- User provides their own API token via Admin app settings
+- Cards created in selected board/list with category labels
+- Comments synced as card comments
 
 Configure via Admin app: Project Details > Menu (⋯) > [Integration] Integration.
 
