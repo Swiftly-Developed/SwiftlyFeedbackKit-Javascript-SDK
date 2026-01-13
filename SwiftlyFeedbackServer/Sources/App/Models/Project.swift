@@ -202,6 +202,46 @@ final class Project: Model, Content, @unchecked Sendable {
     @Field(key: "trello_is_active")
     var trelloIsActive: Bool
 
+    // Airtable integration fields
+    @OptionalField(key: "airtable_token")
+    var airtableToken: String?
+
+    @OptionalField(key: "airtable_base_id")
+    var airtableBaseId: String?
+
+    @OptionalField(key: "airtable_base_name")
+    var airtableBaseName: String?
+
+    @OptionalField(key: "airtable_table_id")
+    var airtableTableId: String?
+
+    @OptionalField(key: "airtable_table_name")
+    var airtableTableName: String?
+
+    @Field(key: "airtable_sync_status")
+    var airtableSyncStatus: Bool
+
+    @Field(key: "airtable_sync_comments")
+    var airtableSyncComments: Bool
+
+    @OptionalField(key: "airtable_status_field_id")
+    var airtableStatusFieldId: String?
+
+    @OptionalField(key: "airtable_votes_field_id")
+    var airtableVotesFieldId: String?
+
+    @OptionalField(key: "airtable_title_field_id")
+    var airtableTitleFieldId: String?
+
+    @OptionalField(key: "airtable_description_field_id")
+    var airtableDescriptionFieldId: String?
+
+    @OptionalField(key: "airtable_category_field_id")
+    var airtableCategoryFieldId: String?
+
+    @Field(key: "airtable_is_active")
+    var airtableIsActive: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -279,7 +319,20 @@ final class Project: Model, Content, @unchecked Sendable {
         trelloListName: String? = nil,
         trelloSyncStatus: Bool = false,
         trelloSyncComments: Bool = false,
-        trelloIsActive: Bool = true
+        trelloIsActive: Bool = true,
+        airtableToken: String? = nil,
+        airtableBaseId: String? = nil,
+        airtableBaseName: String? = nil,
+        airtableTableId: String? = nil,
+        airtableTableName: String? = nil,
+        airtableSyncStatus: Bool = false,
+        airtableSyncComments: Bool = false,
+        airtableStatusFieldId: String? = nil,
+        airtableVotesFieldId: String? = nil,
+        airtableTitleFieldId: String? = nil,
+        airtableDescriptionFieldId: String? = nil,
+        airtableCategoryFieldId: String? = nil,
+        airtableIsActive: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -344,6 +397,19 @@ final class Project: Model, Content, @unchecked Sendable {
         self.trelloSyncStatus = trelloSyncStatus
         self.trelloSyncComments = trelloSyncComments
         self.trelloIsActive = trelloIsActive
+        self.airtableToken = airtableToken
+        self.airtableBaseId = airtableBaseId
+        self.airtableBaseName = airtableBaseName
+        self.airtableTableId = airtableTableId
+        self.airtableTableName = airtableTableName
+        self.airtableSyncStatus = airtableSyncStatus
+        self.airtableSyncComments = airtableSyncComments
+        self.airtableStatusFieldId = airtableStatusFieldId
+        self.airtableVotesFieldId = airtableVotesFieldId
+        self.airtableTitleFieldId = airtableTitleFieldId
+        self.airtableDescriptionFieldId = airtableDescriptionFieldId
+        self.airtableCategoryFieldId = airtableCategoryFieldId
+        self.airtableIsActive = airtableIsActive
     }
 }
 

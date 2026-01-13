@@ -95,6 +95,13 @@ final class Feedback: Model, Content, @unchecked Sendable {
     @OptionalField(key: "trello_card_id")
     var trelloCardId: String?
 
+    // Airtable integration fields
+    @OptionalField(key: "airtable_record_url")
+    var airtableRecordURL: String?
+
+    @OptionalField(key: "airtable_record_id")
+    var airtableRecordId: String?
+
     /// Whether this feedback has been merged into another
     var isMerged: Bool {
         mergedIntoId != nil
@@ -133,6 +140,11 @@ final class Feedback: Model, Content, @unchecked Sendable {
     /// Whether this feedback has a linked Trello card
     var hasTrelloCard: Bool {
         trelloCardURL != nil
+    }
+
+    /// Whether this feedback has a linked Airtable record
+    var hasAirtableRecord: Bool {
+        airtableRecordURL != nil
     }
 
     init() {}
@@ -244,6 +256,44 @@ enum FeedbackStatus: String, Codable, CaseIterable {
             return "completed"
         case .rejected:
             return "canceled"
+        }
+    }
+
+    /// Maps SwiftlyFeedback status to Airtable status names
+    var airtableStatusName: String {
+        switch self {
+        case .pending:
+            return "Pending"
+        case .approved:
+            return "Approved"
+        case .inProgress:
+            return "In Progress"
+        case .testflight:
+            return "TestFlight"
+        case .completed:
+            return "Completed"
+        case .rejected:
+            return "Rejected"
+        }
+    }
+
+    /// Initialize from Airtable status (for future bi-directional sync)
+    init?(airtableStatus: String) {
+        switch airtableStatus.lowercased() {
+        case "pending":
+            self = .pending
+        case "approved":
+            self = .approved
+        case "in progress", "in_progress":
+            self = .inProgress
+        case "testflight", "test flight":
+            self = .testflight
+        case "completed", "complete", "done":
+            self = .completed
+        case "rejected", "closed":
+            self = .rejected
+        default:
+            return nil
         }
     }
 }

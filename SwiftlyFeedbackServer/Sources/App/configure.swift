@@ -97,6 +97,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddUserSubscriptionFields())
     app.migrations.add(AddVoteEmailNotification())
     app.migrations.add(AddProjectTrelloIntegration())
+    app.migrations.add(AddProjectAirtableIntegration())
 
     try await app.autoMigrate()
 

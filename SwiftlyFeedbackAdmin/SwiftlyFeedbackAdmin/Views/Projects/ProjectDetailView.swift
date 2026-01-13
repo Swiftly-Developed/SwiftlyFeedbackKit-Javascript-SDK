@@ -19,6 +19,7 @@ struct ProjectDetailView: View {
     @State private var showingMondaySheet = false
     @State private var showingLinearSheet = false
     @State private var showingTrelloSheet = false
+    @State private var showingAirtableSheet = false
     @State private var copiedToClipboard = false
     @State private var showingPaywall = false
     @State private var paywallRequiredTier: SubscriptionTier = .pro
@@ -178,6 +179,18 @@ struct ProjectDetailView: View {
                                 Label("Trello", systemImage: "square.grid.2x2")
                                     .tierBadge(.pro)
                             }
+
+                            Button {
+                                if subscriptionService.meetsRequirement(.pro) {
+                                    showingAirtableSheet = true
+                                } else {
+                                    paywallRequiredTier = .pro
+                                    showingPaywall = true
+                                }
+                            } label: {
+                                Label("Airtable", systemImage: "tablecells")
+                                    .tierBadge(.pro)
+                            }
                         } label: {
                             Label("Integrations", systemImage: "puzzlepiece.extension")
                         }
@@ -325,6 +338,14 @@ struct ProjectDetailView: View {
                 TrelloSettingsView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 500, minHeight: 500)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingAirtableSheet) {
+            if let project = viewModel.selectedProject {
+                AirtableSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 600)
                     #endif
             }
         }

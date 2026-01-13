@@ -766,6 +766,84 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Airtable Integration
+
+    func updateAirtableSettings(
+        projectId: UUID,
+        airtableToken: String?,
+        airtableBaseId: String?,
+        airtableBaseName: String?,
+        airtableTableId: String?,
+        airtableTableName: String?,
+        airtableSyncStatus: Bool?,
+        airtableSyncComments: Bool?,
+        airtableStatusFieldId: String?,
+        airtableVotesFieldId: String?,
+        airtableTitleFieldId: String?,
+        airtableDescriptionFieldId: String?,
+        airtableCategoryFieldId: String?,
+        airtableIsActive: Bool?
+    ) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let request = UpdateProjectAirtableRequest(
+                airtableToken: airtableToken,
+                airtableBaseId: airtableBaseId,
+                airtableBaseName: airtableBaseName,
+                airtableTableId: airtableTableId,
+                airtableTableName: airtableTableName,
+                airtableSyncStatus: airtableSyncStatus,
+                airtableSyncComments: airtableSyncComments,
+                airtableStatusFieldId: airtableStatusFieldId,
+                airtableVotesFieldId: airtableVotesFieldId,
+                airtableTitleFieldId: airtableTitleFieldId,
+                airtableDescriptionFieldId: airtableDescriptionFieldId,
+                airtableCategoryFieldId: airtableCategoryFieldId,
+                airtableIsActive: airtableIsActive
+            )
+            let updated = try await AdminAPIClient.shared.updateAirtableSettings(projectId: projectId, request: request)
+            selectedProject = updated
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
+    func loadAirtableBases(projectId: UUID) async -> [AirtableBase] {
+        do {
+            return try await AdminAPIClient.shared.getAirtableBases(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAirtableTables(projectId: UUID, baseId: String) async -> [AirtableTable] {
+        do {
+            return try await AdminAPIClient.shared.getAirtableTables(projectId: projectId, baseId: baseId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAirtableFields(projectId: UUID) async -> [AirtableField] {
+        do {
+            return try await AdminAPIClient.shared.getAirtableFields(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
     // MARK: - Accept Invite
 
     var inviteCode = ""

@@ -82,6 +82,20 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let trelloSyncStatus: Bool
     let trelloSyncComments: Bool
     let trelloIsActive: Bool
+    // Airtable integration fields
+    let airtableToken: String?
+    let airtableBaseId: String?
+    let airtableBaseName: String?
+    let airtableTableId: String?
+    let airtableTableName: String?
+    let airtableSyncStatus: Bool
+    let airtableSyncComments: Bool
+    let airtableStatusFieldId: String?
+    let airtableVotesFieldId: String?
+    let airtableTitleFieldId: String?
+    let airtableDescriptionFieldId: String?
+    let airtableCategoryFieldId: String?
+    let airtableIsActive: Bool
 
     /// Whether Slack integration is configured (has webhook URL)
     var isSlackConfigured: Bool {
@@ -153,14 +167,24 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         isTrelloConfigured && trelloIsActive
     }
 
+    /// Whether Airtable integration is configured (has required fields)
+    var isAirtableConfigured: Bool {
+        airtableToken != nil && airtableBaseId != nil && airtableTableId != nil
+    }
+
+    /// Whether Airtable integration is active (configured AND enabled)
+    var isAirtableActive: Bool {
+        isAirtableConfigured && airtableIsActive
+    }
+
     /// Whether any integration is configured
     var hasAnyIntegration: Bool {
-        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured || isMondayConfigured || isLinearConfigured || isTrelloConfigured
+        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured || isMondayConfigured || isLinearConfigured || isTrelloConfigured || isAirtableConfigured
     }
 
     /// Whether any integration is active
     var hasAnyActiveIntegration: Bool {
-        isSlackActive || isGitHubActive || isClickUpActive || isNotionActive || isMondayActive || isLinearActive || isTrelloActive
+        isSlackActive || isGitHubActive || isClickUpActive || isNotionActive || isMondayActive || isLinearActive || isTrelloActive || isAirtableActive
     }
 
     // Custom decoder to handle backwards compatibility when allowedStatuses is missing
@@ -243,6 +267,20 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         trelloSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .trelloSyncStatus) ?? false
         trelloSyncComments = try container.decodeIfPresent(Bool.self, forKey: .trelloSyncComments) ?? false
         trelloIsActive = try container.decodeIfPresent(Bool.self, forKey: .trelloIsActive) ?? true
+        // Airtable fields (backwards compatibility)
+        airtableToken = try container.decodeIfPresent(String.self, forKey: .airtableToken)
+        airtableBaseId = try container.decodeIfPresent(String.self, forKey: .airtableBaseId)
+        airtableBaseName = try container.decodeIfPresent(String.self, forKey: .airtableBaseName)
+        airtableTableId = try container.decodeIfPresent(String.self, forKey: .airtableTableId)
+        airtableTableName = try container.decodeIfPresent(String.self, forKey: .airtableTableName)
+        airtableSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .airtableSyncStatus) ?? false
+        airtableSyncComments = try container.decodeIfPresent(Bool.self, forKey: .airtableSyncComments) ?? false
+        airtableStatusFieldId = try container.decodeIfPresent(String.self, forKey: .airtableStatusFieldId)
+        airtableVotesFieldId = try container.decodeIfPresent(String.self, forKey: .airtableVotesFieldId)
+        airtableTitleFieldId = try container.decodeIfPresent(String.self, forKey: .airtableTitleFieldId)
+        airtableDescriptionFieldId = try container.decodeIfPresent(String.self, forKey: .airtableDescriptionFieldId)
+        airtableCategoryFieldId = try container.decodeIfPresent(String.self, forKey: .airtableCategoryFieldId)
+        airtableIsActive = try container.decodeIfPresent(Bool.self, forKey: .airtableIsActive) ?? true
     }
 
     init(
@@ -314,7 +352,20 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         trelloListName: String? = nil,
         trelloSyncStatus: Bool = false,
         trelloSyncComments: Bool = false,
-        trelloIsActive: Bool = true
+        trelloIsActive: Bool = true,
+        airtableToken: String? = nil,
+        airtableBaseId: String? = nil,
+        airtableBaseName: String? = nil,
+        airtableTableId: String? = nil,
+        airtableTableName: String? = nil,
+        airtableSyncStatus: Bool = false,
+        airtableSyncComments: Bool = false,
+        airtableStatusFieldId: String? = nil,
+        airtableVotesFieldId: String? = nil,
+        airtableTitleFieldId: String? = nil,
+        airtableDescriptionFieldId: String? = nil,
+        airtableCategoryFieldId: String? = nil,
+        airtableIsActive: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -385,6 +436,19 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         self.trelloSyncStatus = trelloSyncStatus
         self.trelloSyncComments = trelloSyncComments
         self.trelloIsActive = trelloIsActive
+        self.airtableToken = airtableToken
+        self.airtableBaseId = airtableBaseId
+        self.airtableBaseName = airtableBaseName
+        self.airtableTableId = airtableTableId
+        self.airtableTableName = airtableTableName
+        self.airtableSyncStatus = airtableSyncStatus
+        self.airtableSyncComments = airtableSyncComments
+        self.airtableStatusFieldId = airtableStatusFieldId
+        self.airtableVotesFieldId = airtableVotesFieldId
+        self.airtableTitleFieldId = airtableTitleFieldId
+        self.airtableDescriptionFieldId = airtableDescriptionFieldId
+        self.airtableCategoryFieldId = airtableCategoryFieldId
+        self.airtableIsActive = airtableIsActive
     }
 }
 
@@ -859,4 +923,66 @@ nonisolated
 struct TrelloList: Codable, Identifiable, Sendable, Hashable {
     let id: String
     let name: String
+}
+
+// MARK: - Airtable Integration
+
+nonisolated
+struct UpdateProjectAirtableRequest: Encodable, Sendable {
+    let airtableToken: String?
+    let airtableBaseId: String?
+    let airtableBaseName: String?
+    let airtableTableId: String?
+    let airtableTableName: String?
+    let airtableSyncStatus: Bool?
+    let airtableSyncComments: Bool?
+    let airtableStatusFieldId: String?
+    let airtableVotesFieldId: String?
+    let airtableTitleFieldId: String?
+    let airtableDescriptionFieldId: String?
+    let airtableCategoryFieldId: String?
+    let airtableIsActive: Bool?
+}
+
+nonisolated
+struct CreateAirtableRecordRequest: Encodable, Sendable {
+    let feedbackId: UUID
+}
+
+nonisolated
+struct CreateAirtableRecordResponse: Decodable, Sendable {
+    let feedbackId: UUID
+    let recordUrl: String
+    let recordId: String
+}
+
+nonisolated
+struct BulkCreateAirtableRecordsRequest: Encodable, Sendable {
+    let feedbackIds: [UUID]
+}
+
+nonisolated
+struct BulkCreateAirtableRecordsResponse: Decodable, Sendable {
+    let created: [CreateAirtableRecordResponse]
+    let failed: [UUID]
+}
+
+// Airtable hierarchy models
+nonisolated
+struct AirtableBase: Codable, Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+}
+
+nonisolated
+struct AirtableTable: Codable, Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+}
+
+nonisolated
+struct AirtableField: Codable, Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+    let type: String
 }

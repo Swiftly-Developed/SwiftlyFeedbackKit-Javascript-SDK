@@ -80,6 +80,14 @@ struct ProjectController: RouteCollection {
         protected.get(":projectId", "trello", "boards", use: getTrelloBoards)
         protected.get(":projectId", "trello", "boards", ":boardId", "lists", use: getTrelloLists)
 
+        // Airtable integration
+        protected.patch(":projectId", "airtable", use: updateAirtableSettings)
+        protected.post(":projectId", "airtable", "record", use: createAirtableRecord)
+        protected.post(":projectId", "airtable", "records", use: bulkCreateAirtableRecords)
+        protected.get(":projectId", "airtable", "bases", use: getAirtableBases)
+        protected.get(":projectId", "airtable", "tables", ":baseId", use: getAirtableTables)
+        protected.get(":projectId", "airtable", "fields", use: getAirtableFields)
+
         // Invite management
         protected.get(":projectId", "invites", use: listInvites)
         protected.delete(":projectId", "invites", ":inviteId", use: cancelInvite)
@@ -2384,6 +2392,332 @@ struct ProjectController: RouteCollection {
 
         let lists = try await req.trelloService.getLists(token: token, boardId: boardId)
         return lists.map { TrelloListDTO(id: $0.id, name: $0.name) }
+    }
+
+    // MARK: - Airtable Integration
+
+    @Sendable
+    func updateAirtableSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        // Check Pro tier requirement for integrations
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectAirtableDTO.self)
+
+        if let token = dto.airtableToken {
+            project.airtableToken = token.isEmpty ? nil : token
+        }
+        if let baseId = dto.airtableBaseId {
+            project.airtableBaseId = baseId.isEmpty ? nil : baseId
+        }
+        if let baseName = dto.airtableBaseName {
+            project.airtableBaseName = baseName.isEmpty ? nil : baseName
+        }
+        if let tableId = dto.airtableTableId {
+            project.airtableTableId = tableId.isEmpty ? nil : tableId
+        }
+        if let tableName = dto.airtableTableName {
+            project.airtableTableName = tableName.isEmpty ? nil : tableName
+        }
+        if let syncStatus = dto.airtableSyncStatus {
+            project.airtableSyncStatus = syncStatus
+        }
+        if let syncComments = dto.airtableSyncComments {
+            project.airtableSyncComments = syncComments
+        }
+        if let statusFieldId = dto.airtableStatusFieldId {
+            project.airtableStatusFieldId = statusFieldId.isEmpty ? nil : statusFieldId
+        }
+        if let votesFieldId = dto.airtableVotesFieldId {
+            project.airtableVotesFieldId = votesFieldId.isEmpty ? nil : votesFieldId
+        }
+        if let titleFieldId = dto.airtableTitleFieldId {
+            project.airtableTitleFieldId = titleFieldId.isEmpty ? nil : titleFieldId
+        }
+        if let descriptionFieldId = dto.airtableDescriptionFieldId {
+            project.airtableDescriptionFieldId = descriptionFieldId.isEmpty ? nil : descriptionFieldId
+        }
+        if let categoryFieldId = dto.airtableCategoryFieldId {
+            project.airtableCategoryFieldId = categoryFieldId.isEmpty ? nil : categoryFieldId
+        }
+        if let isActive = dto.airtableIsActive {
+            project.airtableIsActive = isActive
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,  // +1 for owner
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createAirtableRecord(req: Request) async throws -> CreateAirtableRecordResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken,
+              let baseId = project.airtableBaseId,
+              let tableId = project.airtableTableId else {
+            throw Abort(.badRequest, reason: "Airtable integration not configured")
+        }
+
+        guard project.airtableIsActive else {
+            throw Abort(.badRequest, reason: "Airtable integration is not active")
+        }
+
+        let dto = try req.content.decode(CreateAirtableRecordDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.airtableRecordURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has an Airtable record")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        // Get field names from the fields (for Airtable, we use field names, not IDs for the API)
+        // The field IDs stored are actually the field names for Airtable's API
+        let fields = req.airtableService.buildRecordFields(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil,
+            titleFieldName: project.airtableTitleFieldId,
+            descriptionFieldName: project.airtableDescriptionFieldId,
+            categoryFieldName: project.airtableCategoryFieldId,
+            statusFieldName: project.airtableStatusFieldId,
+            votesFieldName: project.airtableVotesFieldId
+        )
+
+        let record = try await req.airtableService.createRecord(
+            baseId: baseId,
+            tableId: tableId,
+            token: token,
+            fields: fields
+        )
+
+        let recordUrl = req.airtableService.buildRecordURL(
+            baseId: baseId,
+            tableId: tableId,
+            recordId: record.id
+        )
+
+        feedback.airtableRecordURL = recordUrl
+        feedback.airtableRecordId = record.id
+        try await feedback.save(on: req.db)
+
+        return CreateAirtableRecordResponseDTO(
+            feedbackId: feedback.id!,
+            recordUrl: recordUrl,
+            recordId: record.id
+        )
+    }
+
+    @Sendable
+    func bulkCreateAirtableRecords(req: Request) async throws -> BulkCreateAirtableRecordsResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken,
+              let baseId = project.airtableBaseId,
+              let tableId = project.airtableTableId else {
+            throw Abort(.badRequest, reason: "Airtable integration not configured")
+        }
+
+        guard project.airtableIsActive else {
+            throw Abort(.badRequest, reason: "Airtable integration is not active")
+        }
+
+        let dto = try req.content.decode(BulkCreateAirtableRecordsDTO.self)
+
+        var created: [CreateAirtableRecordResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.airtableRecordURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let fields = req.airtableService.buildRecordFields(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil,
+                    titleFieldName: project.airtableTitleFieldId,
+                    descriptionFieldName: project.airtableDescriptionFieldId,
+                    categoryFieldName: project.airtableCategoryFieldId,
+                    statusFieldName: project.airtableStatusFieldId,
+                    votesFieldName: project.airtableVotesFieldId
+                )
+
+                let record = try await req.airtableService.createRecord(
+                    baseId: baseId,
+                    tableId: tableId,
+                    token: token,
+                    fields: fields
+                )
+
+                let recordUrl = req.airtableService.buildRecordURL(
+                    baseId: baseId,
+                    tableId: tableId,
+                    recordId: record.id
+                )
+
+                feedback.airtableRecordURL = recordUrl
+                feedback.airtableRecordId = record.id
+                try await feedback.save(on: req.db)
+
+                created.append(CreateAirtableRecordResponseDTO(
+                    feedbackId: feedback.id!,
+                    recordUrl: recordUrl,
+                    recordId: record.id
+                ))
+            } catch {
+                req.logger.error("Failed to create Airtable record for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateAirtableRecordsResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getAirtableBases(req: Request) async throws -> [AirtableBaseDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken else {
+            throw Abort(.badRequest, reason: "Airtable token not configured")
+        }
+
+        let bases = try await req.airtableService.getBases(token: token)
+        return bases.map { AirtableBaseDTO(id: $0.id, name: $0.name) }
+    }
+
+    @Sendable
+    func getAirtableTables(req: Request) async throws -> [AirtableTableDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken else {
+            throw Abort(.badRequest, reason: "Airtable token not configured")
+        }
+
+        guard let baseId = req.parameters.get("baseId") else {
+            throw Abort(.badRequest, reason: "Base ID required")
+        }
+
+        let tables = try await req.airtableService.getTables(baseId: baseId, token: token)
+        return tables.map { AirtableTableDTO(id: $0.id, name: $0.name) }
+    }
+
+    @Sendable
+    func getAirtableFields(req: Request) async throws -> [AirtableFieldDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken,
+              let baseId = project.airtableBaseId,
+              let tableId = project.airtableTableId else {
+            throw Abort(.badRequest, reason: "Airtable base and table not configured")
+        }
+
+        let fields = try await req.airtableService.getFields(
+            baseId: baseId,
+            tableId: tableId,
+            token: token
+        )
+
+        return fields.map { AirtableFieldDTO(id: $0.id, name: $0.name, type: $0.type) }
     }
 
     // MARK: - Helpers

@@ -1453,6 +1453,112 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Airtable Integration API
+
+    func updateAirtableSettings(projectId: UUID, request: UpdateProjectAirtableRequest) async throws -> Project {
+        let path = "projects/\(projectId)/airtable"
+        AppLogger.api.info("🟡 PATCH \(path) (Airtable settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: request, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - Airtable settings updated")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createAirtableRecord(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateAirtableRecordResponse {
+        let path = "projects/\(projectId)/airtable/record"
+        let body = CreateAirtableRecordRequest(feedbackId: feedbackId)
+        AppLogger.api.info("🟢 POST \(path) (create Airtable record)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateAirtableRecordResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - record created: \(decoded.recordUrl)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateAirtableRecords(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateAirtableRecordsResponse {
+        let path = "projects/\(projectId)/airtable/records"
+        let body = BulkCreateAirtableRecordsRequest(feedbackIds: feedbackIds)
+        AppLogger.api.info("🟢 POST \(path) (bulk create Airtable records)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateAirtableRecordsResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - created \(decoded.created.count), failed \(decoded.failed.count)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAirtableBases(projectId: UUID) async throws -> [AirtableBase] {
+        let path = "projects/\(projectId)/airtable/bases"
+        AppLogger.api.info("🔵 GET \(path) (Airtable bases)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AirtableBase].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) bases")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAirtableTables(projectId: UUID, baseId: String) async throws -> [AirtableTable] {
+        let path = "projects/\(projectId)/airtable/tables/\(baseId)"
+        AppLogger.api.info("🔵 GET \(path) (Airtable tables)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AirtableTable].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) tables")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAirtableFields(projectId: UUID) async throws -> [AirtableField] {
+        let path = "projects/\(projectId)/airtable/fields"
+        AppLogger.api.info("🔵 GET \(path) (Airtable fields)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AirtableField].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) fields")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Merge Feedback API
 
     func mergeFeedback(primaryId: UUID, secondaryIds: [UUID]) async throws -> MergeFeedbackResponse {

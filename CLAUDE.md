@@ -322,6 +322,7 @@ All integrations support: create/bulk create, status sync, comment sync, link tr
 | Linear | Issues | Workflow states | Labels, projects |
 | Monday.com | Board items | Status column | Votes column |
 | Trello | Cards | List-based | Board/list selection, comment sync |
+| Airtable | Table records | Status field | Field mapping, votes field, comment sync |
 
 **Status mapping** (all integrations follow similar pattern):
 - pending → backlog/to do
@@ -335,6 +336,15 @@ All integrations support: create/bulk create, status sync, comment sync, link tr
 - User provides their own API token via Admin app settings
 - Cards created in selected board/list with category labels
 - Comments synced as card comments
+
+**Airtable-specific:**
+- User provides their own Personal Access Token via Admin app settings
+- Base and table selection via dynamic pickers (fetched from Airtable API)
+- Field mapping for: Title, Description, Category, Status, Votes
+- Supports `singleLineText`, `multilineText`, `singleSelect`, and `number` field types
+- Status sync updates the mapped status field when feedback status changes
+- Vote count sync updates the mapped votes field when votes change
+- Comments synced as new records (if comment sync enabled)
 
 Configure via Admin app: Project Details > Menu (⋯) > [Integration] Integration.
 

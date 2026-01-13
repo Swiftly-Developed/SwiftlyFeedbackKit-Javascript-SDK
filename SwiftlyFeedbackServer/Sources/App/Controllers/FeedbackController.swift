@@ -466,6 +466,31 @@ struct FeedbackController: RouteCollection {
                     }
                 }
             }
+
+            // Sync to Airtable if configured and active
+            if let recordId = feedback.airtableRecordId,
+               project.airtableIsActive,
+               project.airtableSyncStatus,
+               let token = project.airtableToken,
+               let baseId = project.airtableBaseId,
+               let tableId = project.airtableTableId,
+               let statusFieldId = project.airtableStatusFieldId,
+               !statusFieldId.isEmpty {
+                let airtableStatus = newStatus.airtableStatusName
+                Task {
+                    do {
+                        try await req.airtableService.updateRecord(
+                            baseId: baseId,
+                            tableId: tableId,
+                            recordId: recordId,
+                            token: token,
+                            fields: [statusFieldId: airtableStatus]
+                        )
+                    } catch {
+                        req.logger.error("Failed to sync Airtable record status: \(error)")
+                    }
+                }
+            }
         }
 
         try await feedback.$votes.load(on: req.db)

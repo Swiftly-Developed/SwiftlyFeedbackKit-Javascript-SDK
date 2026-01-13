@@ -49,6 +49,12 @@ struct FeedbackResponseDTO: Content {
     // Linear integration fields
     let linearIssueUrl: String?
     let linearIssueId: String?
+    // Trello integration fields
+    let trelloCardUrl: String?
+    let trelloCardId: String?
+    // Airtable integration fields
+    let airtableRecordUrl: String?
+    let airtableRecordId: String?
 
     init(feedback: Feedback, hasVoted: Bool = false, commentCount: Int = 0, totalMrr: Double? = nil) {
         self.id = feedback.id!
@@ -77,5 +83,9 @@ struct FeedbackResponseDTO: Content {
         self.mondayItemId = feedback.mondayItemId
         self.linearIssueUrl = feedback.linearIssueURL
         self.linearIssueId = feedback.linearIssueId
+        self.trelloCardUrl = feedback.trelloCardURL
+        self.trelloCardId = feedback.trelloCardId
+        self.airtableRecordUrl = feedback.airtableRecordURL
+        self.airtableRecordId = feedback.airtableRecordId
     }
 }

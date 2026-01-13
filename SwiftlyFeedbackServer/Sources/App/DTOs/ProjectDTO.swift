@@ -329,6 +329,60 @@ struct TrelloListDTO: Content {
     var name: String
 }
 
+// MARK: - Airtable Integration DTOs
+
+struct UpdateProjectAirtableDTO: Content {
+    var airtableToken: String?
+    var airtableBaseId: String?
+    var airtableBaseName: String?
+    var airtableTableId: String?
+    var airtableTableName: String?
+    var airtableSyncStatus: Bool?
+    var airtableSyncComments: Bool?
+    var airtableStatusFieldId: String?
+    var airtableVotesFieldId: String?
+    var airtableTitleFieldId: String?
+    var airtableDescriptionFieldId: String?
+    var airtableCategoryFieldId: String?
+    var airtableIsActive: Bool?
+}
+
+struct CreateAirtableRecordDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateAirtableRecordResponseDTO: Content {
+    var feedbackId: UUID
+    var recordUrl: String
+    var recordId: String
+}
+
+struct BulkCreateAirtableRecordsDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateAirtableRecordsResponseDTO: Content {
+    var created: [CreateAirtableRecordResponseDTO]
+    var failed: [UUID]
+}
+
+// Airtable hierarchy DTOs for settings UI
+struct AirtableBaseDTO: Content {
+    var id: String
+    var name: String
+}
+
+struct AirtableTableDTO: Content {
+    var id: String
+    var name: String
+}
+
+struct AirtableFieldDTO: Content {
+    var id: String
+    var name: String
+    var type: String
+}
+
 struct AddMemberDTO: Content, Validatable {
     let email: String
     let role: ProjectRole
@@ -418,6 +472,20 @@ struct ProjectResponseDTO: Content {
     let trelloSyncStatus: Bool
     let trelloSyncComments: Bool
     let trelloIsActive: Bool
+    // Airtable integration fields
+    let airtableToken: String?
+    let airtableBaseId: String?
+    let airtableBaseName: String?
+    let airtableTableId: String?
+    let airtableTableName: String?
+    let airtableSyncStatus: Bool
+    let airtableSyncComments: Bool
+    let airtableStatusFieldId: String?
+    let airtableVotesFieldId: String?
+    let airtableTitleFieldId: String?
+    let airtableDescriptionFieldId: String?
+    let airtableCategoryFieldId: String?
+    let airtableIsActive: Bool
 
     init(project: Project, feedbackCount: Int = 0, memberCount: Int = 0, ownerEmail: String? = nil) {
         self.id = project.id!
@@ -489,6 +557,19 @@ struct ProjectResponseDTO: Content {
         self.trelloSyncStatus = project.trelloSyncStatus
         self.trelloSyncComments = project.trelloSyncComments
         self.trelloIsActive = project.trelloIsActive
+        self.airtableToken = project.airtableToken
+        self.airtableBaseId = project.airtableBaseId
+        self.airtableBaseName = project.airtableBaseName
+        self.airtableTableId = project.airtableTableId
+        self.airtableTableName = project.airtableTableName
+        self.airtableSyncStatus = project.airtableSyncStatus
+        self.airtableSyncComments = project.airtableSyncComments
+        self.airtableStatusFieldId = project.airtableStatusFieldId
+        self.airtableVotesFieldId = project.airtableVotesFieldId
+        self.airtableTitleFieldId = project.airtableTitleFieldId
+        self.airtableDescriptionFieldId = project.airtableDescriptionFieldId
+        self.airtableCategoryFieldId = project.airtableCategoryFieldId
+        self.airtableIsActive = project.airtableIsActive
     }
 }
 

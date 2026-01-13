@@ -133,6 +133,26 @@ struct VoteController: RouteCollection {
             }
         }
 
+        // Sync vote count to Airtable if configured
+        if let votesFieldId = project.airtableVotesFieldId,
+           !votesFieldId.isEmpty,
+           let recordId = feedback.airtableRecordId,
+           let baseId = project.airtableBaseId,
+           let tableId = project.airtableTableId,
+           let token = project.airtableToken,
+           project.airtableIsActive {
+            Task {
+                try? await req.airtableService.updateRecordWithVotes(
+                    baseId: baseId,
+                    tableId: tableId,
+                    recordId: recordId,
+                    token: token,
+                    votesFieldId: votesFieldId,
+                    voteCount: feedback.voteCount
+                )
+            }
+        }
+
         return VoteResponseDTO(feedbackId: feedbackId, voteCount: feedback.voteCount, hasVoted: true)
     }
 
@@ -212,6 +232,26 @@ struct VoteController: RouteCollection {
                     columnId: votesColumnId,
                     token: token,
                     value: feedback.voteCount
+                )
+            }
+        }
+
+        // Sync vote count to Airtable if configured
+        if let votesFieldId = project.airtableVotesFieldId,
+           !votesFieldId.isEmpty,
+           let recordId = feedback.airtableRecordId,
+           let baseId = project.airtableBaseId,
+           let tableId = project.airtableTableId,
+           let token = project.airtableToken,
+           project.airtableIsActive {
+            Task {
+                try? await req.airtableService.updateRecordWithVotes(
+                    baseId: baseId,
+                    tableId: tableId,
+                    recordId: recordId,
+                    token: token,
+                    votesFieldId: votesFieldId,
+                    voteCount: feedback.voteCount
                 )
             }
         }
