@@ -491,6 +491,36 @@ struct FeedbackController: RouteCollection {
                     }
                 }
             }
+
+            // Sync to Asana if configured and active
+            if let taskId = feedback.asanaTaskId,
+               project.asanaIsActive,
+               project.asanaSyncStatus,
+               let token = project.asanaToken,
+               let asanaProjectId = project.asanaProjectId,
+               let statusFieldId = project.asanaStatusFieldId,
+               !statusFieldId.isEmpty {
+                let asanaStatus = newStatus.asanaStatusName
+                Task {
+                    do {
+                        // Get the status field options and find matching one
+                        let fields = try await req.asanaService.getCustomFields(projectId: asanaProjectId, token: token)
+                        if let statusField = fields.first(where: { $0.gid == statusFieldId }),
+                           let options = statusField.enumOptions {
+                            if let option = options.first(where: { $0.name.lowercased() == asanaStatus.lowercased() && $0.enabled }) {
+                                try await req.asanaService.updateTaskStatus(
+                                    taskId: taskId,
+                                    statusFieldId: statusFieldId,
+                                    statusOptionId: option.gid,
+                                    token: token
+                                )
+                            }
+                        }
+                    } catch {
+                        req.logger.error("Failed to sync Asana task status: \(error)")
+                    }
+                }
+            }
         }
 
         try await feedback.$votes.load(on: req.db)

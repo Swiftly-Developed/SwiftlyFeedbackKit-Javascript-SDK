@@ -88,6 +88,15 @@ struct ProjectController: RouteCollection {
         protected.get(":projectId", "airtable", "tables", ":baseId", use: getAirtableTables)
         protected.get(":projectId", "airtable", "fields", use: getAirtableFields)
 
+        // Asana integration
+        protected.patch(":projectId", "asana", use: updateAsanaSettings)
+        protected.post(":projectId", "asana", "task", use: createAsanaTask)
+        protected.post(":projectId", "asana", "tasks", use: bulkCreateAsanaTasks)
+        protected.get(":projectId", "asana", "workspaces", use: getAsanaWorkspaces)
+        protected.get(":projectId", "asana", "workspaces", ":workspaceId", "projects", use: getAsanaProjects)
+        protected.get(":projectId", "asana", "projects", ":asanaProjectId", "sections", use: getAsanaSections)
+        protected.get(":projectId", "asana", "projects", ":asanaProjectId", "custom-fields", use: getAsanaCustomFields)
+
         // Invite management
         protected.get(":projectId", "invites", use: listInvites)
         protected.delete(":projectId", "invites", ":inviteId", use: cancelInvite)
@@ -2718,6 +2727,387 @@ struct ProjectController: RouteCollection {
         )
 
         return fields.map { AirtableFieldDTO(id: $0.id, name: $0.name, type: $0.type) }
+    }
+
+    // MARK: - Asana Integration
+
+    @Sendable
+    func updateAsanaSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectAsanaDTO.self)
+
+        if let token = dto.asanaToken {
+            project.asanaToken = token.isEmpty ? nil : token
+        }
+        if let workspaceId = dto.asanaWorkspaceId {
+            project.asanaWorkspaceId = workspaceId.isEmpty ? nil : workspaceId
+        }
+        if let workspaceName = dto.asanaWorkspaceName {
+            project.asanaWorkspaceName = workspaceName.isEmpty ? nil : workspaceName
+        }
+        if let projectId = dto.asanaProjectId {
+            project.asanaProjectId = projectId.isEmpty ? nil : projectId
+        }
+        if let projectName = dto.asanaProjectName {
+            project.asanaProjectName = projectName.isEmpty ? nil : projectName
+        }
+        if let sectionId = dto.asanaSectionId {
+            project.asanaSectionId = sectionId.isEmpty ? nil : sectionId
+        }
+        if let sectionName = dto.asanaSectionName {
+            project.asanaSectionName = sectionName.isEmpty ? nil : sectionName
+        }
+        if let syncStatus = dto.asanaSyncStatus {
+            project.asanaSyncStatus = syncStatus
+        }
+        if let syncComments = dto.asanaSyncComments {
+            project.asanaSyncComments = syncComments
+        }
+        if let statusFieldId = dto.asanaStatusFieldId {
+            project.asanaStatusFieldId = statusFieldId.isEmpty ? nil : statusFieldId
+        }
+        if let votesFieldId = dto.asanaVotesFieldId {
+            project.asanaVotesFieldId = votesFieldId.isEmpty ? nil : votesFieldId
+        }
+        if let isActive = dto.asanaIsActive {
+            project.asanaIsActive = isActive
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createAsanaTask(req: Request) async throws -> CreateAsanaTaskResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken,
+              let asanaProjectId = project.asanaProjectId else {
+            throw Abort(.badRequest, reason: "Asana integration not configured")
+        }
+
+        guard project.asanaIsActive else {
+            throw Abort(.badRequest, reason: "Asana integration is not active")
+        }
+
+        let dto = try req.content.decode(CreateAsanaTaskDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.asanaTaskURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has an Asana task")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        // Build task notes
+        let notes = req.asanaService.buildTaskNotes(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        // Build custom fields
+        var customFields: [String: Any] = [:]
+        if let statusFieldId = project.asanaStatusFieldId {
+            // Get the status field options and find matching one
+            let fields = try await req.asanaService.getCustomFields(projectId: asanaProjectId, token: token)
+            if let statusField = fields.first(where: { $0.gid == statusFieldId }),
+               let options = statusField.enumOptions {
+                let targetStatus = feedback.status.asanaStatusName
+                if let option = options.first(where: { $0.name.lowercased() == targetStatus.lowercased() && $0.enabled }) {
+                    customFields[statusFieldId] = option.gid
+                }
+            }
+        }
+        if let votesFieldId = project.asanaVotesFieldId {
+            customFields[votesFieldId] = feedback.voteCount
+        }
+
+        // Create task
+        let task = try await req.asanaService.createTask(
+            projectId: asanaProjectId,
+            sectionId: project.asanaSectionId,
+            token: token,
+            name: feedback.title,
+            notes: notes,
+            customFields: customFields.isEmpty ? nil : customFields
+        )
+
+        // Build URL (use permalink_url from response, or construct manually)
+        let taskUrl = task.permalinkUrl ?? req.asanaService.buildTaskURL(projectId: asanaProjectId, taskId: task.gid)
+
+        // Save link to feedback
+        feedback.asanaTaskURL = taskUrl
+        feedback.asanaTaskId = task.gid
+        try await feedback.save(on: req.db)
+
+        return CreateAsanaTaskResponseDTO(
+            feedbackId: feedback.id!,
+            taskUrl: taskUrl,
+            taskId: task.gid
+        )
+    }
+
+    @Sendable
+    func bulkCreateAsanaTasks(req: Request) async throws -> BulkCreateAsanaTasksResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken,
+              let asanaProjectId = project.asanaProjectId else {
+            throw Abort(.badRequest, reason: "Asana integration not configured")
+        }
+
+        guard project.asanaIsActive else {
+            throw Abort(.badRequest, reason: "Asana integration is not active")
+        }
+
+        let dto = try req.content.decode(BulkCreateAsanaTasksDTO.self)
+
+        var created: [CreateAsanaTaskResponseDTO] = []
+        var failed: [UUID] = []
+
+        // Pre-fetch custom field options if status sync is enabled
+        var statusOptions: [String: String] = [:]  // status name -> option gid
+        if let statusFieldId = project.asanaStatusFieldId {
+            let fields = try await req.asanaService.getCustomFields(projectId: asanaProjectId, token: token)
+            if let statusField = fields.first(where: { $0.gid == statusFieldId }),
+               let options = statusField.enumOptions {
+                for option in options where option.enabled {
+                    statusOptions[option.name.lowercased()] = option.gid
+                }
+            }
+        }
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.asanaTaskURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let notes = req.asanaService.buildTaskNotes(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                var customFields: [String: Any] = [:]
+                if let statusFieldId = project.asanaStatusFieldId {
+                    let targetStatus = feedback.status.asanaStatusName.lowercased()
+                    if let optionGid = statusOptions[targetStatus] {
+                        customFields[statusFieldId] = optionGid
+                    }
+                }
+                if let votesFieldId = project.asanaVotesFieldId {
+                    customFields[votesFieldId] = feedback.voteCount
+                }
+
+                let task = try await req.asanaService.createTask(
+                    projectId: asanaProjectId,
+                    sectionId: project.asanaSectionId,
+                    token: token,
+                    name: feedback.title,
+                    notes: notes,
+                    customFields: customFields.isEmpty ? nil : customFields
+                )
+
+                let taskUrl = task.permalinkUrl ?? req.asanaService.buildTaskURL(projectId: asanaProjectId, taskId: task.gid)
+
+                feedback.asanaTaskURL = taskUrl
+                feedback.asanaTaskId = task.gid
+                try await feedback.save(on: req.db)
+
+                created.append(CreateAsanaTaskResponseDTO(
+                    feedbackId: feedback.id!,
+                    taskUrl: taskUrl,
+                    taskId: task.gid
+                ))
+            } catch {
+                req.logger.error("Failed to create Asana task for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateAsanaTasksResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getAsanaWorkspaces(req: Request) async throws -> [AsanaWorkspaceDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken else {
+            throw Abort(.badRequest, reason: "Asana token not configured")
+        }
+
+        let workspaces = try await req.asanaService.getWorkspaces(token: token)
+        return workspaces.map { AsanaWorkspaceDTO(gid: $0.gid, name: $0.name) }
+    }
+
+    @Sendable
+    func getAsanaProjects(req: Request) async throws -> [AsanaProjectDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken else {
+            throw Abort(.badRequest, reason: "Asana token not configured")
+        }
+
+        guard let workspaceId = req.parameters.get("workspaceId") else {
+            throw Abort(.badRequest, reason: "Workspace ID required")
+        }
+
+        let projects = try await req.asanaService.getProjects(workspaceId: workspaceId, token: token)
+        return projects.map { AsanaProjectDTO(gid: $0.gid, name: $0.name) }
+    }
+
+    @Sendable
+    func getAsanaSections(req: Request) async throws -> [AsanaSectionDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken else {
+            throw Abort(.badRequest, reason: "Asana token not configured")
+        }
+
+        guard let asanaProjectId = req.parameters.get("asanaProjectId") else {
+            throw Abort(.badRequest, reason: "Asana Project ID required")
+        }
+
+        let sections = try await req.asanaService.getSections(projectId: asanaProjectId, token: token)
+        return sections.map { AsanaSectionDTO(gid: $0.gid, name: $0.name) }
+    }
+
+    @Sendable
+    func getAsanaCustomFields(req: Request) async throws -> [AsanaCustomFieldDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken else {
+            throw Abort(.badRequest, reason: "Asana token not configured")
+        }
+
+        guard let asanaProjectId = req.parameters.get("asanaProjectId") else {
+            throw Abort(.badRequest, reason: "Asana Project ID required")
+        }
+
+        let fields = try await req.asanaService.getCustomFields(projectId: asanaProjectId, token: token)
+        return fields.map { field in
+            AsanaCustomFieldDTO(
+                gid: field.gid,
+                name: field.name,
+                type: field.type,
+                enumOptions: field.enumOptions?.map { option in
+                    AsanaEnumOptionDTO(
+                        gid: option.gid,
+                        name: option.name,
+                        enabled: option.enabled,
+                        color: option.color
+                    )
+                }
+            )
+        }
     }
 
     // MARK: - Helpers

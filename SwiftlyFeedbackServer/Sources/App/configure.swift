@@ -98,6 +98,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddVoteEmailNotification())
     app.migrations.add(AddProjectTrelloIntegration())
     app.migrations.add(AddProjectAirtableIntegration())
+    app.migrations.add(AddProjectAsanaIntegration())
 
     try await app.autoMigrate()
 

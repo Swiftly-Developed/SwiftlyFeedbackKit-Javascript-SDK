@@ -1559,6 +1559,128 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Asana Integration API
+
+    func updateAsanaSettings(projectId: UUID, request: UpdateProjectAsanaRequest) async throws -> Project {
+        let path = "projects/\(projectId)/asana"
+        AppLogger.api.info("🟡 PATCH \(path) (Asana settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: request, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - Asana settings updated")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createAsanaTask(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateAsanaTaskResponse {
+        let path = "projects/\(projectId)/asana/task"
+        let body = CreateAsanaTaskRequest(feedbackId: feedbackId)
+        AppLogger.api.info("🟢 POST \(path) (create Asana task)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateAsanaTaskResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - task created: \(decoded.taskUrl)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateAsanaTasks(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateAsanaTasksResponse {
+        let path = "projects/\(projectId)/asana/tasks"
+        let body = BulkCreateAsanaTasksRequest(feedbackIds: feedbackIds)
+        AppLogger.api.info("🟢 POST \(path) (bulk create Asana tasks)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateAsanaTasksResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - created \(decoded.created.count), failed \(decoded.failed.count)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAsanaWorkspaces(projectId: UUID) async throws -> [AsanaWorkspace] {
+        let path = "projects/\(projectId)/asana/workspaces"
+        AppLogger.api.info("🔵 GET \(path) (Asana workspaces)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AsanaWorkspace].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) workspaces")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAsanaProjects(projectId: UUID, workspaceId: String) async throws -> [AsanaProject] {
+        let path = "projects/\(projectId)/asana/workspaces/\(workspaceId)/projects"
+        AppLogger.api.info("🔵 GET \(path) (Asana projects)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AsanaProject].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) projects")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAsanaSections(projectId: UUID, asanaProjectId: String) async throws -> [AsanaSection] {
+        let path = "projects/\(projectId)/asana/projects/\(asanaProjectId)/sections"
+        AppLogger.api.info("🔵 GET \(path) (Asana sections)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AsanaSection].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) sections")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAsanaCustomFields(projectId: UUID, asanaProjectId: String) async throws -> [AsanaCustomField] {
+        let path = "projects/\(projectId)/asana/projects/\(asanaProjectId)/custom-fields"
+        AppLogger.api.info("🔵 GET \(path) (Asana custom fields)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AsanaCustomField].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) custom fields")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Merge Feedback API
 
     func mergeFeedback(primaryId: UUID, secondaryIds: [UUID]) async throws -> MergeFeedbackResponse {

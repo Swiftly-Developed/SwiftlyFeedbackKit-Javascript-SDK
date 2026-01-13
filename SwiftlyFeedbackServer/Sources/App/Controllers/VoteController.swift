@@ -153,6 +153,22 @@ struct VoteController: RouteCollection {
             }
         }
 
+        // Sync vote count to Asana if configured
+        if let votesFieldId = project.asanaVotesFieldId,
+           !votesFieldId.isEmpty,
+           let taskId = feedback.asanaTaskId,
+           let token = project.asanaToken,
+           project.asanaIsActive {
+            Task {
+                try? await req.asanaService.updateTaskVotes(
+                    taskId: taskId,
+                    votesFieldId: votesFieldId,
+                    voteCount: feedback.voteCount,
+                    token: token
+                )
+            }
+        }
+
         return VoteResponseDTO(feedbackId: feedbackId, voteCount: feedback.voteCount, hasVoted: true)
     }
 
@@ -252,6 +268,22 @@ struct VoteController: RouteCollection {
                     token: token,
                     votesFieldId: votesFieldId,
                     voteCount: feedback.voteCount
+                )
+            }
+        }
+
+        // Sync vote count to Asana if configured
+        if let votesFieldId = project.asanaVotesFieldId,
+           !votesFieldId.isEmpty,
+           let taskId = feedback.asanaTaskId,
+           let token = project.asanaToken,
+           project.asanaIsActive {
+            Task {
+                try? await req.asanaService.updateTaskVotes(
+                    taskId: taskId,
+                    votesFieldId: votesFieldId,
+                    voteCount: feedback.voteCount,
+                    token: token
                 )
             }
         }

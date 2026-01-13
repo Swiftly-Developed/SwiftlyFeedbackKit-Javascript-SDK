@@ -248,6 +248,35 @@ struct CommentController: RouteCollection {
             }
         }
 
+        // Sync comment to Asana if enabled and active
+        if project.asanaIsActive,
+           project.asanaSyncComments,
+           let taskId = feedback.asanaTaskId,
+           let token = project.asanaToken {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterType = isAdmin ? "Admin" : "User"
+            let commentText = """
+            [\(commenterType)] Comment:
+
+            \(comment.content)
+
+            ---
+            Synced from FeedbackKit
+            """
+
+            Task {
+                do {
+                    _ = try await req.asanaService.createStory(
+                        taskId: taskId,
+                        token: token,
+                        text: commentText
+                    )
+                } catch {
+                    req.logger.error("Failed to sync comment to Asana: \(error)")
+                }
+            }
+        }
+
         return CommentResponseDTO(comment: comment)
     }
 

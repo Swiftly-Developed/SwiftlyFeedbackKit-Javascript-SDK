@@ -383,6 +383,72 @@ struct AirtableFieldDTO: Content {
     var type: String
 }
 
+// MARK: - Asana Integration DTOs
+
+struct UpdateProjectAsanaDTO: Content {
+    var asanaToken: String?
+    var asanaWorkspaceId: String?
+    var asanaWorkspaceName: String?
+    var asanaProjectId: String?
+    var asanaProjectName: String?
+    var asanaSectionId: String?
+    var asanaSectionName: String?
+    var asanaSyncStatus: Bool?
+    var asanaSyncComments: Bool?
+    var asanaStatusFieldId: String?
+    var asanaVotesFieldId: String?
+    var asanaIsActive: Bool?
+}
+
+struct CreateAsanaTaskDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateAsanaTaskResponseDTO: Content {
+    var feedbackId: UUID
+    var taskUrl: String
+    var taskId: String
+}
+
+struct BulkCreateAsanaTasksDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateAsanaTasksResponseDTO: Content {
+    var created: [CreateAsanaTaskResponseDTO]
+    var failed: [UUID]
+}
+
+// Asana hierarchy DTOs for settings UI
+struct AsanaWorkspaceDTO: Content {
+    var gid: String
+    var name: String
+}
+
+struct AsanaProjectDTO: Content {
+    var gid: String
+    var name: String
+}
+
+struct AsanaSectionDTO: Content {
+    var gid: String
+    var name: String
+}
+
+struct AsanaCustomFieldDTO: Content {
+    var gid: String
+    var name: String
+    var type: String
+    var enumOptions: [AsanaEnumOptionDTO]?
+}
+
+struct AsanaEnumOptionDTO: Content {
+    var gid: String
+    var name: String
+    var enabled: Bool
+    var color: String?
+}
+
 struct AddMemberDTO: Content, Validatable {
     let email: String
     let role: ProjectRole
@@ -486,6 +552,19 @@ struct ProjectResponseDTO: Content {
     let airtableDescriptionFieldId: String?
     let airtableCategoryFieldId: String?
     let airtableIsActive: Bool
+    // Asana integration fields
+    let asanaToken: String?
+    let asanaWorkspaceId: String?
+    let asanaWorkspaceName: String?
+    let asanaProjectId: String?
+    let asanaProjectName: String?
+    let asanaSectionId: String?
+    let asanaSectionName: String?
+    let asanaSyncStatus: Bool
+    let asanaSyncComments: Bool
+    let asanaStatusFieldId: String?
+    let asanaVotesFieldId: String?
+    let asanaIsActive: Bool
 
     init(project: Project, feedbackCount: Int = 0, memberCount: Int = 0, ownerEmail: String? = nil) {
         self.id = project.id!
@@ -570,6 +649,18 @@ struct ProjectResponseDTO: Content {
         self.airtableDescriptionFieldId = project.airtableDescriptionFieldId
         self.airtableCategoryFieldId = project.airtableCategoryFieldId
         self.airtableIsActive = project.airtableIsActive
+        self.asanaToken = project.asanaToken
+        self.asanaWorkspaceId = project.asanaWorkspaceId
+        self.asanaWorkspaceName = project.asanaWorkspaceName
+        self.asanaProjectId = project.asanaProjectId
+        self.asanaProjectName = project.asanaProjectName
+        self.asanaSectionId = project.asanaSectionId
+        self.asanaSectionName = project.asanaSectionName
+        self.asanaSyncStatus = project.asanaSyncStatus
+        self.asanaSyncComments = project.asanaSyncComments
+        self.asanaStatusFieldId = project.asanaStatusFieldId
+        self.asanaVotesFieldId = project.asanaVotesFieldId
+        self.asanaIsActive = project.asanaIsActive
     }
 }
 

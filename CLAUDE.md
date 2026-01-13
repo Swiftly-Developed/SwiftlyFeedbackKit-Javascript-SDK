@@ -323,6 +323,7 @@ All integrations support: create/bulk create, status sync, comment sync, link tr
 | Monday.com | Board items | Status column | Votes column |
 | Trello | Cards | List-based | Board/list selection, comment sync |
 | Airtable | Table records | Status field | Field mapping, votes field, comment sync |
+| Asana | Tasks | Custom field | Workspace/project/section selection, votes field, comment sync |
 
 **Status mapping** (all integrations follow similar pattern):
 - pending → backlog/to do
@@ -345,6 +346,17 @@ All integrations support: create/bulk create, status sync, comment sync, link tr
 - Status sync updates the mapped status field when feedback status changes
 - Vote count sync updates the mapped votes field when votes change
 - Comments synced as new records (if comment sync enabled)
+
+**Asana-specific:**
+- User provides their own Personal Access Token via Admin app settings
+- Workspace selection from user's available workspaces
+- Project selection from workspace projects
+- Section selection (optional) for organizing tasks within a project
+- Custom field mapping for Status and Votes (must be enum and number fields respectively)
+- Tasks created with title, description (as notes), and category tag
+- Status sync updates the mapped status custom field when feedback status changes
+- Vote count sync updates the mapped votes custom field when votes change
+- Comments synced as stories (comments) on the Asana task
 
 Configure via Admin app: Project Details > Menu (⋯) > [Integration] Integration.
 

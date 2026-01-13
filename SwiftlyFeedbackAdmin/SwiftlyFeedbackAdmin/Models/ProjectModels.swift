@@ -96,6 +96,19 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let airtableDescriptionFieldId: String?
     let airtableCategoryFieldId: String?
     let airtableIsActive: Bool
+    // Asana integration fields
+    let asanaToken: String?
+    let asanaWorkspaceId: String?
+    let asanaWorkspaceName: String?
+    let asanaProjectId: String?
+    let asanaProjectName: String?
+    let asanaSectionId: String?
+    let asanaSectionName: String?
+    let asanaSyncStatus: Bool
+    let asanaSyncComments: Bool
+    let asanaStatusFieldId: String?
+    let asanaVotesFieldId: String?
+    let asanaIsActive: Bool
 
     /// Whether Slack integration is configured (has webhook URL)
     var isSlackConfigured: Bool {
@@ -177,14 +190,24 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         isAirtableConfigured && airtableIsActive
     }
 
+    /// Whether Asana integration is configured (has required fields)
+    var isAsanaConfigured: Bool {
+        asanaToken != nil && asanaProjectId != nil
+    }
+
+    /// Whether Asana integration is active (configured AND enabled)
+    var isAsanaActive: Bool {
+        isAsanaConfigured && asanaIsActive
+    }
+
     /// Whether any integration is configured
     var hasAnyIntegration: Bool {
-        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured || isMondayConfigured || isLinearConfigured || isTrelloConfigured || isAirtableConfigured
+        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured || isMondayConfigured || isLinearConfigured || isTrelloConfigured || isAirtableConfigured || isAsanaConfigured
     }
 
     /// Whether any integration is active
     var hasAnyActiveIntegration: Bool {
-        isSlackActive || isGitHubActive || isClickUpActive || isNotionActive || isMondayActive || isLinearActive || isTrelloActive || isAirtableActive
+        isSlackActive || isGitHubActive || isClickUpActive || isNotionActive || isMondayActive || isLinearActive || isTrelloActive || isAirtableActive || isAsanaActive
     }
 
     // Custom decoder to handle backwards compatibility when allowedStatuses is missing
@@ -281,6 +304,19 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         airtableDescriptionFieldId = try container.decodeIfPresent(String.self, forKey: .airtableDescriptionFieldId)
         airtableCategoryFieldId = try container.decodeIfPresent(String.self, forKey: .airtableCategoryFieldId)
         airtableIsActive = try container.decodeIfPresent(Bool.self, forKey: .airtableIsActive) ?? true
+        // Asana fields (backwards compatibility)
+        asanaToken = try container.decodeIfPresent(String.self, forKey: .asanaToken)
+        asanaWorkspaceId = try container.decodeIfPresent(String.self, forKey: .asanaWorkspaceId)
+        asanaWorkspaceName = try container.decodeIfPresent(String.self, forKey: .asanaWorkspaceName)
+        asanaProjectId = try container.decodeIfPresent(String.self, forKey: .asanaProjectId)
+        asanaProjectName = try container.decodeIfPresent(String.self, forKey: .asanaProjectName)
+        asanaSectionId = try container.decodeIfPresent(String.self, forKey: .asanaSectionId)
+        asanaSectionName = try container.decodeIfPresent(String.self, forKey: .asanaSectionName)
+        asanaSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .asanaSyncStatus) ?? false
+        asanaSyncComments = try container.decodeIfPresent(Bool.self, forKey: .asanaSyncComments) ?? false
+        asanaStatusFieldId = try container.decodeIfPresent(String.self, forKey: .asanaStatusFieldId)
+        asanaVotesFieldId = try container.decodeIfPresent(String.self, forKey: .asanaVotesFieldId)
+        asanaIsActive = try container.decodeIfPresent(Bool.self, forKey: .asanaIsActive) ?? true
     }
 
     init(
@@ -365,7 +401,19 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         airtableTitleFieldId: String? = nil,
         airtableDescriptionFieldId: String? = nil,
         airtableCategoryFieldId: String? = nil,
-        airtableIsActive: Bool = true
+        airtableIsActive: Bool = true,
+        asanaToken: String? = nil,
+        asanaWorkspaceId: String? = nil,
+        asanaWorkspaceName: String? = nil,
+        asanaProjectId: String? = nil,
+        asanaProjectName: String? = nil,
+        asanaSectionId: String? = nil,
+        asanaSectionName: String? = nil,
+        asanaSyncStatus: Bool = false,
+        asanaSyncComments: Bool = false,
+        asanaStatusFieldId: String? = nil,
+        asanaVotesFieldId: String? = nil,
+        asanaIsActive: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -449,6 +497,18 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         self.airtableDescriptionFieldId = airtableDescriptionFieldId
         self.airtableCategoryFieldId = airtableCategoryFieldId
         self.airtableIsActive = airtableIsActive
+        self.asanaToken = asanaToken
+        self.asanaWorkspaceId = asanaWorkspaceId
+        self.asanaWorkspaceName = asanaWorkspaceName
+        self.asanaProjectId = asanaProjectId
+        self.asanaProjectName = asanaProjectName
+        self.asanaSectionId = asanaSectionId
+        self.asanaSectionName = asanaSectionName
+        self.asanaSyncStatus = asanaSyncStatus
+        self.asanaSyncComments = asanaSyncComments
+        self.asanaStatusFieldId = asanaStatusFieldId
+        self.asanaVotesFieldId = asanaVotesFieldId
+        self.asanaIsActive = asanaIsActive
     }
 }
 
@@ -985,4 +1045,90 @@ struct AirtableField: Codable, Identifiable, Sendable, Hashable {
     let id: String
     let name: String
     let type: String
+}
+
+// MARK: - Asana Integration
+
+nonisolated
+struct UpdateProjectAsanaRequest: Encodable, Sendable {
+    let asanaToken: String?
+    let asanaWorkspaceId: String?
+    let asanaWorkspaceName: String?
+    let asanaProjectId: String?
+    let asanaProjectName: String?
+    let asanaSectionId: String?
+    let asanaSectionName: String?
+    let asanaSyncStatus: Bool?
+    let asanaSyncComments: Bool?
+    let asanaStatusFieldId: String?
+    let asanaVotesFieldId: String?
+    let asanaIsActive: Bool?
+}
+
+nonisolated
+struct CreateAsanaTaskRequest: Encodable, Sendable {
+    let feedbackId: UUID
+}
+
+nonisolated
+struct CreateAsanaTaskResponse: Decodable, Sendable {
+    let feedbackId: UUID
+    let taskUrl: String
+    let taskId: String
+}
+
+nonisolated
+struct BulkCreateAsanaTasksRequest: Encodable, Sendable {
+    let feedbackIds: [UUID]
+}
+
+nonisolated
+struct BulkCreateAsanaTasksResponse: Decodable, Sendable {
+    let created: [CreateAsanaTaskResponse]
+    let failed: [UUID]
+}
+
+// Asana hierarchy models
+nonisolated
+struct AsanaWorkspace: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+
+    var id: String { gid }
+}
+
+nonisolated
+struct AsanaProject: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+
+    var id: String { gid }
+}
+
+nonisolated
+struct AsanaSection: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+
+    var id: String { gid }
+}
+
+nonisolated
+struct AsanaCustomField: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+    let type: String
+    let enumOptions: [AsanaEnumOption]?
+
+    var id: String { gid }
+}
+
+nonisolated
+struct AsanaEnumOption: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+    let enabled: Bool
+    let color: String?
+
+    var id: String { gid }
 }

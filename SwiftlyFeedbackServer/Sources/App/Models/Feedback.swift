@@ -102,6 +102,13 @@ final class Feedback: Model, Content, @unchecked Sendable {
     @OptionalField(key: "airtable_record_id")
     var airtableRecordId: String?
 
+    // Asana integration fields
+    @OptionalField(key: "asana_task_url")
+    var asanaTaskURL: String?
+
+    @OptionalField(key: "asana_task_id")
+    var asanaTaskId: String?
+
     /// Whether this feedback has been merged into another
     var isMerged: Bool {
         mergedIntoId != nil
@@ -145,6 +152,11 @@ final class Feedback: Model, Content, @unchecked Sendable {
     /// Whether this feedback has a linked Airtable record
     var hasAirtableRecord: Bool {
         airtableRecordURL != nil
+    }
+
+    /// Whether this feedback has a linked Asana task
+    var hasAsanaTask: Bool {
+        asanaTaskURL != nil
     }
 
     init() {}
@@ -274,6 +286,24 @@ enum FeedbackStatus: String, Codable, CaseIterable {
             return "Completed"
         case .rejected:
             return "Rejected"
+        }
+    }
+
+    /// Maps SwiftlyFeedback status to Asana status names (for enum custom field)
+    var asanaStatusName: String {
+        switch self {
+        case .pending:
+            return "To Do"
+        case .approved:
+            return "Approved"
+        case .inProgress:
+            return "In Progress"
+        case .testflight:
+            return "In Review"
+        case .completed:
+            return "Complete"
+        case .rejected:
+            return "Closed"
         }
     }
 

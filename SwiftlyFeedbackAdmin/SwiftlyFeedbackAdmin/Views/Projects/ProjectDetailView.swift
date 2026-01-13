@@ -20,6 +20,7 @@ struct ProjectDetailView: View {
     @State private var showingLinearSheet = false
     @State private var showingTrelloSheet = false
     @State private var showingAirtableSheet = false
+    @State private var showingAsanaSheet = false
     @State private var copiedToClipboard = false
     @State private var showingPaywall = false
     @State private var paywallRequiredTier: SubscriptionTier = .pro
@@ -191,6 +192,18 @@ struct ProjectDetailView: View {
                                 Label("Airtable", systemImage: "tablecells")
                                     .tierBadge(.pro)
                             }
+
+                            Button {
+                                if subscriptionService.meetsRequirement(.pro) {
+                                    showingAsanaSheet = true
+                                } else {
+                                    paywallRequiredTier = .pro
+                                    showingPaywall = true
+                                }
+                            } label: {
+                                Label("Asana", systemImage: "list.bullet.rectangle")
+                                    .tierBadge(.pro)
+                            }
                         } label: {
                             Label("Integrations", systemImage: "puzzlepiece.extension")
                         }
@@ -344,6 +357,14 @@ struct ProjectDetailView: View {
         .sheet(isPresented: $showingAirtableSheet) {
             if let project = viewModel.selectedProject {
                 AirtableSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 600)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingAsanaSheet) {
+            if let project = viewModel.selectedProject {
+                AsanaSettingsView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 500, minHeight: 600)
                     #endif
@@ -692,6 +713,38 @@ struct ProjectDetailView: View {
                         isActive: project.trelloIsActive
                     ) {
                         showingTrelloSheet = true
+                    }
+                }
+
+                if project.isAirtableConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured || project.isLinearConfigured || project.isTrelloConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "tablecells",
+                        iconColor: Color(red: 0.09, green: 0.63, blue: 0.52),
+                        name: "Airtable",
+                        detail: project.airtableIsActive ? (project.airtableTableName ?? "Connected") : "Paused",
+                        isActive: project.airtableIsActive
+                    ) {
+                        showingAirtableSheet = true
+                    }
+                }
+
+                if project.isAsanaConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured || project.isLinearConfigured || project.isTrelloConfigured || project.isAirtableConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "list.bullet.rectangle",
+                        iconColor: Color(red: 0.96, green: 0.45, blue: 0.50),
+                        name: "Asana",
+                        detail: project.asanaIsActive ? (project.asanaProjectName ?? "Connected") : "Paused",
+                        isActive: project.asanaIsActive
+                    ) {
+                        showingAsanaSheet = true
                     }
                 }
             }

@@ -844,6 +844,91 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Asana Integration
+
+    func updateAsanaSettings(
+        projectId: UUID,
+        asanaToken: String?,
+        asanaWorkspaceId: String?,
+        asanaWorkspaceName: String?,
+        asanaProjectId: String?,
+        asanaProjectName: String?,
+        asanaSectionId: String?,
+        asanaSectionName: String?,
+        asanaSyncStatus: Bool?,
+        asanaSyncComments: Bool?,
+        asanaStatusFieldId: String?,
+        asanaVotesFieldId: String?,
+        asanaIsActive: Bool?
+    ) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let request = UpdateProjectAsanaRequest(
+                asanaToken: asanaToken,
+                asanaWorkspaceId: asanaWorkspaceId,
+                asanaWorkspaceName: asanaWorkspaceName,
+                asanaProjectId: asanaProjectId,
+                asanaProjectName: asanaProjectName,
+                asanaSectionId: asanaSectionId,
+                asanaSectionName: asanaSectionName,
+                asanaSyncStatus: asanaSyncStatus,
+                asanaSyncComments: asanaSyncComments,
+                asanaStatusFieldId: asanaStatusFieldId,
+                asanaVotesFieldId: asanaVotesFieldId,
+                asanaIsActive: asanaIsActive
+            )
+            let updated = try await AdminAPIClient.shared.updateAsanaSettings(projectId: projectId, request: request)
+            selectedProject = updated
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
+    func loadAsanaWorkspaces(projectId: UUID) async -> [AsanaWorkspace] {
+        do {
+            return try await AdminAPIClient.shared.getAsanaWorkspaces(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAsanaProjects(projectId: UUID, workspaceId: String) async -> [AsanaProject] {
+        do {
+            return try await AdminAPIClient.shared.getAsanaProjects(projectId: projectId, workspaceId: workspaceId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAsanaSections(projectId: UUID, asanaProjectId: String) async -> [AsanaSection] {
+        do {
+            return try await AdminAPIClient.shared.getAsanaSections(projectId: projectId, asanaProjectId: asanaProjectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAsanaCustomFields(projectId: UUID, asanaProjectId: String) async -> [AsanaCustomField] {
+        do {
+            return try await AdminAPIClient.shared.getAsanaCustomFields(projectId: projectId, asanaProjectId: asanaProjectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
     // MARK: - Accept Invite
 
     var inviteCode = ""

@@ -242,6 +242,43 @@ final class Project: Model, Content, @unchecked Sendable {
     @Field(key: "airtable_is_active")
     var airtableIsActive: Bool
 
+    // Asana integration fields
+    @OptionalField(key: "asana_token")
+    var asanaToken: String?
+
+    @OptionalField(key: "asana_workspace_id")
+    var asanaWorkspaceId: String?
+
+    @OptionalField(key: "asana_workspace_name")
+    var asanaWorkspaceName: String?
+
+    @OptionalField(key: "asana_project_id")
+    var asanaProjectId: String?
+
+    @OptionalField(key: "asana_project_name")
+    var asanaProjectName: String?
+
+    @OptionalField(key: "asana_section_id")
+    var asanaSectionId: String?
+
+    @OptionalField(key: "asana_section_name")
+    var asanaSectionName: String?
+
+    @Field(key: "asana_sync_status")
+    var asanaSyncStatus: Bool
+
+    @Field(key: "asana_sync_comments")
+    var asanaSyncComments: Bool
+
+    @OptionalField(key: "asana_status_field_id")
+    var asanaStatusFieldId: String?
+
+    @OptionalField(key: "asana_votes_field_id")
+    var asanaVotesFieldId: String?
+
+    @Field(key: "asana_is_active")
+    var asanaIsActive: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -332,7 +369,19 @@ final class Project: Model, Content, @unchecked Sendable {
         airtableTitleFieldId: String? = nil,
         airtableDescriptionFieldId: String? = nil,
         airtableCategoryFieldId: String? = nil,
-        airtableIsActive: Bool = true
+        airtableIsActive: Bool = true,
+        asanaToken: String? = nil,
+        asanaWorkspaceId: String? = nil,
+        asanaWorkspaceName: String? = nil,
+        asanaProjectId: String? = nil,
+        asanaProjectName: String? = nil,
+        asanaSectionId: String? = nil,
+        asanaSectionName: String? = nil,
+        asanaSyncStatus: Bool = false,
+        asanaSyncComments: Bool = false,
+        asanaStatusFieldId: String? = nil,
+        asanaVotesFieldId: String? = nil,
+        asanaIsActive: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -410,6 +459,18 @@ final class Project: Model, Content, @unchecked Sendable {
         self.airtableDescriptionFieldId = airtableDescriptionFieldId
         self.airtableCategoryFieldId = airtableCategoryFieldId
         self.airtableIsActive = airtableIsActive
+        self.asanaToken = asanaToken
+        self.asanaWorkspaceId = asanaWorkspaceId
+        self.asanaWorkspaceName = asanaWorkspaceName
+        self.asanaProjectId = asanaProjectId
+        self.asanaProjectName = asanaProjectName
+        self.asanaSectionId = asanaSectionId
+        self.asanaSectionName = asanaSectionName
+        self.asanaSyncStatus = asanaSyncStatus
+        self.asanaSyncComments = asanaSyncComments
+        self.asanaStatusFieldId = asanaStatusFieldId
+        self.asanaVotesFieldId = asanaVotesFieldId
+        self.asanaIsActive = asanaIsActive
     }
 }
 

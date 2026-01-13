@@ -48,6 +48,9 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     // Airtable integration fields
     let airtableRecordUrl: String?
     let airtableRecordId: String?
+    // Asana integration fields
+    let asanaTaskUrl: String?
+    let asanaTaskId: String?
 
     /// Formatted total MRR string for display (always shows, even if $0)
     var formattedMrr: String {
@@ -106,6 +109,11 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     /// Whether this feedback has a linked Airtable record
     var hasAirtableRecord: Bool {
         airtableRecordUrl != nil
+    }
+
+    /// Whether this feedback has a linked Asana task
+    var hasAsanaTask: Bool {
+        asanaTaskUrl != nil
     }
 }
 
