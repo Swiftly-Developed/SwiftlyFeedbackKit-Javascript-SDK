@@ -32,25 +32,37 @@ This workspace pushes to multiple GitHub repositories:
 - `main` - Production releases
 
 **Pushing to remotes:**
+
+The workspace uses **git subtree** to push individual subfolders to their standalone repos. This ensures each repo only contains its own code.
+
 ```bash
 # Push to main workspace (all changes)
 git push origin dev
 
 # Push SDK changes only (for SPM consumers)
-git push feedbackkit-sdk dev
+# Note: SDK uses regular push because SwiftlyFeedbackKit/ structure matches the remote
+git subtree push --prefix=SwiftlyFeedbackKit feedbackkit-sdk dev
 
-# Push Server changes
-git push feedbackkit-server dev
+# Push Server changes (subtree - only SwiftlyFeedbackServer/ folder)
+git subtree push --prefix=SwiftlyFeedbackServer feedbackkit-server dev
 
-# Push Admin app changes
-git push feedbackkit-admin dev
+# Push Admin app changes (subtree - only SwiftlyFeedbackAdmin/ folder)
+git subtree push --prefix=SwiftlyFeedbackAdmin feedbackkit-admin dev
 
-# Push Demo app changes
-git push feedbackkit-demo dev
-
-# Push all remotes at once
-git push origin dev && git push feedbackkit-sdk dev && git push feedbackkit-server dev && git push feedbackkit-admin dev && git push feedbackkit-demo dev
+# Push Demo app changes (subtree - only SwiftlyFeedbackDemoApp/ folder)
+git subtree push --prefix=SwiftlyFeedbackDemoApp feedbackkit-demo dev
 ```
+
+**Push all remotes at once:**
+```bash
+git push origin dev && \
+git subtree push --prefix=SwiftlyFeedbackKit feedbackkit-sdk dev && \
+git subtree push --prefix=SwiftlyFeedbackServer feedbackkit-server dev && \
+git subtree push --prefix=SwiftlyFeedbackAdmin feedbackkit-admin dev && \
+git subtree push --prefix=SwiftlyFeedbackDemoApp feedbackkit-demo dev
+```
+
+**Important:** Never use `git push feedbackkit-server dev` directly - this would push the entire workspace. Always use `git subtree push`.
 
 **Adding remotes (if missing):**
 ```bash
