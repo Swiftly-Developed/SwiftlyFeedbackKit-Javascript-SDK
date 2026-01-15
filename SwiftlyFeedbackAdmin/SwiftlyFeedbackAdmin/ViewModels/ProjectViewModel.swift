@@ -376,6 +376,29 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Email Notification Status Settings
+
+    func updateEmailNotifyStatuses(projectId: UUID, emailNotifyStatuses: [String]) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            selectedProject = try await AdminAPIClient.shared.updateProjectEmailNotifyStatuses(
+                projectId: projectId,
+                emailNotifyStatuses: emailNotifyStatuses
+            )
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
     // MARK: - GitHub Settings
 
     func updateGitHubSettings(

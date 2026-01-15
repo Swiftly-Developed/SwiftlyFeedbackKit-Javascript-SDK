@@ -33,6 +33,9 @@ struct ProjectController: RouteCollection {
         // Status settings
         protected.patch(":projectId", "statuses", use: updateAllowedStatuses)
 
+        // Email notification status settings
+        protected.patch(":projectId", "email-notify-statuses", use: updateEmailNotifyStatuses)
+
         // GitHub integration
         protected.patch(":projectId", "github", use: updateGitHubSettings)
         protected.post(":projectId", "github", "issue", use: createGitHubIssue)
@@ -751,6 +754,45 @@ struct ProjectController: RouteCollection {
         }
 
         project.allowedStatuses = dto.allowedStatuses
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,  // +1 for owner
+            ownerEmail: project.owner.email
+        )
+    }
+
+    // MARK: - Email Notification Status Settings
+
+    @Sendable
+    func updateEmailNotifyStatuses(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        // Check Pro tier requirement for configuring email notification statuses
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Configuring email notification statuses requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectEmailNotifyStatusesDTO.self)
+
+        // Validate that all provided statuses are valid FeedbackStatus values
+        let validStatuses = FeedbackStatus.allCases.map { $0.rawValue }
+        for status in dto.emailNotifyStatuses {
+            guard validStatuses.contains(status) else {
+                throw Abort(.badRequest, reason: "Invalid status: \(status). Valid statuses are: \(validStatuses.joined(separator: ", "))")
+            }
+        }
+
+        project.emailNotifyStatuses = dto.emailNotifyStatuses
 
         try await project.save(on: req.db)
 

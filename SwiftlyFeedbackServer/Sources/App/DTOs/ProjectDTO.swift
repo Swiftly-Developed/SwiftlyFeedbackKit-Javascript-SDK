@@ -32,6 +32,10 @@ struct UpdateProjectStatusesDTO: Content {
     var allowedStatuses: [String]
 }
 
+struct UpdateProjectEmailNotifyStatusesDTO: Content {
+    var emailNotifyStatuses: [String]
+}
+
 // MARK: - GitHub Integration DTOs
 
 struct UpdateProjectGitHubDTO: Content {
@@ -534,6 +538,7 @@ struct ProjectResponseDTO: Content {
     let slackNotifyStatusChanges: Bool
     let slackIsActive: Bool
     let allowedStatuses: [String]
+    let emailNotifyStatuses: [String]
     // GitHub integration fields
     let githubOwner: String?
     let githubRepo: String?
@@ -650,6 +655,7 @@ struct ProjectResponseDTO: Content {
         self.slackNotifyStatusChanges = project.slackNotifyStatusChanges
         self.slackIsActive = project.slackIsActive
         self.allowedStatuses = project.allowedStatuses
+        self.emailNotifyStatuses = project.emailNotifyStatuses
         self.githubOwner = project.githubOwner
         self.githubRepo = project.githubRepo
         self.githubToken = project.githubToken

@@ -306,8 +306,8 @@ struct OnboardingPaywallView: View {
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 12) {
-                Link("Terms", destination: URL(string: "https://feedbackkit.app/terms")!)
-                Link("Privacy", destination: URL(string: "https://feedbackkit.app/privacy")!)
+                Link("Terms", destination: URL(string: "https://swiftly-developed.com/feedback-kit-termsofservice")!)
+                Link("Privacy", destination: URL(string: "https://swiftly-developed.com/feedbackkit-privacypolicy")!)
             }
             .font(.caption2)
         }

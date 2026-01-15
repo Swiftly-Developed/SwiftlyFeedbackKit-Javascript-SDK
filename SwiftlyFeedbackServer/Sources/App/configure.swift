@@ -100,6 +100,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddProjectAirtableIntegration())
     app.migrations.add(AddProjectAsanaIntegration())
     app.migrations.add(AddProjectBasecampIntegration())
+    app.migrations.add(AddProjectEmailNotifyStatuses())
 
     try await app.autoMigrate()
 

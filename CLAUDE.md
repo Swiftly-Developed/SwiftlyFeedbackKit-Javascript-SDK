@@ -290,6 +290,34 @@ Voters can optionally provide their email when voting to receive status change n
 - `notify_status_change` (Bool, default: false) - Opt-in flag
 - `permission_key` (UUID, nullable) - Unique unsubscribe token
 
+## Email Notification Status Configuration
+
+Project owners can configure which status changes trigger email notifications to feedback submitters and voters.
+
+**How it works:**
+1. Each project has an `emailNotifyStatuses` array containing statuses that trigger emails
+2. When feedback status changes to a status in this list, email notifications are sent
+3. If the new status is not in the list, no email notifications are sent (but Slack/integrations still work)
+4. Default statuses: `approved`, `in_progress`, `completed`, `rejected` (excludes `pending` and `testflight`)
+
+**Configuration via Admin app:**
+- Project Details → Menu (⋯) → Email Notifications
+- Toggle individual statuses on/off
+- Quick actions: "Enable All", "Disable All", "Final States Only" (completed + rejected)
+
+**Server endpoint:**
+- `PATCH /projects/:id/email-notify-statuses` - Update email notification statuses
+  - Request body: `{ "emailNotifyStatuses": ["approved", "completed"] }`
+  - Requires Pro subscription
+
+**Database field added to Project model:**
+- `email_notify_statuses` (String[], default: `["approved", "in_progress", "completed", "rejected"]`)
+
+**Use cases:**
+- Only notify on final outcomes (completed/rejected) to reduce email noise
+- Disable all status emails while keeping Slack notifications active
+- Exclude intermediate statuses like `approved` or `in_progress`
+
 ## Swift 6 Concurrency
 
 Admin app uses `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`. Key patterns:
@@ -685,6 +713,7 @@ RevenueCat integration for subscription management.
 - Unlimited feedback: `.pro`
 - Advanced analytics: `.pro`
 - Configurable statuses: `.pro`
+- Email notification status configuration: `.pro`
 - New comment notifications: `.pro`
 - Voter email notifications: `.team`
 
@@ -701,6 +730,7 @@ The server independently enforces subscription limits and returns 402 Payment Re
 | Team member invite | Team | `POST /projects/:id/members` - owner must have Team |
 | Team member accept | Team | `POST /projects/invites/:code/accept` - both parties need Team |
 | Configurable statuses | Pro | `PATCH /projects/:id/statuses` |
+| Email notify statuses | Pro | `PATCH /projects/:id/email-notify-statuses` |
 | Integrations | Pro | All integration endpoints (Slack, GitHub, etc.) |
 | Comment notifications | Pro | Server only sends to Pro+ users, silently enforces on settings update |
 | Voter notifications | Team | Server only sends if project owner has Team tier |

@@ -368,8 +368,8 @@ struct PaywallView: View {
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
-                Link("Terms of Service", destination: URL(string: "https://feedbackkit.app/terms")!)
-                Link("Privacy Policy", destination: URL(string: "https://feedbackkit.app/privacy")!)
+                Link("Terms of Service", destination: URL(string: "https://swiftly-developed.com/feedback-kit-termsofservice")!)
+                Link("Privacy Policy", destination: URL(string: "https://swiftly-developed.com/feedbackkit-privacypolicy")!)
             }
             .font(.caption)
         }

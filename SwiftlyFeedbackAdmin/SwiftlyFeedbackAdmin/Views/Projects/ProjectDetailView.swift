@@ -13,6 +13,7 @@ struct ProjectDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingSlackSheet = false
     @State private var showingStatusSheet = false
+    @State private var showingEmailNotifyStatusesSheet = false
     @State private var showingGitHubSheet = false
     @State private var showingClickUpSheet = false
     @State private var showingNotionSheet = false
@@ -92,6 +93,18 @@ struct ProjectDetailView: View {
                             }
                         } label: {
                             Label("Status Settings", systemImage: "list.bullet.clipboard")
+                                .tierBadge(.pro)
+                        }
+
+                        Button {
+                            if subscriptionService.meetsRequirement(.pro) {
+                                showingEmailNotifyStatusesSheet = true
+                            } else {
+                                paywallRequiredTier = .pro
+                                showingPaywall = true
+                            }
+                        } label: {
+                            Label("Email Notifications", systemImage: "envelope.badge")
                                 .tierBadge(.pro)
                         }
 
@@ -314,6 +327,14 @@ struct ProjectDetailView: View {
         .sheet(isPresented: $showingStatusSheet) {
             if let project = viewModel.selectedProject {
                 StatusSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 400, minHeight: 400)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingEmailNotifyStatusesSheet) {
+            if let project = viewModel.selectedProject {
+                EmailNotifyStatusesView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 400, minHeight: 400)
                     #endif

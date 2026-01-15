@@ -212,6 +212,12 @@ enum FeedbackStatus: String, Codable, CaseIterable {
         [.pending, .approved, .inProgress, .completed, .rejected]
     }
 
+    /// Default statuses that trigger email notifications to voters and feedback submitters
+    /// Excludes 'pending' (initial state) and 'testflight' (internal testing)
+    static var defaultEmailNotifyStatuses: [FeedbackStatus] {
+        [.approved, .inProgress, .completed, .rejected]
+    }
+
     /// Maps SwiftlyFeedback status to ClickUp status names
     /// Note: These should match the status names configured in the user's ClickUp list
     var clickupStatusName: String {

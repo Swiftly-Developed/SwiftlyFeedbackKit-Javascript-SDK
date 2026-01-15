@@ -46,6 +46,9 @@ final class Project: Model, Content, @unchecked Sendable {
     @Field(key: "allowed_statuses")
     var allowedStatuses: [String]
 
+    @Field(key: "email_notify_statuses")
+    var emailNotifyStatuses: [String]
+
     // GitHub integration fields
     @OptionalField(key: "github_owner")
     var githubOwner: String?
@@ -341,6 +344,7 @@ final class Project: Model, Content, @unchecked Sendable {
         slackNotifyStatusChanges: Bool = true,
         slackIsActive: Bool = true,
         allowedStatuses: [String]? = nil,
+        emailNotifyStatuses: [String]? = nil,
         githubOwner: String? = nil,
         githubRepo: String? = nil,
         githubToken: String? = nil,
@@ -441,6 +445,7 @@ final class Project: Model, Content, @unchecked Sendable {
         self.slackNotifyStatusChanges = slackNotifyStatusChanges
         self.slackIsActive = slackIsActive
         self.allowedStatuses = allowedStatuses ?? FeedbackStatus.defaultAllowed.map { $0.rawValue }
+        self.emailNotifyStatuses = emailNotifyStatuses ?? FeedbackStatus.defaultEmailNotifyStatuses.map { $0.rawValue }
         self.githubOwner = githubOwner
         self.githubRepo = githubRepo
         self.githubToken = githubToken

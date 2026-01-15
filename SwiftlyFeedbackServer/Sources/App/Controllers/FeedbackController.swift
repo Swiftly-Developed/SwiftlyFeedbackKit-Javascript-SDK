@@ -283,48 +283,53 @@ struct FeedbackController: RouteCollection {
         if let newStatus = dto.status, newStatus != oldStatus {
             let project = feedback.project
 
-            // Send email notification
-            Task {
-                do {
-                    // Collect emails: feedback submitter (if provided) + opted-in voters (Team tier only)
-                    var emails: [String] = []
-                    var unsubscribeKeys: [String: UUID] = [:]
+            // Check if the new status should trigger email notifications
+            let shouldNotifyByEmail = project.emailNotifyStatuses.contains(newStatus.rawValue)
 
-                    // Add feedback submitter's email if provided
-                    if let submitterEmail = feedback.userEmail, !submitterEmail.isEmpty {
-                        emails.append(submitterEmail)
-                    }
+            // Send email notification only if configured for this status
+            if shouldNotifyByEmail {
+                Task {
+                    do {
+                        // Collect emails: feedback submitter (if provided) + opted-in voters (Team tier only)
+                        var emails: [String] = []
+                        var unsubscribeKeys: [String: UUID] = [:]
 
-                    // Load votes with notification opt-in
-                    // Voter notifications are a Team-tier feature - check owner's tier
-                    try await project.$owner.load(on: req.db)
-                    let ownerHasTeamTier = project.owner.subscriptionTier.meetsRequirement(.team)
+                        // Add feedback submitter's email if provided
+                        if let submitterEmail = feedback.userEmail, !submitterEmail.isEmpty {
+                            emails.append(submitterEmail)
+                        }
 
-                    if ownerHasTeamTier {
-                        try await feedback.$votes.load(on: req.db)
-                        for vote in feedback.votes {
-                            if vote.notifyStatusChange,
-                               let email = vote.email,
-                               !email.isEmpty,
-                               !emails.contains(email) {  // De-duplicate
-                                emails.append(email)
-                                if let key = vote.permissionKey {
-                                    unsubscribeKeys[email] = key
+                        // Load votes with notification opt-in
+                        // Voter notifications are a Team-tier feature - check owner's tier
+                        try await project.$owner.load(on: req.db)
+                        let ownerHasTeamTier = project.owner.subscriptionTier.meetsRequirement(.team)
+
+                        if ownerHasTeamTier {
+                            try await feedback.$votes.load(on: req.db)
+                            for vote in feedback.votes {
+                                if vote.notifyStatusChange,
+                                   let email = vote.email,
+                                   !email.isEmpty,
+                                   !emails.contains(email) {  // De-duplicate
+                                    emails.append(email)
+                                    if let key = vote.permissionKey {
+                                        unsubscribeKeys[email] = key
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    try await req.emailService.sendFeedbackStatusChangeNotification(
-                        to: emails,
-                        projectName: project.name,
-                        feedbackTitle: feedback.title,
-                        oldStatus: oldStatus.rawValue,
-                        newStatus: newStatus.rawValue,
-                        unsubscribeKeys: unsubscribeKeys
-                    )
-                } catch {
-                    req.logger.error("Failed to send status change notification: \(error)")
+                        try await req.emailService.sendFeedbackStatusChangeNotification(
+                            to: emails,
+                            projectName: project.name,
+                            feedbackTitle: feedback.title,
+                            oldStatus: oldStatus.rawValue,
+                            newStatus: newStatus.rawValue,
+                            unsubscribeKeys: unsubscribeKeys
+                        )
+                    } catch {
+                        req.logger.error("Failed to send status change notification: \(error)")
+                    }
                 }
             }
 

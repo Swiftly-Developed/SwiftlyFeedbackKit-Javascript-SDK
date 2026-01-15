@@ -26,6 +26,7 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let slackNotifyStatusChanges: Bool
     let slackIsActive: Bool
     let allowedStatuses: [String]
+    let emailNotifyStatuses: [String]
     // GitHub integration fields
     let githubOwner: String?
     let githubRepo: String?
@@ -256,6 +257,9 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         // Default to standard statuses if not present (backwards compatibility)
         allowedStatuses = try container.decodeIfPresent([String].self, forKey: .allowedStatuses)
             ?? ["pending", "approved", "in_progress", "completed", "rejected"]
+        // Default email notify statuses (backwards compatibility)
+        emailNotifyStatuses = try container.decodeIfPresent([String].self, forKey: .emailNotifyStatuses)
+            ?? ["approved", "in_progress", "completed", "rejected"]
         // GitHub fields (backwards compatibility)
         githubOwner = try container.decodeIfPresent(String.self, forKey: .githubOwner)
         githubRepo = try container.decodeIfPresent(String.self, forKey: .githubRepo)
@@ -373,6 +377,7 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         slackNotifyStatusChanges: Bool,
         slackIsActive: Bool = true,
         allowedStatuses: [String],
+        emailNotifyStatuses: [String] = ["approved", "in_progress", "completed", "rejected"],
         githubOwner: String? = nil,
         githubRepo: String? = nil,
         githubToken: String? = nil,
@@ -479,6 +484,7 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         self.slackNotifyStatusChanges = slackNotifyStatusChanges
         self.slackIsActive = slackIsActive
         self.allowedStatuses = allowedStatuses
+        self.emailNotifyStatuses = emailNotifyStatuses
         self.githubOwner = githubOwner
         self.githubRepo = githubRepo
         self.githubToken = githubToken
@@ -649,6 +655,11 @@ struct UpdateProjectSlackRequest: Encodable, Sendable {
 nonisolated
 struct UpdateProjectStatusesRequest: Encodable, Sendable {
     let allowedStatuses: [String]
+}
+
+nonisolated
+struct UpdateProjectEmailNotifyStatusesRequest: Encodable, Sendable {
+    let emailNotifyStatuses: [String]
 }
 
 // MARK: - GitHub Integration

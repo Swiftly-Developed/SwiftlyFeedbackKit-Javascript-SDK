@@ -707,6 +707,29 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Email Notification Status Settings API
+
+    func updateProjectEmailNotifyStatuses(
+        projectId: UUID,
+        emailNotifyStatuses: [String]
+    ) async throws -> Project {
+        let path = "projects/\(projectId)/email-notify-statuses"
+        let body = UpdateProjectEmailNotifyStatusesRequest(emailNotifyStatuses: emailNotifyStatuses)
+
+        AppLogger.api.info("🟠 PATCH \(path) (email notify statuses)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - GitHub Integration API
 
     func updateProjectGitHubSettings(
