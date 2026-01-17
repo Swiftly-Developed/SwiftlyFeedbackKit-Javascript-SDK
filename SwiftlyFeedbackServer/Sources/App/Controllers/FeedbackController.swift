@@ -296,6 +296,7 @@ struct FeedbackController: RouteCollection {
 
             // Check if the new status should trigger email notifications
             let shouldNotifyByEmail = project.emailNotifyStatuses.contains(newStatus.rawValue)
+            req.logger.info("📧 Status change: \(oldStatus.rawValue) → \(newStatus.rawValue), shouldNotifyByEmail: \(shouldNotifyByEmail), emailNotifyStatuses: \(project.emailNotifyStatuses)")
 
             // Send email notification only if configured for this status
             if shouldNotifyByEmail {
@@ -308,16 +309,22 @@ struct FeedbackController: RouteCollection {
                         // Add feedback submitter's email if provided
                         if let submitterEmail = feedback.userEmail, !submitterEmail.isEmpty {
                             emails.append(submitterEmail)
+                            req.logger.info("📧 Added submitter email: \(submitterEmail)")
+                        } else {
+                            req.logger.info("📧 No submitter email on feedback (userEmail: \(feedback.userEmail ?? "nil"))")
                         }
 
                         // Load votes with notification opt-in
                         // Voter notifications are a Team-tier feature - check owner's tier
                         try await project.$owner.load(on: req.db)
                         let ownerHasTeamTier = project.owner.subscriptionTier.meetsRequirement(.team)
+                        req.logger.info("📧 Project owner: \(project.owner.email), tier: \(project.owner.subscriptionTier.rawValue), hasTeamTier: \(ownerHasTeamTier)")
 
                         if ownerHasTeamTier {
                             try await feedback.$votes.load(on: req.db)
+                            req.logger.info("📧 Checking \(feedback.votes.count) votes for notification opt-ins")
                             for vote in feedback.votes {
+                                req.logger.info("📧 Vote: email=\(vote.email ?? "nil"), notifyStatusChange=\(vote.notifyStatusChange)")
                                 if vote.notifyStatusChange,
                                    let email = vote.email,
                                    !email.isEmpty,
@@ -328,8 +335,11 @@ struct FeedbackController: RouteCollection {
                                     }
                                 }
                             }
+                        } else {
+                            req.logger.info("📧 Skipping voter emails (owner doesn't have Team tier)")
                         }
 
+                        req.logger.info("📧 Final email list: \(emails)")
                         try await req.emailService.sendFeedbackStatusChangeNotification(
                             to: emails,
                             projectName: project.name,
