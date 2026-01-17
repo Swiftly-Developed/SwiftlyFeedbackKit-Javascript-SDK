@@ -213,6 +213,15 @@ struct FeedbackController: RouteCollection {
             }
         }
 
+        // Send push notification
+        Task {
+            await req.pushNotificationService.sendNewFeedbackNotification(
+                feedback: feedback,
+                project: project,
+                on: req.db
+            )
+        }
+
         return FeedbackResponseDTO(feedback: feedback, hasVoted: true)
     }
 
@@ -570,6 +579,17 @@ struct FeedbackController: RouteCollection {
                         req.logger.error("Failed to sync Basecamp to-do status: \(error)")
                     }
                 }
+            }
+
+            // Send push notification for status change
+            Task {
+                await req.pushNotificationService.sendStatusChangeNotification(
+                    feedback: feedback,
+                    oldStatus: oldStatus,
+                    newStatus: newStatus,
+                    project: project,
+                    on: req.db
+                )
             }
         }
 

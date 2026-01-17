@@ -691,6 +691,48 @@ BuildEnvironment.canShowTestingFeatures  // true for DEBUG or TestFlight
 
 `colorIndex` (0-7) maps to gradient pairs. Archived projects show gray.
 
+## Push Notifications (In Development)
+
+> **Status:** In development. See `docs/PUSH_NOTIFICATIONS_PLAN.md` for full technical plan.
+
+Push notifications will notify Admin app users when:
+- New feedback is submitted to their projects
+- Comments are added to feedback
+- Votes are cast on feedback
+- Feedback status changes
+
+**Preference Levels:**
+1. **Personal level** - Global preferences for all projects (User model fields)
+2. **Project level** - Per-project overrides via `ProjectMemberPreference` model
+
+**Preference Resolution:**
+```
+Final = Project Override ?? Personal Preference ?? Default (enabled)
+```
+
+**New Server Components:**
+- `DeviceToken` model - Stores APNs device tokens per user
+- `ProjectMemberPreference` model - Per-project notification overrides
+- `PushNotificationService` - Core notification dispatch logic
+- `DeviceController` - Device registration endpoints
+
+**Server Dependencies:**
+- APNSwift 5.0+ for APNs communication
+- Environment variables: `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_KEY_PATH`, `APNS_PRODUCTION`
+
+**New Admin App Components:**
+- `PushNotificationManager` - Device token registration
+- `PushNotificationSettingsView` - Personal push preferences UI
+- `ProjectNotificationSettingsView` - Project-specific preferences UI
+- `AppDelegate` - APNs delegate methods
+
+**API Endpoints (planned):**
+- `POST /devices/register` - Register device token
+- `DELETE /devices/:id` - Unregister device
+- `GET /devices` - List user devices
+- `PATCH /auth/notifications` - Update personal push preferences
+- `GET/PATCH /projects/:id/notification-preferences` - Project-specific preferences
+
 ## Deep Linking (URL Scheme)
 
 The Admin app supports the `feedbackkit://` URL scheme for deep linking.
@@ -698,6 +740,8 @@ The Admin app supports the `feedbackkit://` URL scheme for deep linking.
 **Supported URLs:**
 - `feedbackkit://settings` - Opens the Settings tab
 - `feedbackkit://settings/notifications` - Opens the Settings tab (for managing email preferences)
+- `feedbackkit://feedback/{id}` - Open feedback detail (planned for push notifications)
+- `feedbackkit://project/{id}` - Open project feedback list (planned for push notifications)
 
 **Implementation:**
 - `DeepLinkManager` (singleton) handles URL parsing and navigation state

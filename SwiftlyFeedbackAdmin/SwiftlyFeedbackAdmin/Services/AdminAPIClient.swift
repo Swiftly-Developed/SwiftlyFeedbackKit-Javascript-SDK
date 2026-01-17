@@ -612,11 +612,24 @@ actor AdminAPIClient {
 
     // MARK: - Notification Settings API
 
-    func updateNotificationSettings(notifyNewFeedback: Bool?, notifyNewComments: Bool?) async throws -> User {
+    func updateNotificationSettings(
+        notifyNewFeedback: Bool? = nil,
+        notifyNewComments: Bool? = nil,
+        pushNotificationsEnabled: Bool? = nil,
+        pushNotifyNewFeedback: Bool? = nil,
+        pushNotifyNewComments: Bool? = nil,
+        pushNotifyVotes: Bool? = nil,
+        pushNotifyStatusChanges: Bool? = nil
+    ) async throws -> User {
         let path = "auth/notifications"
         let body = UpdateNotificationSettingsRequest(
             notifyNewFeedback: notifyNewFeedback,
-            notifyNewComments: notifyNewComments
+            notifyNewComments: notifyNewComments,
+            pushNotificationsEnabled: pushNotificationsEnabled,
+            pushNotifyNewFeedback: pushNotifyNewFeedback,
+            pushNotifyNewComments: pushNotifyNewComments,
+            pushNotifyVotes: pushNotifyVotes,
+            pushNotifyStatusChanges: pushNotifyStatusChanges
         )
 
         AppLogger.api.info("🟠 PATCH \(path) (notification settings)")

@@ -7,11 +7,17 @@
 
 import SwiftUI
 import SwiftlyFeedbackKit
+import UserNotifications
 
 #if os(macOS)
 import AppKit
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Set up notification delegate
+        UNUserNotificationCenter.current().delegate = self
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // Synchronously logout when app is quitting
         logoutOnTermination()
@@ -51,6 +57,71 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Delete local token after server call using KeychainManager directly
         KeychainManager.delete(forKey: "\(envKey).authToken")
     }
+
+    // MARK: - Push Notification Registration
+
+    func application(_ application: NSApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Task { @MainActor in
+            PushNotificationManager.shared.didRegisterForRemoteNotifications(withDeviceToken: deviceToken)
+        }
+    }
+
+    func application(_ application: NSApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Task { @MainActor in
+            PushNotificationManager.shared.didFailToRegisterForRemoteNotifications(withError: error)
+        }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        // Show notification even when app is in foreground
+        return [.banner, .badge, .sound]
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        await MainActor.run {
+            PushNotificationManager.shared.handleNotificationResponse(response)
+        }
+    }
+}
+
+#else
+import UIKit
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Set up notification delegate
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    // MARK: - Push Notification Registration
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Task { @MainActor in
+            PushNotificationManager.shared.didRegisterForRemoteNotifications(withDeviceToken: deviceToken)
+        }
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Task { @MainActor in
+            PushNotificationManager.shared.didFailToRegisterForRemoteNotifications(withError: error)
+        }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        // Show notification even when app is in foreground
+        return [.banner, .badge, .sound]
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        await MainActor.run {
+            PushNotificationManager.shared.handleNotificationResponse(response)
+        }
+    }
 }
 #endif
 
@@ -59,6 +130,8 @@ struct SwiftlyFeedbackAdminApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.openWindow) private var openWindow
+    #else
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
     @State private var deepLinkManager = DeepLinkManager.shared

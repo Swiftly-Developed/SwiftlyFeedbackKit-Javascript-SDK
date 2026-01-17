@@ -169,6 +169,15 @@ struct VoteController: RouteCollection {
             }
         }
 
+        // Send push notification for new vote
+        Task {
+            await req.pushNotificationService.sendVoteNotification(
+                feedback: feedback,
+                voteCount: feedback.voteCount,
+                on: req.db
+            )
+        }
+
         return VoteResponseDTO(feedbackId: feedbackId, voteCount: feedback.voteCount, hasVoted: true)
     }
 

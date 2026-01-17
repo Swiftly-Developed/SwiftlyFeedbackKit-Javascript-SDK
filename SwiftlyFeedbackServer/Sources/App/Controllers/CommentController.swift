@@ -310,6 +310,28 @@ struct CommentController: RouteCollection {
             }
         }
 
+        // Send push notification for new comment
+        // Determine the author's User ID if they're an admin with a registered account
+        Task {
+            var authorUserId: UUID? = nil
+
+            // If commenting as admin, try to find the user by checking auth token
+            if dto.isAdmin ?? false {
+                // Check if there's an authenticated user (admin commenting via Admin app)
+                if let authUser = try? req.auth.require(User.self) {
+                    authorUserId = try? authUser.requireID()
+                }
+            }
+
+            await req.pushNotificationService.sendNewCommentNotification(
+                comment: comment,
+                feedback: feedback,
+                project: project,
+                authorId: authorUserId ?? UUID(), // Use a placeholder if not authenticated
+                on: req.db
+            )
+        }
+
         return CommentResponseDTO(comment: comment)
     }
 

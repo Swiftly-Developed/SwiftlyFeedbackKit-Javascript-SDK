@@ -235,6 +235,19 @@ struct SettingsView: View {
     @ViewBuilder
     private var notificationsSection: some View {
         Section {
+            // Push Notifications link
+            NavigationLink {
+                PushNotificationSettingsView(authViewModel: authViewModel)
+            } label: {
+                SettingsRowView(
+                    icon: "bell.badge.fill",
+                    iconColor: .red,
+                    title: "Push Notifications",
+                    showChevron: true
+                )
+            }
+
+            // Email: New Feedback
             Toggle(isOn: Binding(
                 get: { authViewModel.currentUser?.notifyNewFeedback ?? true },
                 set: { newValue in
@@ -314,7 +327,7 @@ struct SettingsView: View {
         } header: {
             Text("Notifications")
         } footer: {
-            Text("Email notifications for your projects.")
+            Text("Configure email and push notifications for your projects.")
         }
     }
 

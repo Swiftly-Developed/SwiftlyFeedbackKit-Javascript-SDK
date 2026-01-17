@@ -72,8 +72,26 @@ struct MessageResponseDTO: Content {
 }
 
 struct UpdateNotificationSettingsDTO: Content {
+    // Email preferences (existing)
     let notifyNewFeedback: Bool?
     let notifyNewComments: Bool?
+
+    // Push preferences (new)
+    let pushNotificationsEnabled: Bool?
+    let pushNotifyNewFeedback: Bool?
+    let pushNotifyNewComments: Bool?
+    let pushNotifyVotes: Bool?
+    let pushNotifyStatusChanges: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case notifyNewFeedback = "notify_new_feedback"
+        case notifyNewComments = "notify_new_comments"
+        case pushNotificationsEnabled = "push_notifications_enabled"
+        case pushNotifyNewFeedback = "push_notify_new_feedback"
+        case pushNotifyNewComments = "push_notify_new_comments"
+        case pushNotifyVotes = "push_notify_votes"
+        case pushNotifyStatusChanges = "push_notify_status_changes"
+    }
 }
 
 struct ForgotPasswordDTO: Content, Validatable {

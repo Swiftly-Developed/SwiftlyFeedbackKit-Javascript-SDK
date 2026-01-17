@@ -43,4 +43,7 @@
    <FileRef
       location = "group:docs/REJECTION_REASON_PLAN.md">
    </FileRef>
+   <FileRef
+      location = "group:docs/PROJECT_OWNERSHIP_TRANSFER_PLAN.md">
+   </FileRef>
 </Workspace>
