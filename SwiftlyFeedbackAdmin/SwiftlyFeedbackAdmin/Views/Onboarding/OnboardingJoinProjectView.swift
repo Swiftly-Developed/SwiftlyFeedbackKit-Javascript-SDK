@@ -8,10 +8,11 @@ struct OnboardingJoinProjectView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
-        GeometryReader { geometry in
+        VStack(spacing: 0) {
+            // Scrollable content
             ScrollView {
                 VStack(spacing: platformSpacing) {
-                    Spacer(minLength: topSpacing(for: geometry))
+                    Spacer(minLength: 16)
 
                     // Header
                     VStack(spacing: 12) {
@@ -158,30 +159,36 @@ struct OnboardingJoinProjectView: View {
                         .accessibilityHint(preview.emailMatches ? "Accept and join the project" : "Email doesn't match the invitation")
                     }
 
-                    Spacer(minLength: 20)
-
-                    // Back Button
-                    Button {
-                        viewModel.clearInvitePreview()
-                        onBack()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "chevron.left")
-                            Text("Back")
-                        }
-                        .foregroundStyle(.secondary)
-                        .frame(minHeight: 44)
-                    }
-                    .buttonStyle(.plain)
-                    .font(.subheadline)
-                    .padding(.bottom, bottomPadding)
-                    .accessibilityLabel("Go back to project choice")
+                    Spacer(minLength: 16)
                 }
                 .padding(.horizontal, horizontalPadding)
                 .frame(maxWidth: maxContentWidth)
                 .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Fixed bottom button
+            VStack(spacing: 12) {
+                Button {
+                    viewModel.clearInvitePreview()
+                    onBack()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                        Text("Back")
+                    }
+                    .foregroundStyle(.secondary)
+                    .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .font(.subheadline)
+                .accessibilityLabel("Go back to project choice")
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, 12)
+            .padding(.bottom, bottomPadding)
+            .frame(maxWidth: maxContentWidth)
+            .frame(maxWidth: .infinity)
+            .background(bottomBackground)
         }
         .animation(.easeInOut(duration: 0.3), value: viewModel.invitePreview != nil)
         .onAppear {
@@ -259,21 +266,17 @@ struct OnboardingJoinProjectView: View {
 
     private var bottomPadding: CGFloat {
         #if os(macOS)
-        return 32
+        return 20
         #else
-        return isCompactWidth ? 16 : 32
+        return isCompactWidth ? 12 : 20
         #endif
     }
 
-    private func topSpacing(for geometry: GeometryProxy) -> CGFloat {
+    private var bottomBackground: some ShapeStyle {
         #if os(macOS)
-        return max(16, geometry.size.height * 0.03)
+        return Color(nsColor: .windowBackgroundColor)
         #else
-        if isCompactWidth {
-            return 16
-        } else {
-            return max(32, geometry.size.height * 0.05)
-        }
+        return Color(uiColor: .systemGroupedBackground)
         #endif
     }
 }

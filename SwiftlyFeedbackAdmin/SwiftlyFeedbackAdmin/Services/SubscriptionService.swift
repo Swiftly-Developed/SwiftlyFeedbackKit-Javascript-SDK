@@ -49,7 +49,7 @@ enum SubscriptionTier: String, Codable, Sendable, CaseIterable {
 
     /// Whether the tier has access to integrations (Slack, GitHub, Email)
     var hasIntegrations: Bool {
-        self == .team
+        self != .free
     }
 
     /// Whether the tier has advanced analytics (MRR, detailed insights)
@@ -91,12 +91,53 @@ final class SubscriptionService: @unchecked Sendable {
     /// Entitlement identifier for Pro tier (must match RevenueCat dashboard)
     static let proEntitlementID = "Swiftly Pro"
 
+    /// Entitlement identifier for Team tier (must match RevenueCat dashboard)
+    static let teamEntitlementID = "Swiftly Team"
+
     /// Product identifiers
     enum ProductID: String, CaseIterable {
         case proMonthly = "swiftlyfeedback.pro.monthly"
         case proYearly = "swiftlyfeedback.pro.yearly"
         case teamMonthly = "swiftlyfeedback.team.monthly"
         case teamYearly = "swiftlyfeedback.team.yearly"
+    }
+
+    // MARK: - DEBUG Tier Simulation
+
+    #if DEBUG
+    /// DEBUG only: Simulated tier for testing specific tier behaviors
+    /// Set via Developer Center. nil = use environment override or actual tier
+    /// Stored in SecureStorageManager with "debug" scope.
+
+    /// Backing storage for simulatedTier - @Observable tracks this property
+    private var _simulatedTier: SubscriptionTier? = {
+        guard let raw: String = SecureStorageManager.shared.get(.simulatedSubscriptionTier) else { return nil }
+        return SubscriptionTier(rawValue: raw)
+    }()
+
+    var simulatedTier: SubscriptionTier? {
+        get { _simulatedTier }
+        set {
+            _simulatedTier = newValue
+            if let tier = newValue {
+                SecureStorageManager.shared.set(tier.rawValue, for: .simulatedSubscriptionTier)
+            } else {
+                SecureStorageManager.shared.remove(.simulatedSubscriptionTier)
+            }
+            AppLogger.storage.debug("Simulated tier set to: \(newValue?.rawValue ?? "nil")")
+        }
+    }
+
+    func clearSimulatedTier() {
+        simulatedTier = nil
+        AppLogger.storage.debug("Simulated tier cleared")
+    }
+    #endif
+
+    /// Clears the cached server tier (used when resetting purchases in Developer Center)
+    func clearServerTier() {
+        serverTier = nil
+        AppLogger.subscription.debug("Server tier cleared")
     }
 
     // MARK: - State
@@ -116,28 +157,66 @@ final class SubscriptionService: @unchecked Sendable {
     /// Available offerings from RevenueCat
     private(set) var offerings: Offerings?
 
+    /// Server-side tier (used when RevenueCat doesn't have an active subscription)
+    /// This is populated from the /auth/subscription/sync response
+    private(set) var serverTier: SubscriptionTier?
+
     // MARK: - Computed Properties - Tier
 
     /// The user's current subscription tier based on RevenueCat entitlements
+    /// Falls back to server tier if RevenueCat has no active subscription
     var currentTier: SubscriptionTier {
-        guard let customerInfo else { return .free }
+        // First check RevenueCat entitlements
+        if let customerInfo {
+            // Check Team first (higher tier)
+            if customerInfo.entitlements[Self.teamEntitlementID]?.isActive == true {
+                return .team
+            }
 
-        // Check for Pro entitlement
-        if customerInfo.entitlements[Self.proEntitlementID]?.isActive == true {
-            return .pro
+            // Check for Pro entitlement
+            if customerInfo.entitlements[Self.proEntitlementID]?.isActive == true {
+                return .pro
+            }
+        }
+
+        // If RevenueCat has no active subscription, use server tier
+        // This handles cases like:
+        // - DEBUG builds without App Store receipts
+        // - Server-side tier overrides (from Developer Center)
+        // - Users who purchased through other means (e.g., promo codes applied server-side)
+        if let serverTier {
+            return serverTier
         }
 
         return .free
     }
 
+    /// Effective tier considering simulation (DEBUG only)
+    /// Priority: 1. Simulated tier (DEBUG only), 2. Actual RevenueCat tier
+    var effectiveTier: SubscriptionTier {
+        #if DEBUG
+        // If a specific tier is being simulated, use it
+        if let simulated = simulatedTier {
+            return simulated
+        }
+        #endif
+        // Otherwise use actual RevenueCat tier
+        return currentTier
+    }
+
+    /// Check if user meets tier requirement (considering environment override)
+    func meetsRequirement(_ required: SubscriptionTier) -> Bool {
+        effectiveTier.meetsRequirement(required)
+    }
+
     /// Whether the user has an active Team subscription
     var isTeamSubscriber: Bool {
-        currentTier == .team
+        effectiveTier == .team
     }
 
     /// Whether the user has an active Pro subscription (or higher)
     var isProSubscriber: Bool {
-        currentTier == .pro || currentTier == .team
+        effectiveTier == .pro || effectiveTier == .team
     }
 
     /// Whether the user has any paid subscription
@@ -203,6 +282,9 @@ final class SubscriptionService: @unchecked Sendable {
     func logout() async {
         AppLogger.subscription.info("Logging out from RevenueCat")
 
+        // Clear server tier on logout
+        serverTier = nil
+
         do {
             let customerInfo = try await Purchases.shared.logOut()
             self.customerInfo = customerInfo
@@ -252,15 +334,25 @@ final class SubscriptionService: @unchecked Sendable {
         AppLogger.subscription.info("Starting purchase for package: \(package.identifier)")
 
         do {
-            let (_, customerInfo, _) = try await Purchases.shared.purchase(package: package)
+            let (_, customerInfo, userCancelled) = try await Purchases.shared.purchase(package: package)
+
+            // Check if user cancelled the purchase
+            if userCancelled {
+                AppLogger.subscription.info("Purchase cancelled by user")
+                throw SubscriptionError.purchaseCancelled
+            }
+
             self.customerInfo = customerInfo
             AppLogger.subscription.info("Purchase successful, tier: \(currentTier.displayName)")
 
             // Sync with server after purchase
             await syncWithServer()
+        } catch SubscriptionError.purchaseCancelled {
+            // Re-throw our own cancellation error
+            throw SubscriptionError.purchaseCancelled
         } catch let error as ErrorCode {
             if error == .purchaseCancelledError {
-                AppLogger.subscription.info("Purchase cancelled by user")
+                AppLogger.subscription.info("Purchase cancelled by user (ErrorCode)")
                 throw SubscriptionError.purchaseCancelled
             }
             AppLogger.subscription.error("Purchase failed: \(error)")
@@ -292,18 +384,35 @@ final class SubscriptionService: @unchecked Sendable {
 
     // MARK: - Server Sync
 
+    /// Response from the subscription sync endpoint
+    /// Note: AdminAPIClient uses .convertFromSnakeCase, so property names are auto-converted
+    private struct SubscriptionSyncResponse: Codable {
+        let tier: SubscriptionTier
+        let limits: Limits?
+
+        struct Limits: Codable {
+            let canCreateProject: Bool
+            let currentProjectCount: Int
+            // No CodingKeys needed - AdminAPIClient uses .convertFromSnakeCase
+        }
+    }
+
     /// Sync subscription status with the server
     private func syncWithServer() async {
         AppLogger.subscription.info("Syncing subscription with server")
 
         do {
             // Call the server sync endpoint
-            let _: EmptyResponse = try await AdminAPIClient.shared.post(
+            let response: SubscriptionSyncResponse = try await AdminAPIClient.shared.post(
                 path: "auth/subscription/sync",
                 body: ["revenuecat_app_user_id": Purchases.shared.appUserID],
                 requiresAuth: true
             )
-            AppLogger.subscription.info("Subscription synced with server")
+
+            // Store the server's tier
+            // This is authoritative when RevenueCat doesn't have an active subscription
+            serverTier = response.tier
+            AppLogger.subscription.info("Subscription synced with server, server tier: \(response.tier.displayName), effective tier: \(effectiveTier.displayName)")
         } catch {
             AppLogger.subscription.error("Failed to sync subscription with server: \(error)")
             // Don't throw - this is a best-effort sync
@@ -344,10 +453,6 @@ final class SubscriptionService: @unchecked Sendable {
         showError = false
     }
 }
-
-// MARK: - Empty Response
-
-private struct EmptyResponse: Codable {}
 
 // MARK: - Errors
 

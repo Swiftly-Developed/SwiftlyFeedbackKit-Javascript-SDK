@@ -88,6 +88,41 @@ final class Feedback: Model, Content, @unchecked Sendable {
     @OptionalField(key: "linear_issue_id")
     var linearIssueId: String?
 
+    // Trello integration fields
+    @OptionalField(key: "trello_card_url")
+    var trelloCardURL: String?
+
+    @OptionalField(key: "trello_card_id")
+    var trelloCardId: String?
+
+    // Airtable integration fields
+    @OptionalField(key: "airtable_record_url")
+    var airtableRecordURL: String?
+
+    @OptionalField(key: "airtable_record_id")
+    var airtableRecordId: String?
+
+    // Asana integration fields
+    @OptionalField(key: "asana_task_url")
+    var asanaTaskURL: String?
+
+    @OptionalField(key: "asana_task_id")
+    var asanaTaskId: String?
+
+    // Basecamp integration fields
+    @OptionalField(key: "basecamp_todo_url")
+    var basecampTodoURL: String?
+
+    @OptionalField(key: "basecamp_todo_id")
+    var basecampTodoId: String?
+
+    @OptionalField(key: "basecamp_bucket_id")
+    var basecampBucketId: String?
+
+    // Rejection reason (only used when status is rejected)
+    @OptionalField(key: "rejection_reason")
+    var rejectionReason: String?
+
     /// Whether this feedback has been merged into another
     var isMerged: Bool {
         mergedIntoId != nil
@@ -121,6 +156,26 @@ final class Feedback: Model, Content, @unchecked Sendable {
     /// Whether this feedback has a linked Linear issue
     var hasLinearIssue: Bool {
         linearIssueURL != nil
+    }
+
+    /// Whether this feedback has a linked Trello card
+    var hasTrelloCard: Bool {
+        trelloCardURL != nil
+    }
+
+    /// Whether this feedback has a linked Airtable record
+    var hasAirtableRecord: Bool {
+        airtableRecordURL != nil
+    }
+
+    /// Whether this feedback has a linked Asana task
+    var hasAsanaTask: Bool {
+        asanaTaskURL != nil
+    }
+
+    /// Whether this feedback has a linked Basecamp to-do
+    var hasBasecampTodo: Bool {
+        basecampTodoURL != nil
     }
 
     init() {}
@@ -159,6 +214,12 @@ enum FeedbackStatus: String, Codable, CaseIterable {
     /// All statuses that are enabled by default for new projects
     static var defaultAllowed: [FeedbackStatus] {
         [.pending, .approved, .inProgress, .completed, .rejected]
+    }
+
+    /// Default statuses that trigger email notifications to voters and feedback submitters
+    /// Excludes 'pending' (initial state) and 'testflight' (internal testing)
+    static var defaultEmailNotifyStatuses: [FeedbackStatus] {
+        [.approved, .inProgress, .completed, .rejected]
     }
 
     /// Maps SwiftlyFeedback status to ClickUp status names
@@ -232,6 +293,72 @@ enum FeedbackStatus: String, Codable, CaseIterable {
             return "completed"
         case .rejected:
             return "canceled"
+        }
+    }
+
+    /// Maps SwiftlyFeedback status to Airtable status names
+    var airtableStatusName: String {
+        switch self {
+        case .pending:
+            return "Pending"
+        case .approved:
+            return "Approved"
+        case .inProgress:
+            return "In Progress"
+        case .testflight:
+            return "TestFlight"
+        case .completed:
+            return "Completed"
+        case .rejected:
+            return "Rejected"
+        }
+    }
+
+    /// Maps SwiftlyFeedback status to Asana status names (for enum custom field)
+    var asanaStatusName: String {
+        switch self {
+        case .pending:
+            return "To Do"
+        case .approved:
+            return "Approved"
+        case .inProgress:
+            return "In Progress"
+        case .testflight:
+            return "In Review"
+        case .completed:
+            return "Complete"
+        case .rejected:
+            return "Closed"
+        }
+    }
+
+    /// Whether this status should mark a Basecamp to-do as complete
+    var basecampIsCompleted: Bool {
+        switch self {
+        case .completed, .rejected:
+            return true
+        case .pending, .approved, .inProgress, .testflight:
+            return false
+        }
+    }
+
+    /// Initialize from Airtable status (for future bi-directional sync)
+    init?(airtableStatus: String) {
+        switch airtableStatus.lowercased() {
+        case "pending":
+            self = .pending
+        case "approved":
+            self = .approved
+        case "in progress", "in_progress":
+            self = .inProgress
+        case "testflight", "test flight":
+            self = .testflight
+        case "completed", "complete", "done":
+            self = .completed
+        case "rejected", "closed":
+            self = .rejected
+        default:
+            return nil
         }
     }
 }

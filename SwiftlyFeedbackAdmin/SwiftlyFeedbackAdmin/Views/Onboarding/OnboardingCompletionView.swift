@@ -9,15 +9,16 @@ struct OnboardingCompletionView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
-        GeometryReader { geometry in
+        VStack(spacing: 0) {
+            // Scrollable content
             ScrollView {
                 VStack(spacing: platformSpacing) {
-                    Spacer(minLength: topSpacing(for: geometry))
+                    Spacer(minLength: 16)
 
                     // Success Animation
                     ZStack {
                         // Animated rings
-                        ForEach(0..<3, id: \.self) { index in
+                        ForEach(0..<2, id: \.self) { index in
                             Circle()
                                 .stroke(
                                     LinearGradient(
@@ -28,10 +29,10 @@ struct OnboardingCompletionView: View {
                                     lineWidth: 2
                                 )
                                 .frame(
-                                    width: checkmarkSize + CGFloat(index * 30),
-                                    height: checkmarkSize + CGFloat(index * 30)
+                                    width: checkmarkSize + CGFloat(index * 20),
+                                    height: checkmarkSize + CGFloat(index * 20)
                                 )
-                                .opacity(animateCheckmark ? 0.5 - Double(index) * 0.15 : 0)
+                                .opacity(animateCheckmark ? 0.5 - Double(index) * 0.2 : 0)
                                 .scaleEffect(animateCheckmark ? 1 : 0.5)
                         }
 
@@ -45,7 +46,7 @@ struct OnboardingCompletionView: View {
                             )
                             .frame(width: checkmarkSize, height: checkmarkSize)
                             .scaleEffect(animateCheckmark ? 1 : 0)
-                            .shadow(color: .green.opacity(0.3), radius: 20, x: 0, y: 10)
+                            .shadow(color: .green.opacity(0.3), radius: 16, x: 0, y: 8)
 
                         Image(systemName: "checkmark")
                             .font(.system(size: checkmarkIconSize, weight: .bold))
@@ -54,7 +55,7 @@ struct OnboardingCompletionView: View {
                             .scaleEffect(animateCheckmark ? 1 : 0.5)
                             .accessibilityHidden(true)
                     }
-                    .frame(height: checkmarkSize + 60)
+                    .frame(height: checkmarkSize + 32)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Success")
 
@@ -106,28 +107,45 @@ struct OnboardingCompletionView: View {
                         .offset(y: animateContent ? 0 : 20)
                         .animation(.easeOut(duration: 0.5).delay(0.3), value: animateContent)
 
-                    Spacer(minLength: 20)
-
-                    // Get Started Button
-                    Button {
-                        viewModel.completeOnboarding()
-                        onComplete()
-                    } label: {
-                        Text("Get Started")
-                            .font(.headline)
-                            .frame(maxWidth: buttonMaxWidth)
-                            .frame(minHeight: 44)
+                    // Environment Note (for non-production environments)
+                    if AppConfiguration.currentEnvironment != .production {
+                        EnvironmentNoteSection(
+                            environment: AppConfiguration.currentEnvironment,
+                            isCompact: isCompactWidth
+                        )
+                        .opacity(animateContent ? 1 : 0)
+                        .offset(y: animateContent ? 0 : 20)
+                        .animation(.easeOut(duration: 0.5).delay(0.4), value: animateContent)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .padding(.bottom, bottomPadding)
-                    .accessibilityHint("Complete onboarding and start using Feedback Kit")
+
+                    Spacer(minLength: 16)
                 }
                 .padding(.horizontal, horizontalPadding)
                 .frame(maxWidth: maxContentWidth)
                 .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Fixed bottom button
+            VStack(spacing: 12) {
+                Button {
+                    viewModel.completeOnboarding()
+                    onComplete()
+                } label: {
+                    Text("Get Started")
+                        .font(.headline)
+                        .frame(maxWidth: buttonMaxWidth)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .accessibilityHint("Complete onboarding and start using Feedback Kit")
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, 12)
+            .padding(.bottom, bottomPadding)
+            .frame(maxWidth: maxContentWidth)
+            .frame(maxWidth: .infinity)
+            .background(bottomBackground)
         }
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
@@ -164,41 +182,41 @@ struct OnboardingCompletionView: View {
 
     private var checkmarkSize: CGFloat {
         #if os(macOS)
-        return 100
+        return 72
         #else
-        return isCompactWidth ? 100 : 120
+        return isCompactWidth ? 72 : 88
         #endif
     }
 
     private var checkmarkIconSize: CGFloat {
         #if os(macOS)
-        return 44
+        return 32
         #else
-        return isCompactWidth ? 44 : 52
+        return isCompactWidth ? 32 : 40
         #endif
     }
 
     private var titleFont: Font {
         #if os(macOS)
-        return .largeTitle
+        return .title
         #else
-        return isCompactWidth ? .title : .largeTitle
+        return isCompactWidth ? .title2 : .title
         #endif
     }
 
     private var subtitleFont: Font {
         #if os(macOS)
-        return .title3
+        return .body
         #else
-        return isCompactWidth ? .body : .title3
+        return isCompactWidth ? .subheadline : .body
         #endif
     }
 
     private var platformSpacing: CGFloat {
         #if os(macOS)
-        return 28
+        return 16
         #else
-        return isCompactWidth ? 24 : 32
+        return isCompactWidth ? 16 : 20
         #endif
     }
 
@@ -228,21 +246,17 @@ struct OnboardingCompletionView: View {
 
     private var bottomPadding: CGFloat {
         #if os(macOS)
-        return 32
+        return 20
         #else
-        return isCompactWidth ? 16 : 32
+        return isCompactWidth ? 12 : 20
         #endif
     }
 
-    private func topSpacing(for geometry: GeometryProxy) -> CGFloat {
+    private var bottomBackground: some ShapeStyle {
         #if os(macOS)
-        return max(20, geometry.size.height * 0.05)
+        return Color(nsColor: .windowBackgroundColor)
         #else
-        if isCompactWidth {
-            return 20
-        } else {
-            return max(40, geometry.size.height * 0.08)
-        }
+        return Color(uiColor: .systemGroupedBackground)
         #endif
     }
 }
@@ -409,6 +423,80 @@ private struct NextStepsSection: View {
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color.secondary.opacity(0.05))
+        )
+    }
+}
+
+// MARK: - Environment Note Section
+
+/// Shows important notes about the current environment (DEV/TestFlight)
+private struct EnvironmentNoteSection: View {
+    let environment: AppEnvironment
+    let isCompact: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Circle()
+                    .fill(environment.color)
+                    .frame(width: 8, height: 8)
+                Text("\(environment.displayName) Environment")
+                    .font(.headline)
+                Spacer()
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(environment.displayName) environment active")
+
+            VStack(alignment: .leading, spacing: isCompact ? 10 : 12) {
+                // All features unlocked
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "checkmark.seal.fill")
+                        .foregroundStyle(.green)
+                        .frame(width: 20)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("All Features Unlocked")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        Text("Pro and Team features are enabled for testing.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+
+                // Data retention warning
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: "clock.badge.exclamationmark.fill")
+                        .foregroundStyle(.orange)
+                        .frame(width: 20)
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("7-Day Data Retention")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        Text("Test data is automatically deleted after 7 days.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(isCompact ? 16 : 20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(environment.color.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(environment.color.opacity(0.3), lineWidth: 1)
         )
     }
 }

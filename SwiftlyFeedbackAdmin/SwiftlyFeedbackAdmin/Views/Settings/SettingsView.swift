@@ -5,13 +5,13 @@ struct SettingsView: View {
     var projectViewModel: ProjectViewModel?
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @State private var subscriptionService = SubscriptionService.shared
+    @Environment(SubscriptionService.self) private var subscriptionService
     @State private var appConfiguration = AppConfiguration.shared
     @State private var showingLogoutConfirmation = false
     @State private var showingChangePassword = false
     @State private var showingDeleteAccount = false
     #if os(iOS)
-    @State private var showingDeveloperCommands = false
+    @State private var showingDeveloperCenter = false
     #endif
     @State private var showingSubscription = false
     @State private var pendingLogout = false
@@ -38,9 +38,9 @@ struct SettingsView: View {
                 #endif
             }
             #if os(iOS)
-            .sheet(isPresented: $showingDeveloperCommands) {
+            .sheet(isPresented: $showingDeveloperCenter) {
                 if let projectViewModel = projectViewModel {
-                    DeveloperCommandsView(projectViewModel: projectViewModel)
+                    DeveloperCenterView(projectViewModel: projectViewModel)
                 }
             }
             #endif
@@ -95,7 +95,7 @@ struct SettingsView: View {
             // About Section
             aboutSection
 
-            // Developer Commands (DEBUG or TestFlight only, iOS only - macOS uses menu)
+            // Developer Center (DEBUG or TestFlight only, iOS only - macOS uses menu)
             #if os(iOS)
             if BuildEnvironment.canShowTestingFeatures, let projectViewModel = projectViewModel {
                 developerSection(projectViewModel: projectViewModel)
@@ -167,7 +167,7 @@ struct SettingsView: View {
                     .overlay {
                         Image(systemName: subscriptionIcon)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(subscriptionService.isPaidSubscriber ? .white : .gray)
+                            .foregroundStyle(subscriptionService.effectiveTier != .free ? .white : .gray)
                     }
 
                     Text("Subscription")
@@ -204,7 +204,7 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var subscriptionGradient: some View {
-        switch subscriptionService.currentTier {
+        switch subscriptionService.effectiveTier {
         case .free:
             Color.gray.opacity(0.3)
         case .pro:
@@ -223,7 +223,7 @@ struct SettingsView: View {
     }
 
     private var subscriptionIcon: String {
-        switch subscriptionService.currentTier {
+        switch subscriptionService.effectiveTier {
         case .free: return "crown"
         case .pro: return "crown.fill"
         case .team: return "person.3.fill"
@@ -235,6 +235,19 @@ struct SettingsView: View {
     @ViewBuilder
     private var notificationsSection: some View {
         Section {
+            // Push Notifications link
+            NavigationLink {
+                PushNotificationSettingsView(authViewModel: authViewModel)
+            } label: {
+                SettingsRowView(
+                    icon: "bell.badge.fill",
+                    iconColor: .red,
+                    title: "Push Notifications",
+                    showChevron: true
+                )
+            }
+
+            // Email: New Feedback
             Toggle(isOn: Binding(
                 get: { authViewModel.currentUser?.notifyNewFeedback ?? true },
                 set: { newValue in
@@ -262,14 +275,25 @@ struct SettingsView: View {
                 }
             }
 
+            // New Comments notification (Pro tier only - disabled for Free)
             Toggle(isOn: Binding(
-                get: { authViewModel.currentUser?.notifyNewComments ?? true },
+                get: {
+                    // Free tier: always OFF
+                    // Pro+: use actual setting
+                    if subscriptionService.meetsRequirement(.pro) {
+                        return authViewModel.currentUser?.notifyNewComments ?? true
+                    }
+                    return false
+                },
                 set: { newValue in
-                    Task {
-                        await authViewModel.updateNotificationSettings(
-                            notifyNewFeedback: nil,
-                            notifyNewComments: newValue
-                        )
+                    // Only allow changes for Pro+ users
+                    if subscriptionService.meetsRequirement(.pro) {
+                        Task {
+                            await authViewModel.updateNotificationSettings(
+                                notifyNewFeedback: nil,
+                                notifyNewComments: newValue
+                            )
+                        }
                     }
                 }
             )) {
@@ -281,17 +305,29 @@ struct SettingsView: View {
                         .background(.green, in: RoundedRectangle(cornerRadius: 6))
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("New Comments")
+                        HStack(spacing: 6) {
+                            Text("New Comments")
+                            if !subscriptionService.meetsRequirement(.pro) {
+                                Text("Pro")
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.purple, in: Capsule())
+                            }
+                        }
                         Text("Receive email when comments are added")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
+            .disabled(!subscriptionService.meetsRequirement(.pro))
         } header: {
             Text("Notifications")
         } footer: {
-            Text("Email notifications for your projects.")
+            Text("Configure email and push notifications for your projects.")
         }
     }
 
@@ -337,12 +373,27 @@ struct SettingsView: View {
                 value: appBuild
             )
 
-            SettingsInfoRowView(
-                icon: "server.rack",
-                iconColor: .purple,
-                title: "Server",
-                value: appConfiguration.baseURL
-            )
+            // Environment row with color indicator
+            HStack(spacing: 12) {
+                Image(systemName: "server.rack")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(appConfiguration.environment.color, in: RoundedRectangle(cornerRadius: 6))
+
+                Text("Environment")
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(appConfiguration.environment.color)
+                        .frame(width: 8, height: 8)
+                    Text(appConfiguration.environment.displayName)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             Link(destination: URL(string: "https://swiftly-developed.com/feedbackkit-privacypolicy")!) {
                 SettingsRowView(
@@ -358,7 +409,7 @@ struct SettingsView: View {
                 SettingsRowView(
                     icon: "doc.text.fill",
                     iconColor: .teal,
-                    title: "Terms of Service",
+                    title: "Terms of Use",
                     showChevron: true
                 )
             }
@@ -420,12 +471,12 @@ struct SettingsView: View {
     private func developerSection(projectViewModel: ProjectViewModel) -> some View {
         Section {
             Button {
-                showingDeveloperCommands = true
+                showingDeveloperCenter = true
             } label: {
                 SettingsRowView(
                     icon: "hammer.fill",
                     iconColor: .orange,
-                    title: "Developer Commands",
+                    title: "Developer Center",
                     showChevron: true
                 )
             }

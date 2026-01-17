@@ -26,6 +26,7 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let slackNotifyStatusChanges: Bool
     let slackIsActive: Bool
     let allowedStatuses: [String]
+    let emailNotifyStatuses: [String]
     // GitHub integration fields
     let githubOwner: String?
     let githubRepo: String?
@@ -73,6 +74,54 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
     let linearSyncStatus: Bool
     let linearSyncComments: Bool
     let linearIsActive: Bool
+    // Trello integration fields
+    let trelloToken: String?
+    let trelloBoardId: String?
+    let trelloBoardName: String?
+    let trelloListId: String?
+    let trelloListName: String?
+    let trelloSyncStatus: Bool
+    let trelloSyncComments: Bool
+    let trelloIsActive: Bool
+    // Airtable integration fields
+    let airtableToken: String?
+    let airtableBaseId: String?
+    let airtableBaseName: String?
+    let airtableTableId: String?
+    let airtableTableName: String?
+    let airtableSyncStatus: Bool
+    let airtableSyncComments: Bool
+    let airtableStatusFieldId: String?
+    let airtableVotesFieldId: String?
+    let airtableTitleFieldId: String?
+    let airtableDescriptionFieldId: String?
+    let airtableCategoryFieldId: String?
+    let airtableIsActive: Bool
+    // Asana integration fields
+    let asanaToken: String?
+    let asanaWorkspaceId: String?
+    let asanaWorkspaceName: String?
+    let asanaProjectId: String?
+    let asanaProjectName: String?
+    let asanaSectionId: String?
+    let asanaSectionName: String?
+    let asanaSyncStatus: Bool
+    let asanaSyncComments: Bool
+    let asanaStatusFieldId: String?
+    let asanaVotesFieldId: String?
+    let asanaIsActive: Bool
+    // Basecamp integration fields
+    let basecampAccessToken: String?
+    let basecampAccountId: String?
+    let basecampAccountName: String?
+    let basecampProjectId: String?
+    let basecampProjectName: String?
+    let basecampTodosetId: String?
+    let basecampTodolistId: String?
+    let basecampTodolistName: String?
+    let basecampSyncStatus: Bool
+    let basecampSyncComments: Bool
+    let basecampIsActive: Bool
 
     /// Whether Slack integration is configured (has webhook URL)
     var isSlackConfigured: Bool {
@@ -134,14 +183,54 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         isLinearConfigured && linearIsActive
     }
 
+    /// Whether Trello integration is configured (has required fields)
+    var isTrelloConfigured: Bool {
+        trelloToken != nil && trelloBoardId != nil && trelloListId != nil
+    }
+
+    /// Whether Trello integration is active (configured AND enabled)
+    var isTrelloActive: Bool {
+        isTrelloConfigured && trelloIsActive
+    }
+
+    /// Whether Airtable integration is configured (has required fields)
+    var isAirtableConfigured: Bool {
+        airtableToken != nil && airtableBaseId != nil && airtableTableId != nil
+    }
+
+    /// Whether Airtable integration is active (configured AND enabled)
+    var isAirtableActive: Bool {
+        isAirtableConfigured && airtableIsActive
+    }
+
+    /// Whether Asana integration is configured (has required fields)
+    var isAsanaConfigured: Bool {
+        asanaToken != nil && asanaProjectId != nil
+    }
+
+    /// Whether Asana integration is active (configured AND enabled)
+    var isAsanaActive: Bool {
+        isAsanaConfigured && asanaIsActive
+    }
+
+    /// Whether Basecamp integration is configured (has required fields)
+    var isBasecampConfigured: Bool {
+        basecampAccessToken != nil && basecampAccountId != nil && basecampProjectId != nil && basecampTodolistId != nil
+    }
+
+    /// Whether Basecamp integration is active (configured AND enabled)
+    var isBasecampActive: Bool {
+        isBasecampConfigured && basecampIsActive
+    }
+
     /// Whether any integration is configured
     var hasAnyIntegration: Bool {
-        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured || isMondayConfigured || isLinearConfigured
+        isSlackConfigured || isGitHubConfigured || isClickUpConfigured || isNotionConfigured || isMondayConfigured || isLinearConfigured || isTrelloConfigured || isAirtableConfigured || isAsanaConfigured || isBasecampConfigured
     }
 
     /// Whether any integration is active
     var hasAnyActiveIntegration: Bool {
-        isSlackActive || isGitHubActive || isClickUpActive || isNotionActive || isMondayActive || isLinearActive
+        isSlackActive || isGitHubActive || isClickUpActive || isNotionActive || isMondayActive || isLinearActive || isTrelloActive || isAirtableActive || isAsanaActive || isBasecampActive
     }
 
     // Custom decoder to handle backwards compatibility when allowedStatuses is missing
@@ -168,6 +257,9 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         // Default to standard statuses if not present (backwards compatibility)
         allowedStatuses = try container.decodeIfPresent([String].self, forKey: .allowedStatuses)
             ?? ["pending", "approved", "in_progress", "completed", "rejected"]
+        // Default email notify statuses (backwards compatibility)
+        emailNotifyStatuses = try container.decodeIfPresent([String].self, forKey: .emailNotifyStatuses)
+            ?? ["approved", "in_progress", "completed", "rejected"]
         // GitHub fields (backwards compatibility)
         githubOwner = try container.decodeIfPresent(String.self, forKey: .githubOwner)
         githubRepo = try container.decodeIfPresent(String.self, forKey: .githubRepo)
@@ -215,6 +307,54 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         linearSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .linearSyncStatus) ?? false
         linearSyncComments = try container.decodeIfPresent(Bool.self, forKey: .linearSyncComments) ?? false
         linearIsActive = try container.decodeIfPresent(Bool.self, forKey: .linearIsActive) ?? true
+        // Trello fields (backwards compatibility)
+        trelloToken = try container.decodeIfPresent(String.self, forKey: .trelloToken)
+        trelloBoardId = try container.decodeIfPresent(String.self, forKey: .trelloBoardId)
+        trelloBoardName = try container.decodeIfPresent(String.self, forKey: .trelloBoardName)
+        trelloListId = try container.decodeIfPresent(String.self, forKey: .trelloListId)
+        trelloListName = try container.decodeIfPresent(String.self, forKey: .trelloListName)
+        trelloSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .trelloSyncStatus) ?? false
+        trelloSyncComments = try container.decodeIfPresent(Bool.self, forKey: .trelloSyncComments) ?? false
+        trelloIsActive = try container.decodeIfPresent(Bool.self, forKey: .trelloIsActive) ?? true
+        // Airtable fields (backwards compatibility)
+        airtableToken = try container.decodeIfPresent(String.self, forKey: .airtableToken)
+        airtableBaseId = try container.decodeIfPresent(String.self, forKey: .airtableBaseId)
+        airtableBaseName = try container.decodeIfPresent(String.self, forKey: .airtableBaseName)
+        airtableTableId = try container.decodeIfPresent(String.self, forKey: .airtableTableId)
+        airtableTableName = try container.decodeIfPresent(String.self, forKey: .airtableTableName)
+        airtableSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .airtableSyncStatus) ?? false
+        airtableSyncComments = try container.decodeIfPresent(Bool.self, forKey: .airtableSyncComments) ?? false
+        airtableStatusFieldId = try container.decodeIfPresent(String.self, forKey: .airtableStatusFieldId)
+        airtableVotesFieldId = try container.decodeIfPresent(String.self, forKey: .airtableVotesFieldId)
+        airtableTitleFieldId = try container.decodeIfPresent(String.self, forKey: .airtableTitleFieldId)
+        airtableDescriptionFieldId = try container.decodeIfPresent(String.self, forKey: .airtableDescriptionFieldId)
+        airtableCategoryFieldId = try container.decodeIfPresent(String.self, forKey: .airtableCategoryFieldId)
+        airtableIsActive = try container.decodeIfPresent(Bool.self, forKey: .airtableIsActive) ?? true
+        // Asana fields (backwards compatibility)
+        asanaToken = try container.decodeIfPresent(String.self, forKey: .asanaToken)
+        asanaWorkspaceId = try container.decodeIfPresent(String.self, forKey: .asanaWorkspaceId)
+        asanaWorkspaceName = try container.decodeIfPresent(String.self, forKey: .asanaWorkspaceName)
+        asanaProjectId = try container.decodeIfPresent(String.self, forKey: .asanaProjectId)
+        asanaProjectName = try container.decodeIfPresent(String.self, forKey: .asanaProjectName)
+        asanaSectionId = try container.decodeIfPresent(String.self, forKey: .asanaSectionId)
+        asanaSectionName = try container.decodeIfPresent(String.self, forKey: .asanaSectionName)
+        asanaSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .asanaSyncStatus) ?? false
+        asanaSyncComments = try container.decodeIfPresent(Bool.self, forKey: .asanaSyncComments) ?? false
+        asanaStatusFieldId = try container.decodeIfPresent(String.self, forKey: .asanaStatusFieldId)
+        asanaVotesFieldId = try container.decodeIfPresent(String.self, forKey: .asanaVotesFieldId)
+        asanaIsActive = try container.decodeIfPresent(Bool.self, forKey: .asanaIsActive) ?? true
+        // Basecamp fields (backwards compatibility)
+        basecampAccessToken = try container.decodeIfPresent(String.self, forKey: .basecampAccessToken)
+        basecampAccountId = try container.decodeIfPresent(String.self, forKey: .basecampAccountId)
+        basecampAccountName = try container.decodeIfPresent(String.self, forKey: .basecampAccountName)
+        basecampProjectId = try container.decodeIfPresent(String.self, forKey: .basecampProjectId)
+        basecampProjectName = try container.decodeIfPresent(String.self, forKey: .basecampProjectName)
+        basecampTodosetId = try container.decodeIfPresent(String.self, forKey: .basecampTodosetId)
+        basecampTodolistId = try container.decodeIfPresent(String.self, forKey: .basecampTodolistId)
+        basecampTodolistName = try container.decodeIfPresent(String.self, forKey: .basecampTodolistName)
+        basecampSyncStatus = try container.decodeIfPresent(Bool.self, forKey: .basecampSyncStatus) ?? false
+        basecampSyncComments = try container.decodeIfPresent(Bool.self, forKey: .basecampSyncComments) ?? false
+        basecampIsActive = try container.decodeIfPresent(Bool.self, forKey: .basecampIsActive) ?? true
     }
 
     init(
@@ -237,6 +377,7 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         slackNotifyStatusChanges: Bool,
         slackIsActive: Bool = true,
         allowedStatuses: [String],
+        emailNotifyStatuses: [String] = ["approved", "in_progress", "completed", "rejected"],
         githubOwner: String? = nil,
         githubRepo: String? = nil,
         githubToken: String? = nil,
@@ -278,7 +419,51 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         linearDefaultLabelIds: [String]? = nil,
         linearSyncStatus: Bool = false,
         linearSyncComments: Bool = false,
-        linearIsActive: Bool = true
+        linearIsActive: Bool = true,
+        trelloToken: String? = nil,
+        trelloBoardId: String? = nil,
+        trelloBoardName: String? = nil,
+        trelloListId: String? = nil,
+        trelloListName: String? = nil,
+        trelloSyncStatus: Bool = false,
+        trelloSyncComments: Bool = false,
+        trelloIsActive: Bool = true,
+        airtableToken: String? = nil,
+        airtableBaseId: String? = nil,
+        airtableBaseName: String? = nil,
+        airtableTableId: String? = nil,
+        airtableTableName: String? = nil,
+        airtableSyncStatus: Bool = false,
+        airtableSyncComments: Bool = false,
+        airtableStatusFieldId: String? = nil,
+        airtableVotesFieldId: String? = nil,
+        airtableTitleFieldId: String? = nil,
+        airtableDescriptionFieldId: String? = nil,
+        airtableCategoryFieldId: String? = nil,
+        airtableIsActive: Bool = true,
+        asanaToken: String? = nil,
+        asanaWorkspaceId: String? = nil,
+        asanaWorkspaceName: String? = nil,
+        asanaProjectId: String? = nil,
+        asanaProjectName: String? = nil,
+        asanaSectionId: String? = nil,
+        asanaSectionName: String? = nil,
+        asanaSyncStatus: Bool = false,
+        asanaSyncComments: Bool = false,
+        asanaStatusFieldId: String? = nil,
+        asanaVotesFieldId: String? = nil,
+        asanaIsActive: Bool = true,
+        basecampAccessToken: String? = nil,
+        basecampAccountId: String? = nil,
+        basecampAccountName: String? = nil,
+        basecampProjectId: String? = nil,
+        basecampProjectName: String? = nil,
+        basecampTodosetId: String? = nil,
+        basecampTodolistId: String? = nil,
+        basecampTodolistName: String? = nil,
+        basecampSyncStatus: Bool = false,
+        basecampSyncComments: Bool = false,
+        basecampIsActive: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -299,6 +484,7 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         self.slackNotifyStatusChanges = slackNotifyStatusChanges
         self.slackIsActive = slackIsActive
         self.allowedStatuses = allowedStatuses
+        self.emailNotifyStatuses = emailNotifyStatuses
         self.githubOwner = githubOwner
         self.githubRepo = githubRepo
         self.githubToken = githubToken
@@ -341,6 +527,50 @@ struct Project: Codable, Identifiable, Sendable, Hashable {
         self.linearSyncStatus = linearSyncStatus
         self.linearSyncComments = linearSyncComments
         self.linearIsActive = linearIsActive
+        self.trelloToken = trelloToken
+        self.trelloBoardId = trelloBoardId
+        self.trelloBoardName = trelloBoardName
+        self.trelloListId = trelloListId
+        self.trelloListName = trelloListName
+        self.trelloSyncStatus = trelloSyncStatus
+        self.trelloSyncComments = trelloSyncComments
+        self.trelloIsActive = trelloIsActive
+        self.airtableToken = airtableToken
+        self.airtableBaseId = airtableBaseId
+        self.airtableBaseName = airtableBaseName
+        self.airtableTableId = airtableTableId
+        self.airtableTableName = airtableTableName
+        self.airtableSyncStatus = airtableSyncStatus
+        self.airtableSyncComments = airtableSyncComments
+        self.airtableStatusFieldId = airtableStatusFieldId
+        self.airtableVotesFieldId = airtableVotesFieldId
+        self.airtableTitleFieldId = airtableTitleFieldId
+        self.airtableDescriptionFieldId = airtableDescriptionFieldId
+        self.airtableCategoryFieldId = airtableCategoryFieldId
+        self.airtableIsActive = airtableIsActive
+        self.asanaToken = asanaToken
+        self.asanaWorkspaceId = asanaWorkspaceId
+        self.asanaWorkspaceName = asanaWorkspaceName
+        self.asanaProjectId = asanaProjectId
+        self.asanaProjectName = asanaProjectName
+        self.asanaSectionId = asanaSectionId
+        self.asanaSectionName = asanaSectionName
+        self.asanaSyncStatus = asanaSyncStatus
+        self.asanaSyncComments = asanaSyncComments
+        self.asanaStatusFieldId = asanaStatusFieldId
+        self.asanaVotesFieldId = asanaVotesFieldId
+        self.asanaIsActive = asanaIsActive
+        self.basecampAccessToken = basecampAccessToken
+        self.basecampAccountId = basecampAccountId
+        self.basecampAccountName = basecampAccountName
+        self.basecampProjectId = basecampProjectId
+        self.basecampProjectName = basecampProjectName
+        self.basecampTodosetId = basecampTodosetId
+        self.basecampTodolistId = basecampTodolistId
+        self.basecampTodolistName = basecampTodolistName
+        self.basecampSyncStatus = basecampSyncStatus
+        self.basecampSyncComments = basecampSyncComments
+        self.basecampIsActive = basecampIsActive
     }
 }
 
@@ -425,6 +655,11 @@ struct UpdateProjectSlackRequest: Encodable, Sendable {
 nonisolated
 struct UpdateProjectStatusesRequest: Encodable, Sendable {
     let allowedStatuses: [String]
+}
+
+nonisolated
+struct UpdateProjectEmailNotifyStatusesRequest: Encodable, Sendable {
+    let emailNotifyStatuses: [String]
 }
 
 // MARK: - GitHub Integration
@@ -765,4 +1000,295 @@ struct LinearLabel: Codable, Identifiable, Sendable, Hashable {
     let id: String
     let name: String
     let color: String
+}
+
+// MARK: - Trello Integration
+
+nonisolated
+struct UpdateProjectTrelloRequest: Encodable, Sendable {
+    let trelloToken: String?
+    let trelloBoardId: String?
+    let trelloBoardName: String?
+    let trelloListId: String?
+    let trelloListName: String?
+    let trelloSyncStatus: Bool?
+    let trelloSyncComments: Bool?
+    let trelloIsActive: Bool?
+}
+
+nonisolated
+struct CreateTrelloCardRequest: Encodable, Sendable {
+    let feedbackId: UUID
+}
+
+nonisolated
+struct CreateTrelloCardResponse: Decodable, Sendable {
+    let feedbackId: UUID
+    let cardUrl: String
+    let cardId: String
+}
+
+nonisolated
+struct BulkCreateTrelloCardsRequest: Encodable, Sendable {
+    let feedbackIds: [UUID]
+}
+
+nonisolated
+struct BulkCreateTrelloCardsResponse: Decodable, Sendable {
+    let created: [CreateTrelloCardResponse]
+    let failed: [UUID]
+}
+
+// Trello hierarchy models
+nonisolated
+struct TrelloBoard: Codable, Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+}
+
+nonisolated
+struct TrelloList: Codable, Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+}
+
+// MARK: - Airtable Integration
+
+nonisolated
+struct UpdateProjectAirtableRequest: Encodable, Sendable {
+    let airtableToken: String?
+    let airtableBaseId: String?
+    let airtableBaseName: String?
+    let airtableTableId: String?
+    let airtableTableName: String?
+    let airtableSyncStatus: Bool?
+    let airtableSyncComments: Bool?
+    let airtableStatusFieldId: String?
+    let airtableVotesFieldId: String?
+    let airtableTitleFieldId: String?
+    let airtableDescriptionFieldId: String?
+    let airtableCategoryFieldId: String?
+    let airtableIsActive: Bool?
+}
+
+nonisolated
+struct CreateAirtableRecordRequest: Encodable, Sendable {
+    let feedbackId: UUID
+}
+
+nonisolated
+struct CreateAirtableRecordResponse: Decodable, Sendable {
+    let feedbackId: UUID
+    let recordUrl: String
+    let recordId: String
+}
+
+nonisolated
+struct BulkCreateAirtableRecordsRequest: Encodable, Sendable {
+    let feedbackIds: [UUID]
+}
+
+nonisolated
+struct BulkCreateAirtableRecordsResponse: Decodable, Sendable {
+    let created: [CreateAirtableRecordResponse]
+    let failed: [UUID]
+}
+
+// Airtable hierarchy models
+nonisolated
+struct AirtableBase: Codable, Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+}
+
+nonisolated
+struct AirtableTable: Codable, Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+}
+
+nonisolated
+struct AirtableField: Codable, Identifiable, Sendable, Hashable {
+    let id: String
+    let name: String
+    let type: String
+}
+
+// MARK: - Asana Integration
+
+nonisolated
+struct UpdateProjectAsanaRequest: Encodable, Sendable {
+    let asanaToken: String?
+    let asanaWorkspaceId: String?
+    let asanaWorkspaceName: String?
+    let asanaProjectId: String?
+    let asanaProjectName: String?
+    let asanaSectionId: String?
+    let asanaSectionName: String?
+    let asanaSyncStatus: Bool?
+    let asanaSyncComments: Bool?
+    let asanaStatusFieldId: String?
+    let asanaVotesFieldId: String?
+    let asanaIsActive: Bool?
+}
+
+nonisolated
+struct CreateAsanaTaskRequest: Encodable, Sendable {
+    let feedbackId: UUID
+}
+
+nonisolated
+struct CreateAsanaTaskResponse: Decodable, Sendable {
+    let feedbackId: UUID
+    let taskUrl: String
+    let taskId: String
+}
+
+nonisolated
+struct BulkCreateAsanaTasksRequest: Encodable, Sendable {
+    let feedbackIds: [UUID]
+}
+
+nonisolated
+struct BulkCreateAsanaTasksResponse: Decodable, Sendable {
+    let created: [CreateAsanaTaskResponse]
+    let failed: [UUID]
+}
+
+// Asana hierarchy models
+nonisolated
+struct AsanaWorkspace: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+
+    var id: String { gid }
+}
+
+nonisolated
+struct AsanaProject: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+
+    var id: String { gid }
+}
+
+nonisolated
+struct AsanaSection: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+
+    var id: String { gid }
+}
+
+nonisolated
+struct AsanaCustomField: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+    let type: String
+    let enumOptions: [AsanaEnumOption]?
+
+    var id: String { gid }
+}
+
+nonisolated
+struct AsanaEnumOption: Codable, Identifiable, Sendable, Hashable {
+    let gid: String
+    let name: String
+    let enabled: Bool
+    let color: String?
+
+    var id: String { gid }
+}
+
+// MARK: - Basecamp Integration
+
+nonisolated
+struct UpdateProjectBasecampRequest: Encodable, Sendable {
+    let basecampAccessToken: String?
+    let basecampAccountId: String?
+    let basecampAccountName: String?
+    let basecampProjectId: String?
+    let basecampProjectName: String?
+    let basecampTodosetId: String?
+    let basecampTodolistId: String?
+    let basecampTodolistName: String?
+    let basecampSyncStatus: Bool?
+    let basecampSyncComments: Bool?
+    let basecampIsActive: Bool?
+}
+
+nonisolated
+struct CreateBasecampTodoRequest: Encodable, Sendable {
+    let feedbackId: UUID
+}
+
+nonisolated
+struct CreateBasecampTodoResponse: Decodable, Sendable {
+    let feedbackId: UUID
+    let todoUrl: String
+    let todoId: String
+}
+
+nonisolated
+struct BulkCreateBasecampTodosRequest: Encodable, Sendable {
+    let feedbackIds: [UUID]
+}
+
+nonisolated
+struct BulkCreateBasecampTodosResponse: Decodable, Sendable {
+    let created: [CreateBasecampTodoResponse]
+    let failed: [UUID]
+}
+
+// Basecamp hierarchy models
+nonisolated
+struct BasecampAccount: Codable, Identifiable, Sendable, Hashable {
+    let id: Int
+    let name: String
+}
+
+nonisolated
+struct BasecampProject: Codable, Identifiable, Sendable, Hashable {
+    let id: Int
+    let name: String
+    let todosetId: String?
+}
+
+nonisolated
+struct BasecampTodolist: Codable, Identifiable, Sendable, Hashable {
+    let id: Int
+    let name: String
+}
+
+// MARK: - Ownership Transfer
+
+nonisolated
+struct TransferOwnershipRequest: Encodable, Sendable {
+    let newOwnerId: UUID?
+    let newOwnerEmail: String?
+
+    init(newOwnerId: UUID) {
+        self.newOwnerId = newOwnerId
+        self.newOwnerEmail = nil
+    }
+
+    init(newOwnerEmail: String) {
+        self.newOwnerId = nil
+        self.newOwnerEmail = newOwnerEmail
+    }
+}
+
+nonisolated
+struct TransferOwnershipResponse: Decodable, Sendable {
+    let projectId: UUID
+    let projectName: String
+    let newOwner: UserSummary
+    let previousOwner: UserSummary
+    let transferredAt: Date
+
+    struct UserSummary: Decodable, Sendable {
+        let id: UUID
+        let email: String
+        let name: String
+    }
 }

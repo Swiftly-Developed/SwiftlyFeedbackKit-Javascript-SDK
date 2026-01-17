@@ -32,6 +32,10 @@ struct UpdateProjectStatusesDTO: Content {
     var allowedStatuses: [String]
 }
 
+struct UpdateProjectEmailNotifyStatusesDTO: Content {
+    var emailNotifyStatuses: [String]
+}
+
 // MARK: - GitHub Integration DTOs
 
 struct UpdateProjectGitHubDTO: Content {
@@ -286,6 +290,221 @@ struct LinearLabelDTO: Content {
     var color: String
 }
 
+// MARK: - Trello Integration DTOs
+
+struct UpdateProjectTrelloDTO: Content {
+    var trelloToken: String?
+    var trelloBoardId: String?
+    var trelloBoardName: String?
+    var trelloListId: String?
+    var trelloListName: String?
+    var trelloSyncStatus: Bool?
+    var trelloSyncComments: Bool?
+    var trelloIsActive: Bool?
+}
+
+struct CreateTrelloCardDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateTrelloCardResponseDTO: Content {
+    var feedbackId: UUID
+    var cardUrl: String
+    var cardId: String
+}
+
+struct BulkCreateTrelloCardsDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateTrelloCardsResponseDTO: Content {
+    var created: [CreateTrelloCardResponseDTO]
+    var failed: [UUID]
+}
+
+// Trello hierarchy DTOs for settings UI
+struct TrelloBoardDTO: Content {
+    var id: String
+    var name: String
+}
+
+struct TrelloListDTO: Content {
+    var id: String
+    var name: String
+}
+
+// MARK: - Airtable Integration DTOs
+
+struct UpdateProjectAirtableDTO: Content {
+    var airtableToken: String?
+    var airtableBaseId: String?
+    var airtableBaseName: String?
+    var airtableTableId: String?
+    var airtableTableName: String?
+    var airtableSyncStatus: Bool?
+    var airtableSyncComments: Bool?
+    var airtableStatusFieldId: String?
+    var airtableVotesFieldId: String?
+    var airtableTitleFieldId: String?
+    var airtableDescriptionFieldId: String?
+    var airtableCategoryFieldId: String?
+    var airtableIsActive: Bool?
+}
+
+struct CreateAirtableRecordDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateAirtableRecordResponseDTO: Content {
+    var feedbackId: UUID
+    var recordUrl: String
+    var recordId: String
+}
+
+struct BulkCreateAirtableRecordsDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateAirtableRecordsResponseDTO: Content {
+    var created: [CreateAirtableRecordResponseDTO]
+    var failed: [UUID]
+}
+
+// Airtable hierarchy DTOs for settings UI
+struct AirtableBaseDTO: Content {
+    var id: String
+    var name: String
+}
+
+struct AirtableTableDTO: Content {
+    var id: String
+    var name: String
+}
+
+struct AirtableFieldDTO: Content {
+    var id: String
+    var name: String
+    var type: String
+}
+
+// MARK: - Asana Integration DTOs
+
+struct UpdateProjectAsanaDTO: Content {
+    var asanaToken: String?
+    var asanaWorkspaceId: String?
+    var asanaWorkspaceName: String?
+    var asanaProjectId: String?
+    var asanaProjectName: String?
+    var asanaSectionId: String?
+    var asanaSectionName: String?
+    var asanaSyncStatus: Bool?
+    var asanaSyncComments: Bool?
+    var asanaStatusFieldId: String?
+    var asanaVotesFieldId: String?
+    var asanaIsActive: Bool?
+}
+
+struct CreateAsanaTaskDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateAsanaTaskResponseDTO: Content {
+    var feedbackId: UUID
+    var taskUrl: String
+    var taskId: String
+}
+
+struct BulkCreateAsanaTasksDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateAsanaTasksResponseDTO: Content {
+    var created: [CreateAsanaTaskResponseDTO]
+    var failed: [UUID]
+}
+
+// Asana hierarchy DTOs for settings UI
+struct AsanaWorkspaceDTO: Content {
+    var gid: String
+    var name: String
+}
+
+struct AsanaProjectDTO: Content {
+    var gid: String
+    var name: String
+}
+
+struct AsanaSectionDTO: Content {
+    var gid: String
+    var name: String
+}
+
+struct AsanaCustomFieldDTO: Content {
+    var gid: String
+    var name: String
+    var type: String
+    var enumOptions: [AsanaEnumOptionDTO]?
+}
+
+struct AsanaEnumOptionDTO: Content {
+    var gid: String
+    var name: String
+    var enabled: Bool
+    var color: String?
+}
+
+// MARK: - Basecamp Integration DTOs
+
+struct UpdateProjectBasecampDTO: Content {
+    var basecampAccessToken: String?
+    var basecampAccountId: String?
+    var basecampAccountName: String?
+    var basecampProjectId: String?
+    var basecampProjectName: String?
+    var basecampTodosetId: String?
+    var basecampTodolistId: String?
+    var basecampTodolistName: String?
+    var basecampSyncStatus: Bool?
+    var basecampSyncComments: Bool?
+    var basecampIsActive: Bool?
+}
+
+struct CreateBasecampTodoDTO: Content {
+    var feedbackId: UUID
+}
+
+struct CreateBasecampTodoResponseDTO: Content {
+    var feedbackId: UUID
+    var todoUrl: String
+    var todoId: String
+}
+
+struct BulkCreateBasecampTodosDTO: Content {
+    var feedbackIds: [UUID]
+}
+
+struct BulkCreateBasecampTodosResponseDTO: Content {
+    var created: [CreateBasecampTodoResponseDTO]
+    var failed: [UUID]
+}
+
+// Basecamp hierarchy DTOs for settings UI
+struct BasecampAccountDTO: Content {
+    var id: Int
+    var name: String
+}
+
+struct BasecampProjectDTO: Content {
+    var id: Int
+    var name: String
+    var todosetId: String?
+}
+
+struct BasecampTodolistDTO: Content {
+    var id: Int
+    var name: String
+}
+
 struct AddMemberDTO: Content, Validatable {
     let email: String
     let role: ProjectRole
@@ -319,6 +538,7 @@ struct ProjectResponseDTO: Content {
     let slackNotifyStatusChanges: Bool
     let slackIsActive: Bool
     let allowedStatuses: [String]
+    let emailNotifyStatuses: [String]
     // GitHub integration fields
     let githubOwner: String?
     let githubRepo: String?
@@ -366,6 +586,54 @@ struct ProjectResponseDTO: Content {
     let linearSyncStatus: Bool
     let linearSyncComments: Bool
     let linearIsActive: Bool
+    // Trello integration fields
+    let trelloToken: String?
+    let trelloBoardId: String?
+    let trelloBoardName: String?
+    let trelloListId: String?
+    let trelloListName: String?
+    let trelloSyncStatus: Bool
+    let trelloSyncComments: Bool
+    let trelloIsActive: Bool
+    // Airtable integration fields
+    let airtableToken: String?
+    let airtableBaseId: String?
+    let airtableBaseName: String?
+    let airtableTableId: String?
+    let airtableTableName: String?
+    let airtableSyncStatus: Bool
+    let airtableSyncComments: Bool
+    let airtableStatusFieldId: String?
+    let airtableVotesFieldId: String?
+    let airtableTitleFieldId: String?
+    let airtableDescriptionFieldId: String?
+    let airtableCategoryFieldId: String?
+    let airtableIsActive: Bool
+    // Asana integration fields
+    let asanaToken: String?
+    let asanaWorkspaceId: String?
+    let asanaWorkspaceName: String?
+    let asanaProjectId: String?
+    let asanaProjectName: String?
+    let asanaSectionId: String?
+    let asanaSectionName: String?
+    let asanaSyncStatus: Bool
+    let asanaSyncComments: Bool
+    let asanaStatusFieldId: String?
+    let asanaVotesFieldId: String?
+    let asanaIsActive: Bool
+    // Basecamp integration fields
+    let basecampAccessToken: String?
+    let basecampAccountId: String?
+    let basecampAccountName: String?
+    let basecampProjectId: String?
+    let basecampProjectName: String?
+    let basecampTodosetId: String?
+    let basecampTodolistId: String?
+    let basecampTodolistName: String?
+    let basecampSyncStatus: Bool
+    let basecampSyncComments: Bool
+    let basecampIsActive: Bool
 
     init(project: Project, feedbackCount: Int = 0, memberCount: Int = 0, ownerEmail: String? = nil) {
         self.id = project.id!
@@ -387,6 +655,7 @@ struct ProjectResponseDTO: Content {
         self.slackNotifyStatusChanges = project.slackNotifyStatusChanges
         self.slackIsActive = project.slackIsActive
         self.allowedStatuses = project.allowedStatuses
+        self.emailNotifyStatuses = project.emailNotifyStatuses
         self.githubOwner = project.githubOwner
         self.githubRepo = project.githubRepo
         self.githubToken = project.githubToken
@@ -429,6 +698,50 @@ struct ProjectResponseDTO: Content {
         self.linearSyncStatus = project.linearSyncStatus
         self.linearSyncComments = project.linearSyncComments
         self.linearIsActive = project.linearIsActive
+        self.trelloToken = project.trelloToken
+        self.trelloBoardId = project.trelloBoardId
+        self.trelloBoardName = project.trelloBoardName
+        self.trelloListId = project.trelloListId
+        self.trelloListName = project.trelloListName
+        self.trelloSyncStatus = project.trelloSyncStatus
+        self.trelloSyncComments = project.trelloSyncComments
+        self.trelloIsActive = project.trelloIsActive
+        self.airtableToken = project.airtableToken
+        self.airtableBaseId = project.airtableBaseId
+        self.airtableBaseName = project.airtableBaseName
+        self.airtableTableId = project.airtableTableId
+        self.airtableTableName = project.airtableTableName
+        self.airtableSyncStatus = project.airtableSyncStatus
+        self.airtableSyncComments = project.airtableSyncComments
+        self.airtableStatusFieldId = project.airtableStatusFieldId
+        self.airtableVotesFieldId = project.airtableVotesFieldId
+        self.airtableTitleFieldId = project.airtableTitleFieldId
+        self.airtableDescriptionFieldId = project.airtableDescriptionFieldId
+        self.airtableCategoryFieldId = project.airtableCategoryFieldId
+        self.airtableIsActive = project.airtableIsActive
+        self.asanaToken = project.asanaToken
+        self.asanaWorkspaceId = project.asanaWorkspaceId
+        self.asanaWorkspaceName = project.asanaWorkspaceName
+        self.asanaProjectId = project.asanaProjectId
+        self.asanaProjectName = project.asanaProjectName
+        self.asanaSectionId = project.asanaSectionId
+        self.asanaSectionName = project.asanaSectionName
+        self.asanaSyncStatus = project.asanaSyncStatus
+        self.asanaSyncComments = project.asanaSyncComments
+        self.asanaStatusFieldId = project.asanaStatusFieldId
+        self.asanaVotesFieldId = project.asanaVotesFieldId
+        self.asanaIsActive = project.asanaIsActive
+        self.basecampAccessToken = project.basecampAccessToken
+        self.basecampAccountId = project.basecampAccountId
+        self.basecampAccountName = project.basecampAccountName
+        self.basecampProjectId = project.basecampProjectId
+        self.basecampProjectName = project.basecampProjectName
+        self.basecampTodosetId = project.basecampTodosetId
+        self.basecampTodolistId = project.basecampTodolistId
+        self.basecampTodolistName = project.basecampTodolistName
+        self.basecampSyncStatus = project.basecampSyncStatus
+        self.basecampSyncComments = project.basecampSyncComments
+        self.basecampIsActive = project.basecampIsActive
     }
 }
 
@@ -498,4 +811,36 @@ struct AcceptInviteResponseDTO: Content {
     let projectId: UUID
     let projectName: String
     let role: ProjectRole
+}
+
+// MARK: - Ownership Transfer DTOs
+
+struct TransferOwnershipDTO: Content, Validatable {
+    let newOwnerId: UUID?
+    let newOwnerEmail: String?
+
+    static func validations(_ validations: inout Validations) {
+        validations.add("newOwnerId", as: UUID?.self, required: false)
+        validations.add("newOwnerEmail", as: String?.self, is: .nil || .email, required: false)
+    }
+
+    func validate() throws {
+        guard newOwnerId != nil || newOwnerEmail != nil else {
+            throw Abort(.badRequest, reason: "Either newOwnerId or newOwnerEmail is required")
+        }
+    }
+}
+
+struct TransferOwnershipResponseDTO: Content {
+    let projectId: UUID
+    let projectName: String
+    let newOwner: UserSummaryDTO
+    let previousOwner: UserSummaryDTO
+    let transferredAt: Date
+
+    struct UserSummaryDTO: Content {
+        let id: UUID
+        let email: String
+        let name: String
+    }
 }

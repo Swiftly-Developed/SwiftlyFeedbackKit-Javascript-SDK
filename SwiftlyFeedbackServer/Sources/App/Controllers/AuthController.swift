@@ -23,6 +23,7 @@ struct AuthController: RouteCollection {
         // Subscription routes
         tokenProtected.get("subscription", use: getSubscription)
         tokenProtected.post("subscription", "sync", use: syncSubscription)
+        tokenProtected.patch("subscription", "tier", use: overrideSubscriptionTier)
     }
 
     @Sendable
@@ -268,11 +269,31 @@ struct AuthController: RouteCollection {
         let user = try req.auth.require(User.self)
         let dto = try req.content.decode(UpdateNotificationSettingsDTO.self)
 
+        // Email preferences
         if let notifyNewFeedback = dto.notifyNewFeedback {
             user.notifyNewFeedback = notifyNewFeedback
         }
         if let notifyNewComments = dto.notifyNewComments {
-            user.notifyNewComments = notifyNewComments
+            // Only Pro+ users can enable comment notifications
+            // Free users silently stay OFF (preserves intent if they upgrade)
+            user.notifyNewComments = user.subscriptionTier.meetsRequirement(.pro) ? notifyNewComments : false
+        }
+
+        // Push notification preferences
+        if let pushNotificationsEnabled = dto.pushNotificationsEnabled {
+            user.pushNotificationsEnabled = pushNotificationsEnabled
+        }
+        if let pushNotifyNewFeedback = dto.pushNotifyNewFeedback {
+            user.pushNotifyNewFeedback = pushNotifyNewFeedback
+        }
+        if let pushNotifyNewComments = dto.pushNotifyNewComments {
+            user.pushNotifyNewComments = pushNotifyNewComments
+        }
+        if let pushNotifyVotes = dto.pushNotifyVotes {
+            user.pushNotifyVotes = pushNotifyVotes
+        }
+        if let pushNotifyStatusChanges = dto.pushNotifyStatusChanges {
+            user.pushNotifyStatusChanges = pushNotifyStatusChanges
         }
 
         try await user.save(on: req.db)
@@ -424,6 +445,26 @@ struct AuthController: RouteCollection {
         try await user.save(on: req.db)
 
         // Return updated subscription info
+        return try await getSubscription(req: req)
+    }
+
+    /// Override subscription tier directly (non-production environments only)
+    /// PATCH /auth/subscription/tier
+    @Sendable
+    func overrideSubscriptionTier(req: Request) async throws -> SubscriptionInfoDTO {
+        // Only allow in non-production environments
+        guard !AppEnvironment.shared.isProduction else {
+            throw Abort(.forbidden, reason: "Subscription tier override is only available in non-production environments")
+        }
+
+        let user = try req.auth.require(User.self)
+        let dto = try req.content.decode(OverrideSubscriptionTierDTO.self)
+
+        user.subscriptionTier = dto.tier
+        user.subscriptionUpdatedAt = Date()
+
+        try await user.save(on: req.db)
+
         return try await getSubscription(req: req)
     }
 }

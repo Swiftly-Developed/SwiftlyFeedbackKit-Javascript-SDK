@@ -46,6 +46,9 @@ final class Project: Model, Content, @unchecked Sendable {
     @Field(key: "allowed_statuses")
     var allowedStatuses: [String]
 
+    @Field(key: "email_notify_statuses")
+    var emailNotifyStatuses: [String]
+
     // GitHub integration fields
     @OptionalField(key: "github_owner")
     var githubOwner: String?
@@ -177,6 +180,142 @@ final class Project: Model, Content, @unchecked Sendable {
     @Field(key: "linear_is_active")
     var linearIsActive: Bool
 
+    // Trello integration fields
+    @OptionalField(key: "trello_token")
+    var trelloToken: String?
+
+    @OptionalField(key: "trello_board_id")
+    var trelloBoardId: String?
+
+    @OptionalField(key: "trello_board_name")
+    var trelloBoardName: String?
+
+    @OptionalField(key: "trello_list_id")
+    var trelloListId: String?
+
+    @OptionalField(key: "trello_list_name")
+    var trelloListName: String?
+
+    @Field(key: "trello_sync_status")
+    var trelloSyncStatus: Bool
+
+    @Field(key: "trello_sync_comments")
+    var trelloSyncComments: Bool
+
+    @Field(key: "trello_is_active")
+    var trelloIsActive: Bool
+
+    // Airtable integration fields
+    @OptionalField(key: "airtable_token")
+    var airtableToken: String?
+
+    @OptionalField(key: "airtable_base_id")
+    var airtableBaseId: String?
+
+    @OptionalField(key: "airtable_base_name")
+    var airtableBaseName: String?
+
+    @OptionalField(key: "airtable_table_id")
+    var airtableTableId: String?
+
+    @OptionalField(key: "airtable_table_name")
+    var airtableTableName: String?
+
+    @Field(key: "airtable_sync_status")
+    var airtableSyncStatus: Bool
+
+    @Field(key: "airtable_sync_comments")
+    var airtableSyncComments: Bool
+
+    @OptionalField(key: "airtable_status_field_id")
+    var airtableStatusFieldId: String?
+
+    @OptionalField(key: "airtable_votes_field_id")
+    var airtableVotesFieldId: String?
+
+    @OptionalField(key: "airtable_title_field_id")
+    var airtableTitleFieldId: String?
+
+    @OptionalField(key: "airtable_description_field_id")
+    var airtableDescriptionFieldId: String?
+
+    @OptionalField(key: "airtable_category_field_id")
+    var airtableCategoryFieldId: String?
+
+    @Field(key: "airtable_is_active")
+    var airtableIsActive: Bool
+
+    // Asana integration fields
+    @OptionalField(key: "asana_token")
+    var asanaToken: String?
+
+    @OptionalField(key: "asana_workspace_id")
+    var asanaWorkspaceId: String?
+
+    @OptionalField(key: "asana_workspace_name")
+    var asanaWorkspaceName: String?
+
+    @OptionalField(key: "asana_project_id")
+    var asanaProjectId: String?
+
+    @OptionalField(key: "asana_project_name")
+    var asanaProjectName: String?
+
+    @OptionalField(key: "asana_section_id")
+    var asanaSectionId: String?
+
+    @OptionalField(key: "asana_section_name")
+    var asanaSectionName: String?
+
+    @Field(key: "asana_sync_status")
+    var asanaSyncStatus: Bool
+
+    @Field(key: "asana_sync_comments")
+    var asanaSyncComments: Bool
+
+    @OptionalField(key: "asana_status_field_id")
+    var asanaStatusFieldId: String?
+
+    @OptionalField(key: "asana_votes_field_id")
+    var asanaVotesFieldId: String?
+
+    @Field(key: "asana_is_active")
+    var asanaIsActive: Bool
+
+    // Basecamp integration fields
+    @OptionalField(key: "basecamp_access_token")
+    var basecampAccessToken: String?
+
+    @OptionalField(key: "basecamp_account_id")
+    var basecampAccountId: String?
+
+    @OptionalField(key: "basecamp_account_name")
+    var basecampAccountName: String?
+
+    @OptionalField(key: "basecamp_project_id")
+    var basecampProjectId: String?
+
+    @OptionalField(key: "basecamp_project_name")
+    var basecampProjectName: String?
+
+    @OptionalField(key: "basecamp_todoset_id")
+    var basecampTodosetId: String?
+
+    @OptionalField(key: "basecamp_todolist_id")
+    var basecampTodolistId: String?
+
+    @OptionalField(key: "basecamp_todolist_name")
+    var basecampTodolistName: String?
+
+    @Field(key: "basecamp_sync_status")
+    var basecampSyncStatus: Bool
+
+    @Field(key: "basecamp_sync_comments")
+    var basecampSyncComments: Bool
+
+    @Field(key: "basecamp_is_active")
+    var basecampIsActive: Bool
+
     @Timestamp(key: "created_at", on: .create)
     var createdAt: Date?
 
@@ -205,6 +344,7 @@ final class Project: Model, Content, @unchecked Sendable {
         slackNotifyStatusChanges: Bool = true,
         slackIsActive: Bool = true,
         allowedStatuses: [String]? = nil,
+        emailNotifyStatuses: [String]? = nil,
         githubOwner: String? = nil,
         githubRepo: String? = nil,
         githubToken: String? = nil,
@@ -246,7 +386,51 @@ final class Project: Model, Content, @unchecked Sendable {
         linearDefaultLabelIds: [String]? = nil,
         linearSyncStatus: Bool = false,
         linearSyncComments: Bool = false,
-        linearIsActive: Bool = true
+        linearIsActive: Bool = true,
+        trelloToken: String? = nil,
+        trelloBoardId: String? = nil,
+        trelloBoardName: String? = nil,
+        trelloListId: String? = nil,
+        trelloListName: String? = nil,
+        trelloSyncStatus: Bool = false,
+        trelloSyncComments: Bool = false,
+        trelloIsActive: Bool = true,
+        airtableToken: String? = nil,
+        airtableBaseId: String? = nil,
+        airtableBaseName: String? = nil,
+        airtableTableId: String? = nil,
+        airtableTableName: String? = nil,
+        airtableSyncStatus: Bool = false,
+        airtableSyncComments: Bool = false,
+        airtableStatusFieldId: String? = nil,
+        airtableVotesFieldId: String? = nil,
+        airtableTitleFieldId: String? = nil,
+        airtableDescriptionFieldId: String? = nil,
+        airtableCategoryFieldId: String? = nil,
+        airtableIsActive: Bool = true,
+        asanaToken: String? = nil,
+        asanaWorkspaceId: String? = nil,
+        asanaWorkspaceName: String? = nil,
+        asanaProjectId: String? = nil,
+        asanaProjectName: String? = nil,
+        asanaSectionId: String? = nil,
+        asanaSectionName: String? = nil,
+        asanaSyncStatus: Bool = false,
+        asanaSyncComments: Bool = false,
+        asanaStatusFieldId: String? = nil,
+        asanaVotesFieldId: String? = nil,
+        asanaIsActive: Bool = true,
+        basecampAccessToken: String? = nil,
+        basecampAccountId: String? = nil,
+        basecampAccountName: String? = nil,
+        basecampProjectId: String? = nil,
+        basecampProjectName: String? = nil,
+        basecampTodosetId: String? = nil,
+        basecampTodolistId: String? = nil,
+        basecampTodolistName: String? = nil,
+        basecampSyncStatus: Bool = false,
+        basecampSyncComments: Bool = false,
+        basecampIsActive: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -261,6 +445,7 @@ final class Project: Model, Content, @unchecked Sendable {
         self.slackNotifyStatusChanges = slackNotifyStatusChanges
         self.slackIsActive = slackIsActive
         self.allowedStatuses = allowedStatuses ?? FeedbackStatus.defaultAllowed.map { $0.rawValue }
+        self.emailNotifyStatuses = emailNotifyStatuses ?? FeedbackStatus.defaultEmailNotifyStatuses.map { $0.rawValue }
         self.githubOwner = githubOwner
         self.githubRepo = githubRepo
         self.githubToken = githubToken
@@ -303,6 +488,50 @@ final class Project: Model, Content, @unchecked Sendable {
         self.linearSyncStatus = linearSyncStatus
         self.linearSyncComments = linearSyncComments
         self.linearIsActive = linearIsActive
+        self.trelloToken = trelloToken
+        self.trelloBoardId = trelloBoardId
+        self.trelloBoardName = trelloBoardName
+        self.trelloListId = trelloListId
+        self.trelloListName = trelloListName
+        self.trelloSyncStatus = trelloSyncStatus
+        self.trelloSyncComments = trelloSyncComments
+        self.trelloIsActive = trelloIsActive
+        self.airtableToken = airtableToken
+        self.airtableBaseId = airtableBaseId
+        self.airtableBaseName = airtableBaseName
+        self.airtableTableId = airtableTableId
+        self.airtableTableName = airtableTableName
+        self.airtableSyncStatus = airtableSyncStatus
+        self.airtableSyncComments = airtableSyncComments
+        self.airtableStatusFieldId = airtableStatusFieldId
+        self.airtableVotesFieldId = airtableVotesFieldId
+        self.airtableTitleFieldId = airtableTitleFieldId
+        self.airtableDescriptionFieldId = airtableDescriptionFieldId
+        self.airtableCategoryFieldId = airtableCategoryFieldId
+        self.airtableIsActive = airtableIsActive
+        self.asanaToken = asanaToken
+        self.asanaWorkspaceId = asanaWorkspaceId
+        self.asanaWorkspaceName = asanaWorkspaceName
+        self.asanaProjectId = asanaProjectId
+        self.asanaProjectName = asanaProjectName
+        self.asanaSectionId = asanaSectionId
+        self.asanaSectionName = asanaSectionName
+        self.asanaSyncStatus = asanaSyncStatus
+        self.asanaSyncComments = asanaSyncComments
+        self.asanaStatusFieldId = asanaStatusFieldId
+        self.asanaVotesFieldId = asanaVotesFieldId
+        self.asanaIsActive = asanaIsActive
+        self.basecampAccessToken = basecampAccessToken
+        self.basecampAccountId = basecampAccountId
+        self.basecampAccountName = basecampAccountName
+        self.basecampProjectId = basecampProjectId
+        self.basecampProjectName = basecampProjectName
+        self.basecampTodosetId = basecampTodosetId
+        self.basecampTodolistId = basecampTodolistId
+        self.basecampTodolistName = basecampTodolistName
+        self.basecampSyncStatus = basecampSyncStatus
+        self.basecampSyncComments = basecampSyncComments
+        self.basecampIsActive = basecampIsActive
     }
 }
 

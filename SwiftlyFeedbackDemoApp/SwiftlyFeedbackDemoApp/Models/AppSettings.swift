@@ -7,7 +7,10 @@ final class AppSettings {
     // MARK: - User Settings
 
     var userEmail: String {
-        didSet { UserDefaults.standard.set(userEmail, forKey: "userEmail") }
+        didSet {
+            UserDefaults.standard.set(userEmail, forKey: "userEmail")
+            SwiftlyFeedback.config.userEmail = userEmail.isEmpty ? nil : userEmail
+        }
     }
 
     var userName: String {
@@ -90,6 +93,20 @@ final class AppSettings {
         }
     }
 
+    var showVoteEmailField: Bool {
+        didSet {
+            UserDefaults.standard.set(showVoteEmailField, forKey: "showVoteEmailField")
+            SwiftlyFeedback.config.showVoteEmailField = showVoteEmailField
+        }
+    }
+
+    var voteNotificationDefaultOptIn: Bool {
+        didSet {
+            UserDefaults.standard.set(voteNotificationDefaultOptIn, forKey: "voteNotificationDefaultOptIn")
+            SwiftlyFeedback.config.voteNotificationDefaultOptIn = voteNotificationDefaultOptIn
+        }
+    }
+
     var allowFeedbackSubmission: Bool {
         didSet {
             UserDefaults.standard.set(allowFeedbackSubmission, forKey: "allowFeedbackSubmission")
@@ -125,6 +142,8 @@ final class AppSettings {
         self.showCategoryBadge = defaults.object(forKey: "showCategoryBadge") as? Bool ?? true
         self.showVoteCount = defaults.object(forKey: "showVoteCount") as? Bool ?? true
         self.expandDescriptionInList = defaults.object(forKey: "expandDescriptionInList") as? Bool ?? false
+        self.showVoteEmailField = defaults.object(forKey: "showVoteEmailField") as? Bool ?? true
+        self.voteNotificationDefaultOptIn = defaults.object(forKey: "voteNotificationDefaultOptIn") as? Bool ?? false
         self.allowFeedbackSubmission = defaults.object(forKey: "allowFeedbackSubmission") as? Bool ?? true
         self.feedbackSubmissionDisabledMessage = defaults.string(forKey: "feedbackSubmissionDisabledMessage") ?? ""
 
@@ -142,8 +161,25 @@ final class AppSettings {
         SwiftlyFeedback.config.showCategoryBadge = showCategoryBadge
         SwiftlyFeedback.config.showVoteCount = showVoteCount
         SwiftlyFeedback.config.expandDescriptionInList = expandDescriptionInList
+        SwiftlyFeedback.config.showVoteEmailField = showVoteEmailField
+        SwiftlyFeedback.config.voteNotificationDefaultOptIn = voteNotificationDefaultOptIn
         SwiftlyFeedback.config.allowFeedbackSubmission = allowFeedbackSubmission
         SwiftlyFeedback.config.feedbackSubmissionDisabledMessage = feedbackSubmissionDisabledMessage.isEmpty ? nil : feedbackSubmissionDisabledMessage
+
+        // Set user email for vote notifications
+        SwiftlyFeedback.config.userEmail = userEmail.isEmpty ? nil : userEmail
+
+        // Sync email back from SDK when user provides it via vote dialog
+        SwiftlyFeedback.config.onUserEmailChanged = { [weak self] email in
+            Task { @MainActor in
+                guard let self else { return }
+                let newEmail = email ?? ""
+                // Only update if different to avoid infinite loop
+                if self.userEmail != newEmail {
+                    self.userEmail = newEmail
+                }
+            }
+        }
 
         if !customUserId.isEmpty {
             SwiftlyFeedback.updateUser(customID: customUserId)

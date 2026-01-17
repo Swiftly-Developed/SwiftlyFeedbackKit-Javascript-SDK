@@ -6,35 +6,37 @@ Vapor 4 backend API server with PostgreSQL.
 
 ```bash
 swift build
-swift run          # http://localhost:8080
+swift run                    # http://localhost:8080
 swift test
+swift test --filter TestClassName/testMethodName  # Single test
 ```
 
-## Database
-
-```bash
-# Docker
-docker run --name swiftly-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=swiftly_feedback -p 5432:5432 -d postgres
-```
-
-**Environment:** `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`
+**Environment Variables:**
+- `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`
+- `RESEND_API_KEY` - Email service
+- `TRELLO_API_KEY` - Trello integration
 
 ## Directory Structure
 
 ```
 Sources/App/
-├── Controllers/     # Auth, Project, Feedback, Vote, Comment, SDKUser, ViewEvent, Dashboard
-├── Models/          # User, UserToken, Project, ProjectMember, ProjectInvite, EmailVerification,
-│                    # PasswordReset, Feedback, Vote, Comment, SDKUser, ViewEvent
-├── Migrations/
-├── DTOs/
-├── Services/        # Email, Slack, GitHub, ClickUp, Notion, Monday, Linear
-├── configure.swift, routes.swift, entrypoint.swift
+├── Controllers/     # Route handlers
+├── Models/          # Fluent models
+├── Migrations/      # Database migrations
+├── DTOs/            # Request/response types
+├── Services/        # Email, integrations
+├── Jobs/            # Background tasks (cleanup scheduler)
+├── configure.swift  # App configuration
+├── routes.swift     # Route registration
+└── entrypoint.swift # Server entry point
 ```
 
-## API Endpoints (prefix: `/api/v1`)
+## API Endpoints
 
-### Authentication
+All endpoints prefixed with `/api/v1`.
+
+### Authentication (No auth / Bearer)
+
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | /auth/signup | - | Create account |
@@ -49,6 +51,7 @@ Sources/App/
 | POST | /auth/reset-password | - | Reset with code |
 
 ### Projects (Bearer auth)
+
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
 | GET | /projects | - | List user's projects |
@@ -60,144 +63,190 @@ Sources/App/
 | POST | /projects/:id/unarchive | Owner | Unarchive |
 | POST | /projects/:id/regenerate-key | Owner | New API key |
 | PATCH | /projects/:id/statuses | Owner/Admin | Update allowed statuses |
+| PATCH | /projects/:id/email-notify-statuses | Owner/Admin | Configure email notifications |
+| POST | /projects/:id/transfer-ownership | Owner | Transfer to another user |
 
 ### Project Members (Bearer auth)
+
 | Method | Path | Role | Description |
 |--------|------|------|-------------|
-| GET | /projects/:id/members | - | List |
+| GET | /projects/:id/members | - | List members |
 | POST | /projects/:id/members | Owner/Admin | Add by email |
 | PATCH | /projects/:id/members/:memberId | Owner/Admin | Update role |
 | DELETE | /projects/:id/members/:memberId | Owner/Admin | Remove |
 
 ### Feedback (X-API-Key auth)
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /feedbacks | List (?status=, ?category=) |
-| POST | /feedbacks | Submit (blocked if archived) |
+| POST | /feedbacks | Submit (auto-votes for creator) |
 | GET | /feedbacks/:id | Details |
 | PATCH | /feedbacks/:id | Update (Bearer + access) |
 | DELETE | /feedbacks/:id | Delete (Bearer + Owner/Admin) |
 | POST | /feedbacks/merge | Merge items (Bearer + Owner/Admin) |
 
 ### Votes (X-API-Key auth)
+
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | /feedbacks/:id/votes | Vote (blocked if archived/completed/rejected) |
 | DELETE | /feedbacks/:id/votes | Remove vote |
+| GET | /votes/unsubscribe?key=UUID | One-click unsubscribe (no auth, returns HTML) |
+
+**Vote Request Body:**
+```json
+{
+  "userId": "string",
+  "email": "string (optional)",
+  "notifyStatusChange": "bool (optional, default false)"
+}
+```
 
 ### Comments (X-API-Key auth)
+
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /feedbacks/:id/comments | List |
 | POST | /feedbacks/:id/comments | Add (blocked if archived) |
 | DELETE | /feedbacks/:id/comments/:commentId | Delete |
 
-### SDK Users (Bearer auth)
+### SDK Users & Events (Bearer auth)
+
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /users/project/:projectId | List for project |
+| GET | /users/project/:projectId | List users for project |
 | GET | /users/project/:projectId/stats | Stats (total, MRR) |
-| GET | /users/all | List across all projects |
-| GET | /users/all/stats | Aggregated stats |
-
-### Events
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /events/track | X-API-Key | Track event |
-| GET | /events/project/:projectId | Bearer | Recent events |
-| GET | /events/project/:projectId/stats | Bearer | Stats (?days=N, max 365) |
-| GET | /events/all/stats | Bearer | Aggregated stats |
-
-### Dashboard (Bearer auth)
-| Method | Path | Description |
-|--------|------|-------------|
+| POST | /events/track | Track event (X-API-Key) |
+| GET | /events/project/:projectId/stats | Stats (?days=N) |
 | GET | /dashboard/home | KPIs across all projects |
 
 ## Integrations
 
 All integrations follow the same pattern:
 
-**Settings:** `PATCH /projects/:id/{integration}` (Bearer, Owner/Admin)
-**Single create:** `POST /projects/:id/{integration}/{item}`
-**Bulk create:** `POST /projects/:id/{integration}/{items}`
-**Discovery endpoints:** For pickers (teams, boards, databases, etc.)
+- **Settings:** `PATCH /projects/:id/{integration}`
+- **Single create:** `POST /projects/:id/{integration}/{item}`
+- **Bulk create:** `POST /projects/:id/{integration}/{items}`
+- **Discovery:** Various endpoints for pickers (teams, boards, databases)
 
-### Slack
-- `PATCH /projects/:id/slack` - webhook URL + notification toggles
+### Integration Endpoints
 
-### GitHub
-- `PATCH /projects/:id/github` - owner, repo, token, labels, sync_status
-- `POST /projects/:id/github/issue` - Create issue
-- `POST /projects/:id/github/issues` - Bulk create
+| Integration | Settings Path | Create Path | Discovery |
+|-------------|---------------|-------------|-----------|
+| Slack | /slack | - | - |
+| GitHub | /github | /github/issue(s) | - |
+| ClickUp | /clickup | /clickup/task(s) | /workspaces, /spaces, /folders, /lists |
+| Notion | /notion | /notion/page(s) | /databases, /database/:id/properties |
+| Monday | /monday | /monday/item(s) | /boards, /boards/:id/groups, /columns |
+| Linear | /linear | /linear/issue(s) | /teams, /projects, /states, /labels |
+| Trello | /trello | /trello/card(s) | /boards, /boards/:id/lists |
+| Airtable | /airtable | /airtable/record(s) | /bases, /bases/:id/tables, /fields |
+| Asana | /asana | /asana/task(s) | /workspaces, /projects, /sections |
+| Basecamp | /basecamp | /basecamp/todo(s) | /accounts, /projects, /todolists |
 
-### ClickUp
-- `PATCH /projects/:id/clickup` - token, list_id, tags, sync_status/comments, votes_field_id
-- `POST /projects/:id/clickup/task[s]` - Create task(s)
-- `GET /projects/:id/clickup/workspaces|spaces|folders|lists|custom-fields` - Hierarchy picker
-
-### Notion
-- `PATCH /projects/:id/notion` - token, database_id, sync_status/comments, status/votes properties
-- `POST /projects/:id/notion/page[s]` - Create page(s)
-- `GET /projects/:id/notion/databases` - Database picker
-- `GET /projects/:id/notion/database/:id/properties` - Schema
-
-### Monday.com
-- `PATCH /projects/:id/monday` - token, board_id, group_id, sync_status/comments, column IDs
-- `POST /projects/:id/monday/item[s]` - Create item(s)
-- `GET /projects/:id/monday/boards` - Board picker
-- `GET /projects/:id/monday/boards/:id/groups|columns` - Board details
-
-### Linear
-- `PATCH /projects/:id/linear` - token, team_id, project_id, label_ids, sync_status/comments
-- `POST /projects/:id/linear/issue[s]` - Create issue(s)
-- `GET /projects/:id/linear/teams|projects|states|labels` - Team picker
-
-## Status Sync Mapping
+### Status Mapping
 
 All integrations map feedback status similarly:
-- pending → backlog/to do
-- approved → approved/unstarted
-- in_progress → in progress/started
-- testflight → in review/started
-- completed → complete/done
-- rejected → closed/canceled
-
-## Code Patterns
-
-**New Model:** Create in Models/, add migration, register in configure.swift, add DTO if needed.
-
-**New Controller:** Create in Controllers/, implement RouteCollection, register in routes.swift.
-
-**Auth:**
-- Bearer tokens via `UserToken` model
-- API key via `X-API-Key` header
-- `req.auth.require(User.self)` for authenticated routes
+- `pending` → backlog/to do
+- `approved` → approved/unstarted
+- `in_progress` → in progress/started
+- `testflight` → in review/started
+- `completed` → complete/done
+- `rejected` → closed/canceled
 
 ## Email Service
 
-`Services/EmailService.swift` handles all email notifications via Resend API.
+`Services/EmailService.swift` handles notifications via Resend API.
 
 **Brand Colors:**
-- `primaryColor`: `#F7A50D` (FeedbackKit orange)
-- `gradientStart`: `#FFB830` (warm yellow-orange)
-- `gradientEnd`: `#E85D04` (deep orange-red)
+- Primary: `#F7A50D` (FeedbackKit orange)
+- Gradient: `#FFB830` → `#F7A50D` → `#E85D04`
 
-**Email Templates:**
-- Project invite, email verification, password reset
-- New feedback, new comment, status change notifications
+**Email Types:**
+- Email verification, password reset
+- Project invites, ownership transfer
+- New feedback, new comments, status changes
+- Voter status notifications (with unsubscribe link)
 
 **Helpers:**
 - `emailHeader(title:)` - Gradient header with logo
-- `emailFooter(message:)` - Footer with "Powered by Feedback Kit"
+- `emailFooter(message:)` - "Powered by Feedback Kit" footer
 
-**Logo URL:** Hosted on Squarespace CDN (configured in `logoURL` constant).
+## Vote Email Notifications
 
-## Password Reset
+Voters can opt-in to receive status change notifications.
 
-`PasswordReset` model: 8-char token, 1-hour expiry, single-use, invalidates all sessions.
+**Database Fields (votes table):**
+- `email` (VARCHAR, nullable)
+- `notify_status_change` (BOOLEAN, default false)
+- `permission_key` (UUID, nullable) - For one-click unsubscribe
+
+**Flow:**
+1. Vote with `email` + `notifyStatusChange: true`
+2. Server generates `permissionKey` UUID
+3. On status change, voters with opt-in receive emails
+4. Unsubscribe: `GET /votes/unsubscribe?key=UUID` (no auth)
+5. Clicking clears the opt-in and permission key
+
+## Rejection Reasons
+
+When setting status to `rejected`, include optional `rejectionReason` (max 500 chars):
+- Stored in `rejection_reason` field
+- Included in status change notification emails
+- Cleared when status changes to non-rejected
 
 ## Feedback Merging
 
-`POST /feedbacks/merge`: Moves votes (de-duplicated), migrates comments with prefix, recalculates MRR, soft-deletes secondary items.
+`POST /feedbacks/merge` with `primary_feedback_id` and `secondary_feedback_ids[]`:
+- Moves votes (de-duplicated by user)
+- Migrates comments with origin prefix
+- Recalculates MRR
+- Soft-deletes secondary items (`merged_into_id`, `merged_at`)
 
-Fields: `merged_into_id`, `merged_at`, `merged_feedback_ids`
+## Automatic Cleanup (Non-Production)
+
+Non-production environments auto-delete feedback older than 7 days:
+
+| Environment | Cleanup |
+|-------------|---------|
+| Localhost | Every 24h |
+| Development | Every 24h |
+| TestFlight | Every 24h |
+| Production | **Disabled** |
+
+Implementation: `Jobs/FeedbackCleanupJob.swift`
+
+## Server-Side Tier Enforcement
+
+Returns 402 Payment Required for tier violations:
+
+| Feature | Tier | Limit |
+|---------|------|-------|
+| Projects | Pro/Team | 1 (Free), 2 (Pro), ∞ (Team) |
+| Feedback | Pro | 10/project (Free) |
+| Team members | Team | Owner + invitee need Team |
+| Integrations | Pro | All integration endpoints |
+| Configurable statuses | Pro | PATCH /statuses |
+
+## Code Patterns
+
+**New Model:**
+1. Create in `Models/`
+2. Add migration in `Migrations/`
+3. Register migration in `configure.swift`
+4. Add DTO if needed
+
+**New Controller:**
+1. Create in `Controllers/`
+2. Implement `RouteCollection`
+3. Register in `routes.swift`
+
+**Auth Patterns:**
+```swift
+// Bearer token
+let user = try req.auth.require(User.self)
+
+// API key (middleware)
+// X-API-Key header validated by APIKeyMiddleware
+```

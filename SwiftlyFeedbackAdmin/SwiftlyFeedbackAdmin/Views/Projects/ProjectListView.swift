@@ -31,9 +31,17 @@ struct ProjectListView: View {
     @State private var showingCreateSheet = false
     @State private var showingAcceptInviteSheet = false
     @State private var showPaywall = false
-    @State private var subscriptionService = SubscriptionService.shared
-    @AppStorage("projectViewMode") private var viewMode: ProjectViewMode = .list
+    @Environment(SubscriptionService.self) private var subscriptionService
+    @SecureAppStorage(.projectViewMode) private var viewModeRaw: String = ProjectViewMode.list.rawValue
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var viewMode: ProjectViewMode {
+        ProjectViewMode(rawValue: viewModeRaw) ?? .list
+    }
+
+    private func setViewMode(_ mode: ProjectViewMode) {
+        viewModeRaw = mode.rawValue
+    }
 
     /// Number of projects owned by the current user
     private var ownedProjectCount: Int {
@@ -42,10 +50,25 @@ struct ProjectListView: View {
 
     /// Whether the user can create a new project based on their subscription
     private var canCreateProject: Bool {
-        guard let maxProjects = subscriptionService.currentTier.maxProjects else {
+        guard let maxProjects = subscriptionService.effectiveTier.maxProjects else {
             return true // Unlimited
         }
         return ownedProjectCount < maxProjects
+    }
+
+    /// The minimum tier required to create another project
+    private var tierRequiredForMoreProjects: SubscriptionTier {
+        switch subscriptionService.effectiveTier {
+        case .free:
+            // Free users need Pro to get more than 1 project
+            return .pro
+        case .pro:
+            // Pro users need Team for unlimited projects
+            return .team
+        case .team:
+            // Team has unlimited, shouldn't show paywall
+            return .team
+        }
     }
 
     var body: some View {
@@ -76,7 +99,7 @@ struct ProjectListView: View {
             #endif
 
             // Project count indicator
-            if let maxProjects = subscriptionService.currentTier.maxProjects {
+            if let maxProjects = subscriptionService.effectiveTier.maxProjects {
                 ToolbarItem(placement: .automatic) {
                     Text("\(ownedProjectCount)/\(maxProjects)")
                         .font(.caption)
@@ -122,7 +145,7 @@ struct ProjectListView: View {
             AcceptInviteView(viewModel: viewModel)
         }
         .sheet(isPresented: $showPaywall) {
-            PaywallView()
+            PaywallView(requiredTier: tierRequiredForMoreProjects)
         }
         #if os(iOS)
         .refreshable {
@@ -139,7 +162,10 @@ struct ProjectListView: View {
     // MARK: - View Mode Picker
 
     private var viewModePicker: some View {
-        Picker("View Mode", selection: $viewMode) {
+        Picker("View Mode", selection: Binding(
+            get: { viewMode },
+            set: { setViewMode($0) }
+        )) {
             ForEach(ProjectViewMode.allCases, id: \.self) { mode in
                 Label(mode.label, systemImage: mode.icon)
                     .tag(mode)

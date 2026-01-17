@@ -19,22 +19,4 @@
    <FileRef
       location = "group:AGENTS.md">
    </FileRef>
-   <FileRef
-      location = "group:2026-01-09_Monetization_Implementation.md">
-   </FileRef>
-   <FileRef
-      location = "group:CLICKUP_INTEGRATION.md">
-   </FileRef>
-   <FileRef
-      location = "group:NOTION_IMPLEMENTATION_PLAN.md">
-   </FileRef>
-   <FileRef
-      location = "group:PLAN_LINEAR_INTEGRATION.md">
-   </FileRef>
-   <FileRef
-      location = "group:TODO_MONETIZATION.md">
-   </FileRef>
-   <FileRef
-      location = "group:AUTO_ENVIRONMENT_DETECTION_PLAN.md">
-   </FileRef>
 </Workspace>

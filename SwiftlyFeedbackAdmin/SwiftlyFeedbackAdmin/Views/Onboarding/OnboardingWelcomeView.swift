@@ -1,139 +1,119 @@
+//
+//  OnboardingWelcomeView.swift
+//  SwiftlyFeedbackAdmin
+//
+//  Welcome Step 1: Introduction to Feedback Kit
+//
+
 import SwiftUI
 
 struct OnboardingWelcomeView: View {
     let onContinue: () -> Void
     let onLogin: () -> Void
 
-    @State private var animateFeatures = false
-    @State private var animateLogo = false
+    @State private var animateContent = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    private let features: [(icon: String, title: String, description: String)] = [
-        ("bubble.left.and.bubble.right.fill", "Collect Feedback", "Gather feature requests and bug reports directly from your users"),
-        ("chart.bar.xaxis", "Track Analytics", "Monitor user engagement and prioritize based on real data"),
-        ("person.3.fill", "Team Collaboration", "Work together with your team to manage and respond to feedback"),
-        ("arrow.triangle.branch", "Integrations", "Connect with GitHub, Linear, Notion, Slack, and more")
-    ]
-
     var body: some View {
-        GeometryReader { geometry in
+        VStack(spacing: 0) {
+            // Scrollable content
             ScrollView {
-                VStack(spacing: platformSpacing) {
-                    Spacer(minLength: topSpacing(for: geometry))
+                VStack(spacing: contentSpacing) {
+                    Spacer(minLength: 16)
 
                     // App Logo and Title
-                    VStack(spacing: 16) {
+                    VStack(spacing: 12) {
                         Image("FeedbackKit")
                             .resizable()
                             .scaledToFit()
                             .frame(width: logoSize, height: logoSize)
                             .clipShape(RoundedRectangle(cornerRadius: logoCornerRadius))
-                            .shadow(color: .black.opacity(0.15), radius: 20, x: 0, y: 10)
-                            .scaleEffect(animateLogo ? 1 : 0.8)
-                            .opacity(animateLogo ? 1 : 0)
-                            .accessibilityLabel("Feedback Kit app icon")
+                            .shadow(color: .black.opacity(0.15), radius: 16, x: 0, y: 8)
+                            .scaleEffect(animateContent ? 1 : 0.8)
+                            .opacity(animateContent ? 1 : 0)
 
-                        VStack(spacing: 8) {
+                        VStack(spacing: 6) {
                             Text("Feedback Kit")
                                 .font(titleFont)
                                 .fontWeight(.bold)
-                                .accessibilityAddTraits(.isHeader)
 
                             Text("The feedback platform for modern apps")
                                 .font(subtitleFont)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                         }
-                        .opacity(animateLogo ? 1 : 0)
-                        .offset(y: animateLogo ? 0 : 20)
+                        .opacity(animateContent ? 1 : 0)
+                        .offset(y: animateContent ? 0 : 10)
                     }
 
-                    // Features List - adaptive layout for iPad/Mac
-                    if isCompactWidth {
-                        // Vertical list for iPhone
-                        VStack(spacing: 16) {
-                            ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
-                                OnboardingFeatureRow(
-                                    icon: feature.icon,
-                                    title: feature.title,
-                                    description: feature.description
-                                )
-                                .opacity(animateFeatures ? 1 : 0)
-                                .offset(x: animateFeatures ? 0 : -30)
+                    // Feature highlights
+                    VStack(spacing: isCompactWidth ? 10 : 12) {
+                        ForEach(Array(highlights.enumerated()), id: \.offset) { index, highlight in
+                            HighlightRow(icon: highlight.icon, text: highlight.text)
+                                .opacity(animateContent ? 1 : 0)
+                                .offset(x: animateContent ? 0 : -20)
                                 .animation(
-                                    .easeOut(duration: 0.5).delay(Double(index) * 0.1),
-                                    value: animateFeatures
+                                    .easeOut(duration: 0.4).delay(Double(index) * 0.08),
+                                    value: animateContent
                                 )
-                            }
                         }
-                        .padding(.horizontal, 8)
-                    } else {
-                        // Grid layout for iPad/Mac
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
-                            ForEach(Array(features.enumerated()), id: \.offset) { index, feature in
-                                OnboardingFeatureCard(
-                                    icon: feature.icon,
-                                    title: feature.title,
-                                    description: feature.description
-                                )
-                                .opacity(animateFeatures ? 1 : 0)
-                                .scaleEffect(animateFeatures ? 1 : 0.9)
-                                .animation(
-                                    .spring(response: 0.5, dampingFraction: 0.8).delay(Double(index) * 0.1),
-                                    value: animateFeatures
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 16)
                     }
+                    .padding(.horizontal, horizontalPadding)
 
-                    Spacer(minLength: 20)
-
-                    // Action Buttons
-                    VStack(spacing: 16) {
-                        Button {
-                            onContinue()
-                        } label: {
-                            Text("Get Started")
-                                .font(.headline)
-                                .frame(maxWidth: buttonMaxWidth)
-                                .frame(minHeight: 44) // HIG: minimum 44pt touch target
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .accessibilityHint("Begin creating your account")
-
-                        Button {
-                            onLogin()
-                        } label: {
-                            HStack(spacing: 4) {
-                                Text("Already have an account?")
-                                    .foregroundStyle(.secondary)
-                                Text("Log In")
-                                    .fontWeight(.medium)
-                            }
-                            .frame(minHeight: 44) // HIG: minimum 44pt touch target
-                        }
-                        .buttonStyle(.plain)
-                        .font(.subheadline)
-                        .accessibilityLabel("Log in to existing account")
-                    }
-                    .padding(.bottom, bottomPadding)
+                    Spacer(minLength: 16)
                 }
-                .padding(.horizontal, horizontalPadding)
                 .frame(maxWidth: maxContentWidth)
                 .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Fixed bottom buttons
+            VStack(spacing: 12) {
+                Button {
+                    onContinue()
+                } label: {
+                    Text("Get Started")
+                        .font(.headline)
+                        .frame(maxWidth: buttonMaxWidth)
+                        .frame(minHeight: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+                Button {
+                    onLogin()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("Already have an account?")
+                            .foregroundStyle(.secondary)
+                        Text("Log In")
+                            .fontWeight(.medium)
+                    }
+                    .frame(minHeight: 44)
+                }
+                .buttonStyle(.plain)
+                .font(.subheadline)
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, 12)
+            .padding(.bottom, bottomPadding)
+            .frame(maxWidth: maxContentWidth)
+            .frame(maxWidth: .infinity)
+            .background(bottomBackground)
         }
         .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                animateLogo = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                animateFeatures = true
+            withAnimation(.easeOut(duration: 0.5)) {
+                animateContent = true
             }
         }
+    }
+
+    private var highlights: [(icon: String, text: String)] {
+        [
+            ("bubble.left.and.bubble.right.fill", "Collect feature requests and bug reports"),
+            ("chart.bar.xaxis", "Track analytics and prioritize by impact"),
+            ("person.3.fill", "Collaborate with your team"),
+            ("arrow.triangle.branch", "Sync with GitHub, Linear, Notion & more")
+        ]
     }
 
     // MARK: - Platform-Adaptive Properties
@@ -148,172 +128,106 @@ struct OnboardingWelcomeView: View {
 
     private var logoSize: CGFloat {
         #if os(macOS)
-        return 100
+        return 80
         #else
-        return isCompactWidth ? 100 : 120
+        return isCompactWidth ? 80 : 100
         #endif
     }
 
     private var logoCornerRadius: CGFloat {
-        logoSize * 0.22 // iOS app icon corner radius ratio
+        logoSize * 0.22
     }
 
     private var titleFont: Font {
         #if os(macOS)
-        return .largeTitle
+        return .title
         #else
-        return isCompactWidth ? .title : .largeTitle
+        return isCompactWidth ? .title2 : .title
         #endif
     }
 
     private var subtitleFont: Font {
         #if os(macOS)
-        return .title3
+        return .body
         #else
-        return isCompactWidth ? .body : .title3
+        return isCompactWidth ? .subheadline : .body
         #endif
     }
 
-    private var platformSpacing: CGFloat {
+    private var contentSpacing: CGFloat {
         #if os(macOS)
-        return 28
+        return 20
         #else
-        return isCompactWidth ? 24 : 32
+        return isCompactWidth ? 18 : 24
         #endif
     }
 
     private var horizontalPadding: CGFloat {
         #if os(macOS)
-        return 40
+        return 32
         #else
-        return isCompactWidth ? 24 : 40
+        return isCompactWidth ? 20 : 32
         #endif
     }
 
     private var maxContentWidth: CGFloat {
         #if os(macOS)
-        return 600
+        return 480
         #else
-        return isCompactWidth ? .infinity : 700
+        return isCompactWidth ? .infinity : 520
         #endif
     }
 
     private var buttonMaxWidth: CGFloat {
         #if os(macOS)
-        return 280
+        return 240
         #else
-        return isCompactWidth ? .infinity : 320
+        return isCompactWidth ? .infinity : 280
         #endif
     }
 
     private var bottomPadding: CGFloat {
         #if os(macOS)
-        return 32
+        return 24
         #else
-        return isCompactWidth ? 16 : 32
+        return isCompactWidth ? 16 : 24
         #endif
     }
 
-    private func topSpacing(for geometry: GeometryProxy) -> CGFloat {
+    private var bottomBackground: some ShapeStyle {
         #if os(macOS)
-        return max(20, geometry.size.height * 0.05)
+        return Color(nsColor: .windowBackgroundColor)
         #else
-        if isCompactWidth {
-            return 20
-        } else {
-            return max(40, geometry.size.height * 0.08)
-        }
+        return Color(uiColor: .systemGroupedBackground)
         #endif
     }
 }
 
-// MARK: - Feature Row (iPhone)
+// MARK: - Highlight Row
 
-private struct OnboardingFeatureRow: View {
+private struct HighlightRow: View {
     let icon: String
-    let title: String
-    let description: String
+    let text: String
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 20))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44) // HIG: minimum touch target
-                .background(
+                .font(.system(size: 16))
+                .foregroundStyle(
                     LinearGradient(
                         colors: [.blue, .purple],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 10)
+                    )
                 )
-                .accessibilityHidden(true)
+                .frame(width: 32, height: 32)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.headline)
-
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
 
             Spacer()
         }
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title): \(description)")
-    }
-}
-
-// MARK: - Feature Card (iPad/Mac)
-
-private struct OnboardingFeatureCard: View {
-    let icon: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 24))
-                .foregroundStyle(.white)
-                .frame(width: 48, height: 48)
-                .background(
-                    LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 12)
-                )
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(cardBackground, in: RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title): \(description)")
-    }
-
-    private var cardBackground: some ShapeStyle {
-        #if os(macOS)
-        return Color(nsColor: .controlBackgroundColor)
-        #else
-        return Color(uiColor: .secondarySystemGroupedBackground)
-        #endif
     }
 }
 

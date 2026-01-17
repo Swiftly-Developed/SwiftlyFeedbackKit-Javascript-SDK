@@ -73,12 +73,12 @@ struct CommentController: RouteCollection {
                     .with(\.$user)
                     .all()
 
-                // Filter to users with comment notifications enabled
+                // Filter to users with comment notifications enabled AND Pro+ tier
                 var emails: [String] = []
-                if project.owner.notifyNewComments {
+                if project.owner.notifyNewComments && project.owner.subscriptionTier.meetsRequirement(.pro) {
                     emails.append(project.owner.email)
                 }
-                for member in members where member.user.notifyNewComments {
+                for member in members where member.user.notifyNewComments && member.user.subscriptionTier.meetsRequirement(.pro) {
                     emails.append(member.user.email)
                 }
 
@@ -217,6 +217,119 @@ struct CommentController: RouteCollection {
                     req.logger.error("Failed to sync comment to Linear: \(error)")
                 }
             }
+        }
+
+        // Sync comment to Trello if enabled and active
+        if project.trelloIsActive,
+           project.trelloSyncComments,
+           let cardId = feedback.trelloCardId,
+           let token = project.trelloToken {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterType = isAdmin ? "Admin" : "User"
+            let commentText = """
+            **[\(commenterType)] Comment:**
+
+            \(comment.content)
+
+            ---
+            _Synced from FeedbackKit_
+            """
+
+            Task {
+                do {
+                    try await req.trelloService.addComment(
+                        token: token,
+                        cardId: cardId,
+                        text: commentText
+                    )
+                } catch {
+                    req.logger.error("Failed to sync comment to Trello: \(error)")
+                }
+            }
+        }
+
+        // Sync comment to Asana if enabled and active
+        if project.asanaIsActive,
+           project.asanaSyncComments,
+           let taskId = feedback.asanaTaskId,
+           let token = project.asanaToken {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterType = isAdmin ? "Admin" : "User"
+            let commentText = """
+            [\(commenterType)] Comment:
+
+            \(comment.content)
+
+            ---
+            Synced from FeedbackKit
+            """
+
+            Task {
+                do {
+                    _ = try await req.asanaService.createStory(
+                        taskId: taskId,
+                        token: token,
+                        text: commentText
+                    )
+                } catch {
+                    req.logger.error("Failed to sync comment to Asana: \(error)")
+                }
+            }
+        }
+
+        // Sync comment to Basecamp if enabled and active
+        if project.basecampIsActive,
+           project.basecampSyncComments,
+           let todoId = feedback.basecampTodoId,
+           let bucketId = feedback.basecampBucketId,
+           let token = project.basecampAccessToken,
+           let accountId = project.basecampAccountId {
+            let isAdmin = dto.isAdmin ?? false
+            let commenterType = isAdmin ? "Admin" : "User"
+            let commentContent = """
+            <strong>[\(commenterType)] Comment:</strong>
+
+            \(comment.content)
+
+            ---
+            <em>Synced from FeedbackKit</em>
+            """
+
+            Task {
+                do {
+                    _ = try await req.basecampService.createComment(
+                        accountId: accountId,
+                        bucketId: bucketId,
+                        todoId: todoId,
+                        token: token,
+                        content: commentContent
+                    )
+                } catch {
+                    req.logger.error("Failed to sync comment to Basecamp: \(error)")
+                }
+            }
+        }
+
+        // Send push notification for new comment
+        // Determine the author's User ID if they're an admin with a registered account
+        Task {
+            var authorUserId: UUID? = nil
+
+            // If commenting as admin, try to find the user by checking auth token
+            if dto.isAdmin ?? false {
+                // Check if there's an authenticated user (admin commenting via Admin app)
+                if let authUser = try? req.auth.require(User.self) {
+                    authorUserId = try? authUser.requireID()
+                }
+            }
+
+            await req.pushNotificationService.sendNewCommentNotification(
+                comment: comment,
+                feedback: feedback,
+                project: project,
+                authorId: authorUserId ?? UUID(), // Use a placeholder if not authenticated
+                on: req.db
+            )
         }
 
         return CommentResponseDTO(comment: comment)

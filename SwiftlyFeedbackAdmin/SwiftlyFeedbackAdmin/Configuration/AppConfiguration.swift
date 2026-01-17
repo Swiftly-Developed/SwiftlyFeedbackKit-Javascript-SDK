@@ -6,35 +6,108 @@
 //
 
 import Foundation
+import SwiftUI
+
+// MARK: - Environment Change Notification
+
+extension Notification.Name {
+    /// Posted when the app environment changes
+    /// The notification object is the new `AppEnvironment` value
+    static let environmentDidChange = Notification.Name("environmentDidChange")
+}
 
 /// Environment configuration options
 enum AppEnvironment: String, Codable, CaseIterable {
+    case localhost
     case development
-    case staging
+    case testflight
     case production
 
     var displayName: String {
         switch self {
+        case .localhost: return "Localhost"
         case .development: return "Development"
-        case .staging: return "Staging"
+        case .testflight: return "TestFlight"
         case .production: return "Production"
         }
     }
 
-    var baseURL: String {
+    /// Color associated with this environment for visual identification
+    var color: Color {
         switch self {
-        case .development:
-            return "https://feedbackkit-dev-3d08c4624108.herokuapp.com"
-        case .staging:
-            return "https://feedbackkit-testflight-2e08ccf13bc4.herokuapp.com"
-        case .production:
-            return "https://feedbackkit-production-cbea7fa4b19d.herokuapp.com"
+        case .localhost: return .purple
+        case .development: return .blue
+        case .testflight: return .orange
+        case .production: return .red
         }
     }
 
-    /// Local development URL for testing against localhost
-    var localURL: String {
-        "http://localhost:8080"
+    /// Whether this environment is available for the current build type
+    var isAvailable: Bool {
+        switch self {
+        case .localhost, .development:
+            return BuildEnvironment.isDebug
+        case .testflight:
+            return BuildEnvironment.isDebug || BuildEnvironment.isTestFlight
+        case .production:
+            return true
+        }
+    }
+
+    /// Environments available for selection in current build
+    static var availableEnvironments: [AppEnvironment] {
+        allCases.filter { $0.isAvailable }
+    }
+
+    var baseURL: String {
+        switch self {
+        case .localhost:
+            return "http://localhost:8080"
+        case .development:
+            return "https://api.feedbackkit.dev.swiftly-developed.com"
+        case .testflight:
+            return "https://api.feedbackkit.testflight.swiftly-developed.com"
+        case .production:
+            return "https://api.feedbackkit.prod.swiftly-developed.com"
+        }
+    }
+
+    /// Whether this environment is a remote server (not localhost)
+    var isRemote: Bool {
+        self != .localhost
+    }
+
+    /// The remote environments available (excludes localhost)
+    static var remoteEnvironments: [AppEnvironment] {
+        [.development, .testflight, .production]
+    }
+
+    /// All environments available in DEBUG builds
+    static var debugEnvironments: [AppEnvironment] {
+        allCases
+    }
+
+    /// Environments available in TestFlight builds (testflight and production only)
+    static var testFlightBuildEnvironments: [AppEnvironment] {
+        [.testflight, .production]
+    }
+
+    // MARK: - SwiftlyFeedbackKit SDK API Keys
+    // These are the API keys for the Admin app's own feedback project (dog-fooding)
+    // Each environment has its own project with a separate API key
+
+    /// SDK API key for the Admin app's feedback project in this environment
+    var sdkAPIKey: String {
+        switch self {
+        case .localhost:
+            return "sf_8iJjRNZof9tRrrybkxViu1ZF8Jgxs7Ad"
+        case .development:
+            return "sf_67xRwr4qxTwaIQOFyXq9uyuSOrtS2uvy"
+        case .testflight:
+            return "sf_Gw8ZKcjCEtxHUNCKjpusOkFvlNbQ2Pxf"
+        case .production:
+            return "sf_Tt5Oc4SFNhNgGUb9Ga7Y7AMwF9cGj571"
+        }
     }
 }
 
@@ -47,36 +120,31 @@ final class AppConfiguration {
     /// Shared singleton instance
     static let shared = AppConfiguration()
 
-    private let userDefaults: UserDefaults
-    private let environmentKey = "com.swiftlyfeedback.admin.environment"
-
-    /// Toggle for using localhost instead of remote URLs (useful for local backend testing)
-    var useLocalhost: Bool {
-        didSet {
-            userDefaults.set(useLocalhost, forKey: "com.swiftlyfeedback.admin.useLocalhost")
-        }
-    }
-
-    /// Current environment setting
+    /// Current environment setting.
+    /// Changes are automatically persisted to secure storage.
     var environment: AppEnvironment {
         didSet {
+            guard oldValue != environment else { return }
+
             #if DEBUG
             // In DEBUG mode, allow changing environment and save it
-            userDefaults.set(environment.rawValue, forKey: environmentKey)
+            SecureStorageManager.shared.setEnvironment(environment)
+            AppLogger.storage.info("Environment changed: \(oldValue.rawValue) → \(environment.rawValue)")
             #else
             // In RELEASE mode (TestFlight or Production)
             if BuildEnvironment.isTestFlight {
-                // TestFlight: Allow staging or production (for testing)
-                if environment == .development {
-                    print("⚠️ Development not allowed in TestFlight - switching to Staging")
-                    environment = .staging
+                // TestFlight: Allow testflight or production (for testing)
+                if !AppEnvironment.testFlightBuildEnvironments.contains(environment) {
+                    AppLogger.storage.warning("\(environment.displayName) not allowed in TestFlight - switching to TestFlight")
+                    environment = .testflight
                 } else {
-                    userDefaults.set(environment.rawValue, forKey: environmentKey)
+                    SecureStorageManager.shared.setEnvironment(environment)
+                    AppLogger.storage.info("Environment changed: \(oldValue.rawValue) → \(environment.rawValue)")
                 }
             } else {
                 // Production (App Store): Lock to production only
                 if environment != .production {
-                    print("⚠️ Production builds must use Production environment")
+                    AppLogger.storage.warning("Production builds must use Production environment")
                     environment = .production
                 }
             }
@@ -84,9 +152,9 @@ final class AppConfiguration {
         }
     }
 
-    /// Current base URL based on environment and localhost setting
+    /// Current base URL based on environment
     var baseURL: String {
-        useLocalhost ? environment.localURL : environment.baseURL
+        environment.baseURL
     }
 
     /// Current API v1 base URL (baseURL + /api/v1)
@@ -94,14 +162,19 @@ final class AppConfiguration {
         baseURL + "/api/v1"
     }
 
+    /// Convenience property for checking if using localhost
+    var isLocalhost: Bool {
+        environment == .localhost
+    }
+
     /// Convenience property for checking if in development mode
     var isDevelopmentMode: Bool {
         environment == .development
     }
 
-    /// Convenience property for checking if in staging mode
-    var isStagingMode: Bool {
-        environment == .staging
+    /// Convenience property for checking if in testflight mode
+    var isTestFlightMode: Bool {
+        environment == .testflight
     }
 
     /// Convenience property for checking if in production mode
@@ -109,46 +182,48 @@ final class AppConfiguration {
         environment == .production
     }
 
+    /// Available environments based on build type
+    var availableEnvironments: [AppEnvironment] {
+        #if DEBUG
+        return AppEnvironment.debugEnvironments
+        #else
+        if BuildEnvironment.isTestFlight {
+            return AppEnvironment.testFlightBuildEnvironments
+        } else {
+            return [.production]
+        }
+        #endif
+    }
+
     // MARK: - Initialization
 
-    init(userDefaults: UserDefaults = .standard) {
-        self.userDefaults = userDefaults
-
-        // Load saved localhost preference
-        self.useLocalhost = userDefaults.bool(forKey: "com.swiftlyfeedback.admin.useLocalhost")
+    private init() {
+        // Initialize from SecureStorageManager
+        // The storage manager handles default environment logic
+        let storedEnvironment = SecureStorageManager.shared.currentEnvironment
 
         #if DEBUG
-        // DEBUG mode: Load saved environment or default to development
-        if let savedEnv = userDefaults.string(forKey: environmentKey),
-           let env = AppEnvironment(rawValue: savedEnv) {
-            self.environment = env
-        } else {
-            self.environment = .development
-        }
+        // DEBUG mode: Use stored environment (defaults to development)
+        self.environment = storedEnvironment
 
         // Override with launch arguments for testing
-        if CommandLine.arguments.contains("--dev-mode") {
+        if CommandLine.arguments.contains("--localhost") {
+            self.environment = .localhost
+        } else if CommandLine.arguments.contains("--dev-mode") {
             self.environment = .development
-        } else if CommandLine.arguments.contains("--staging-mode") {
-            self.environment = .staging
+        } else if CommandLine.arguments.contains("--testflight-mode") {
+            self.environment = .testflight
         } else if CommandLine.arguments.contains("--prod-mode") {
             self.environment = .production
-        }
-
-        // Override for localhost testing
-        if CommandLine.arguments.contains("--localhost") {
-            self.useLocalhost = true
         }
         #else
         // RELEASE mode: Behavior depends on build type
         if BuildEnvironment.isTestFlight {
-            // TestFlight: Load saved staging/production or default to staging
-            if let savedEnv = userDefaults.string(forKey: environmentKey),
-               let env = AppEnvironment(rawValue: savedEnv),
-               (env == .staging || env == .production) {
-                self.environment = env
+            // TestFlight build: Use stored if valid, or default to testflight
+            if AppEnvironment.testFlightBuildEnvironments.contains(storedEnvironment) {
+                self.environment = storedEnvironment
             } else {
-                self.environment = .staging
+                self.environment = .testflight
             }
         } else {
             // Production (App Store): Always use production
@@ -157,11 +232,20 @@ final class AppConfiguration {
         #endif
 
         #if DEBUG
-        print("🔧 App Configuration Initialized")
-        print("📍 Environment: \(environment.displayName)")
-        print("🌐 Base URL: \(baseURL)")
-        print("🏠 Using Localhost: \(useLocalhost)")
+        AppLogger.storage.info("App Configuration Initialized")
+        AppLogger.storage.info("Environment: \(environment.displayName)")
+        AppLogger.storage.info("Base URL: \(baseURL)")
         #endif
+    }
+
+    /// Returns whether the current environment is a non-production environment.
+    var isNonProduction: Bool {
+        environment != .production
+    }
+
+    /// Returns whether the app has an auth token for the current environment.
+    var hasAuthToken: Bool {
+        SecureStorageManager.shared.authToken != nil
     }
 }
 
@@ -187,14 +271,19 @@ extension AppConfiguration {
         shared.isDevelopmentMode
     }
 
-    /// Quick access to staging mode status
-    static var isStagingMode: Bool {
-        shared.isStagingMode
+    /// Quick access to testflight mode status
+    static var isTestFlightMode: Bool {
+        shared.isTestFlightMode
     }
 
     /// Quick access to production mode status
     static var isProductionMode: Bool {
         shared.isProductionMode
+    }
+
+    /// Quick access to SDK API key for current environment
+    static var sdkAPIKey: String {
+        shared.environment.sdkAPIKey
     }
 }
 
@@ -218,41 +307,73 @@ extension AppConfiguration {
 
 // MARK: - Environment Switching
 extension AppConfiguration {
-    /// Switch to a different environment
-    /// - Parameter environment: The target environment
-    /// - Note: TestFlight allows staging/production, Production builds lock to production only
-    func switchTo(_ environment: AppEnvironment) {
+    /// Switch to a different environment.
+    ///
+    /// This method:
+    /// 1. Validates the environment is available for the current build type
+    /// 2. Updates the stored environment preference
+    /// 3. Posts an `.environmentDidChange` notification
+    /// 4. Does NOT clear auth tokens (they are environment-scoped automatically)
+    ///
+    /// - Parameters:
+    ///   - environment: The target environment
+    ///   - reconfigureSDK: Whether to reconfigure the SwiftlyFeedbackKit SDK (default: true)
+    /// - Note: DEBUG allows all environments, TestFlight build allows testflight/production, Production is locked
+    func switchTo(_ environment: AppEnvironment, reconfigureSDK: Bool = true) {
+        // Check if environment is available for current build type
+        guard environment.isAvailable else {
+            AppLogger.storage.warning("Environment \(environment.rawValue) not available in this build")
+            return
+        }
+
+        let previousEnvironment = self.environment
+
+        guard previousEnvironment != environment else {
+            AppLogger.storage.debug("Already in \(environment.rawValue) environment")
+            return
+        }
+
         #if DEBUG
         self.environment = environment
-        print("🔄 Switched to \(environment.displayName) environment")
-        print("🌐 New Base URL: \(baseURL)")
+        AppLogger.storage.info("Switched to \(environment.displayName) environment")
+        AppLogger.storage.info("New Base URL: \(baseURL)")
         #else
         if BuildEnvironment.isTestFlight {
-            // TestFlight: Allow staging or production
-            if environment == .development {
-                print("⚠️ Development not allowed in TestFlight - using Staging")
-                self.environment = .staging
-            } else {
+            // TestFlight build: Allow testflight or production only
+            if AppEnvironment.testFlightBuildEnvironments.contains(environment) {
                 self.environment = environment
-                print("🔄 Switched to \(environment.displayName) environment")
-                print("🌐 New Base URL: \(baseURL)")
+                AppLogger.storage.info("Switched to \(environment.displayName) environment")
+                AppLogger.storage.info("New Base URL: \(baseURL)")
+            } else {
+                AppLogger.storage.warning("\(environment.displayName) not allowed in TestFlight build - using TestFlight")
+                self.environment = .testflight
             }
         } else {
             // Production: Always lock to production
-            print("⚠️ Environment switching disabled in Production builds - locked to Production")
+            AppLogger.storage.warning("Environment switching disabled in Production builds - locked to Production")
             self.environment = .production
         }
         #endif
+
+        // Post notification if environment actually changed
+        if self.environment != previousEnvironment {
+            NotificationCenter.default.post(name: .environmentDidChange, object: self.environment)
+        }
+
+        // Reconfigure SDK with new environment's API key
+        if reconfigureSDK {
+            reconfigureSDKForCurrentEnvironment()
+        }
     }
 
     /// Reset to default environment
-    /// - Note: DEBUG → Development, TestFlight → Staging, Production → Production
+    /// - Note: DEBUG → Development, TestFlight build → TestFlight, Production → Production
     func resetToDefault() {
         #if DEBUG
         switchTo(.development)
         #else
         if BuildEnvironment.isTestFlight {
-            switchTo(.staging)
+            switchTo(.testflight)
         } else {
             switchTo(.production)
         }
@@ -261,11 +382,35 @@ extension AppConfiguration {
 
     /// Check if environment switching is allowed
     var canSwitchEnvironment: Bool {
+        availableEnvironments.count > 1
+    }
+}
+
+// MARK: - SwiftlyFeedbackKit SDK Configuration
+import SwiftlyFeedbackKit
+import SwiftUI
+
+extension AppConfiguration {
+    /// Configure the SwiftlyFeedbackKit SDK with the current environment's API key and base URL
+    /// Call this at app launch and whenever the environment changes
+    func configureSDK() {
+        let apiKey = environment.sdkAPIKey
+        let sdkBaseURL = URL(string: apiV1URL)!
+
+        SwiftlyFeedback.configure(with: apiKey, baseURL: sdkBaseURL)
+        SwiftlyFeedback.theme.primaryColor = .color(Color.blue)
+
         #if DEBUG
-        return true
-        #else
-        // TestFlight can switch between staging/production, Production is locked
-        return BuildEnvironment.isTestFlight
+        AppLogger.storage.info("SwiftlyFeedbackKit SDK configured")
+        AppLogger.storage.info("SDK Environment: \(environment.displayName)")
+        AppLogger.storage.debug("SDK API Key: \(apiKey.prefix(20))...")
+        AppLogger.storage.info("SDK Base URL: \(sdkBaseURL)")
         #endif
+    }
+
+    /// Reconfigure the SDK when environment changes
+    /// This should be called after switching environments
+    func reconfigureSDKForCurrentEnvironment() {
+        configureSDK()
     }
 }

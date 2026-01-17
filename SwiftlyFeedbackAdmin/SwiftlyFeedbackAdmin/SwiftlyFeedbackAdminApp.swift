@@ -7,18 +7,57 @@
 
 import SwiftUI
 import SwiftlyFeedbackKit
+import UserNotifications
 
 #if os(macOS)
 import AppKit
 
-class AppDelegate: NSObject, NSApplicationDelegate {
+extension Notification.Name {
+    static let reopenMainWindow = Notification.Name("reopenMainWindow")
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Set up notification delegate
+        UNUserNotificationCenter.current().delegate = self
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // Reopen main window when user clicks dock icon and no windows are visible
+        if !flag {
+            // Find and show the main window, or create a new one
+            if let window = sender.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "FeedbackKit" }) {
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                // Post notification to open new window via SwiftUI's openWindow
+                NotificationCenter.default.post(name: .reopenMainWindow, object: nil)
+            }
+        }
+        return true
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         // Synchronously logout when app is quitting
         logoutOnTermination()
     }
 
     private func logoutOnTermination() {
-        guard KeychainService.getToken() != nil else { return }
+        // Check for token in a sync-safe way using KeychainManager directly
+        // Read environment from Keychain directly (avoids MainActor isolation issues during termination)
+        // Default to "development" for DEBUG builds, "production" for release builds
+        #if DEBUG
+        let defaultEnv = "development"
+        #else
+        let defaultEnv = "production"
+        #endif
+        let envKey: String
+        if let envData = KeychainManager.get(forKey: "global.selectedEnvironment"),
+           let storedEnv = String(data: envData, encoding: .utf8) {
+            envKey = storedEnv
+        } else {
+            envKey = defaultEnv
+        }
+        guard KeychainManager.get(forKey: "\(envKey).authToken") != nil else { return }
 
         // Try to invalidate token on server (best effort, synchronous)
         let semaphore = DispatchSemaphore(value: 0)
@@ -33,8 +72,73 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Wait briefly for the server call, but don't block termination too long
         _ = semaphore.wait(timeout: .now() + 1.0)
 
-        // Delete local token after server call
-        KeychainService.deleteToken()
+        // Delete local token after server call using KeychainManager directly
+        KeychainManager.delete(forKey: "\(envKey).authToken")
+    }
+
+    // MARK: - Push Notification Registration
+
+    func application(_ application: NSApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Task { @MainActor in
+            PushNotificationManager.shared.didRegisterForRemoteNotifications(withDeviceToken: deviceToken)
+        }
+    }
+
+    func application(_ application: NSApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Task { @MainActor in
+            PushNotificationManager.shared.didFailToRegisterForRemoteNotifications(withError: error)
+        }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        // Show notification even when app is in foreground
+        return [.banner, .badge, .sound]
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        await MainActor.run {
+            PushNotificationManager.shared.handleNotificationResponse(response)
+        }
+    }
+}
+
+#else
+import UIKit
+
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Set up notification delegate
+        UNUserNotificationCenter.current().delegate = self
+        return true
+    }
+
+    // MARK: - Push Notification Registration
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Task { @MainActor in
+            PushNotificationManager.shared.didRegisterForRemoteNotifications(withDeviceToken: deviceToken)
+        }
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Task { @MainActor in
+            PushNotificationManager.shared.didFailToRegisterForRemoteNotifications(withError: error)
+        }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        // Show notification even when app is in foreground
+        return [.banner, .badge, .sound]
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        await MainActor.run {
+            PushNotificationManager.shared.handleNotificationResponse(response)
+        }
     }
 }
 #endif
@@ -43,84 +147,72 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 struct SwiftlyFeedbackAdminApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @Environment(\.openWindow) private var openWindow
+    #else
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     #endif
 
     @State private var deepLinkManager = DeepLinkManager.shared
+    @State private var developerCenterViewModel = ProjectViewModel()
 
     init() {
         // Configure subscription service at app launch
         SubscriptionService.shared.configure()
 
         // Configure SwiftlyFeedbackKit SDK for in-app feature requests
-        SwiftlyFeedback.configure(with: "sf_G3VStALGZ3Ja8LhWPKJTRJk9S8RaZwMk")
-        SwiftlyFeedback.theme.primaryColor = .color(.blue)
+        // Uses environment-specific API key from AppConfiguration
+        AppConfiguration.shared.configureSDK()
     }
 
     var body: some Scene {
-        WindowGroup {
+        // Main app window
+        WindowGroup(id: "main") {
             RootView()
+                .environment(SubscriptionService.shared)
                 .environment(deepLinkManager)
                 .onOpenURL { url in
                     deepLinkManager.handleURL(url)
                 }
+                #if os(macOS)
+                .onReceive(NotificationCenter.default.publisher(for: .reopenMainWindow)) { _ in
+                    openWindow(id: "main")
+                }
+                #endif
         }
         #if os(macOS)
         .commands {
-            DeveloperCommands()
-        }
-        #endif
-    }
-}
+            // Add Window menu with main window item
+            CommandGroup(after: .windowList) {
+                Button("FeedbackKit") {
+                    openWindow(id: "main")
+                }
+                .keyboardShortcut("0", modifiers: .command)
+            }
 
-// MARK: - Developer Commands Menu (macOS)
+            // Disable Cmd+N to prevent multiple main windows
+            CommandGroup(replacing: .newItem) { }
 
-#if os(macOS)
-struct DeveloperCommands: Commands {
-    var body: some Commands {
-        if BuildEnvironment.canShowTestingFeatures {
+            // Developer Center menu item
             CommandGroup(after: .appSettings) {
-                Button("Developer Commands...") {
-                    DeveloperCommandsWindowController.shared.showWindow()
+                Button("Developer Center...") {
+                    openWindow(id: "developer-center")
                 }
                 .keyboardShortcut("D", modifiers: [.command, .shift])
             }
         }
+        #endif
+
+        // Developer Center window (macOS only, single instance)
+        #if os(macOS)
+        Window("Developer Center", id: "developer-center") {
+            DeveloperCenterView(projectViewModel: developerCenterViewModel, isStandaloneWindow: true)
+                .environment(SubscriptionService.shared)
+                .frame(minWidth: 500, minHeight: 600)
+                .task {
+                    await developerCenterViewModel.loadProjects()
+                }
+        }
+        .defaultSize(width: 550, height: 650)
+        #endif
     }
 }
-
-@MainActor
-final class DeveloperCommandsWindowController {
-    static let shared = DeveloperCommandsWindowController()
-
-    private var window: NSWindow?
-
-    private init() {}
-
-    func showWindow() {
-        if let existingWindow = window, existingWindow.isVisible {
-            existingWindow.makeKeyAndOrderFront(nil)
-            return
-        }
-
-        let projectViewModel = ProjectViewModel()
-
-        let contentView = DeveloperCommandsView(projectViewModel: projectViewModel, isStandaloneWindow: true)
-            .frame(minWidth: 500, minHeight: 600)
-
-        let hostingController = NSHostingController(rootView: contentView)
-        let window = NSWindow(contentViewController: hostingController)
-        window.title = "Developer Commands"
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.setContentSize(NSSize(width: 550, height: 650))
-        window.center()
-        window.makeKeyAndOrderFront(nil)
-
-        self.window = window
-
-        // Load projects
-        Task {
-            await projectViewModel.loadProjects()
-        }
-    }
-}
-#endif

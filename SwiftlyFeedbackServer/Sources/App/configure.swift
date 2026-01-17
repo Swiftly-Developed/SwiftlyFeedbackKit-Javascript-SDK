@@ -95,8 +95,22 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddIntegrationActiveToggles())
     app.migrations.add(CreatePasswordReset())
     app.migrations.add(AddUserSubscriptionFields())
+    app.migrations.add(AddVoteEmailNotification())
+    app.migrations.add(AddProjectTrelloIntegration())
+    app.migrations.add(AddProjectAirtableIntegration())
+    app.migrations.add(AddProjectAsanaIntegration())
+    app.migrations.add(AddProjectBasecampIntegration())
+    app.migrations.add(AddProjectEmailNotifyStatuses())
+    app.migrations.add(AddFeedbackRejectionReason())
+    app.migrations.add(CreateDeviceToken())
+    app.migrations.add(CreateProjectMemberPreference())
+    app.migrations.add(CreatePushNotificationLog())
+    app.migrations.add(AddUserPushNotificationSettings())
 
     try await app.autoMigrate()
+
+    // Configure APNs (optional - only if environment variables are set)
+    try? app.apns.configure()
 
     // CORS middleware
     let corsConfiguration = CORSMiddleware.Configuration(
@@ -105,6 +119,10 @@ func configure(_ app: Application) async throws {
         allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith]
     )
     app.middleware.use(CORSMiddleware(configuration: corsConfiguration))
+
+    // Schedule feedback cleanup (runs daily at startup and every 24 hours)
+    // Only runs on non-production environments (dev, testflight)
+    FeedbackCleanupScheduler.start(app: app)
 
     // Routes
     try routes(app)

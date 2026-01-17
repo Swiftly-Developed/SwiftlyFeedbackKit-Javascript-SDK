@@ -159,6 +159,12 @@ struct FeedbackController: RouteCollection {
 
         try await feedback.save(on: req.db)
 
+        // Automatically add a vote from the feedback creator
+        let creatorVote = Vote(userId: dto.userId, feedbackId: feedback.id!)
+        try await creatorVote.save(on: req.db)
+        feedback.voteCount = 1
+        try await feedback.save(on: req.db)
+
         // Send email notification to project members who have feedback notifications enabled
         Task {
             do {
@@ -207,7 +213,16 @@ struct FeedbackController: RouteCollection {
             }
         }
 
-        return FeedbackResponseDTO(feedback: feedback)
+        // Send push notification
+        Task {
+            await req.pushNotificationService.sendNewFeedbackNotification(
+                feedback: feedback,
+                project: project,
+                on: req.db
+            )
+        }
+
+        return FeedbackResponseDTO(feedback: feedback, hasVoted: true)
     }
 
     @Sendable
@@ -268,38 +283,84 @@ struct FeedbackController: RouteCollection {
             }
             feedback.description = description.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if let status = dto.status { feedback.status = status }
+        if let status = dto.status {
+            feedback.status = status
+            // Only store rejection reason if status is rejected, otherwise clear it
+            if status == .rejected {
+                req.logger.info("🔴 Setting rejection reason: \(dto.rejectionReason ?? "nil")")
+                feedback.rejectionReason = dto.rejectionReason
+            } else {
+                feedback.rejectionReason = nil
+            }
+        }
         if let category = dto.category { feedback.category = category }
 
         try await feedback.save(on: req.db)
+
+        req.logger.info("🔴 After save - feedback.rejectionReason: \(feedback.rejectionReason ?? "nil")")
 
         // Send status change notification if status changed
         if let newStatus = dto.status, newStatus != oldStatus {
             let project = feedback.project
 
-            // Send email notification
-            Task {
-                do {
-                    // Collect emails: feedback submitter (if provided) + voters with emails
-                    var emails: [String] = []
+            // Check if the new status should trigger email notifications
+            let shouldNotifyByEmail = project.emailNotifyStatuses.contains(newStatus.rawValue)
+            req.logger.info("📧 Status change: \(oldStatus.rawValue) → \(newStatus.rawValue), shouldNotifyByEmail: \(shouldNotifyByEmail), emailNotifyStatuses: \(project.emailNotifyStatuses)")
 
-                    // Add feedback submitter's email if provided
-                    if let submitterEmail = feedback.userEmail, !submitterEmail.isEmpty {
-                        emails.append(submitterEmail)
+            // Send email notification only if configured for this status
+            if shouldNotifyByEmail {
+                Task {
+                    do {
+                        // Collect emails: feedback submitter (if provided) + opted-in voters (Team tier only)
+                        var emails: [String] = []
+                        var unsubscribeKeys: [String: UUID] = [:]
+
+                        // Add feedback submitter's email if provided
+                        if let submitterEmail = feedback.userEmail, !submitterEmail.isEmpty {
+                            emails.append(submitterEmail)
+                            req.logger.info("📧 Added submitter email: \(submitterEmail)")
+                        } else {
+                            req.logger.info("📧 No submitter email on feedback (userEmail: \(feedback.userEmail ?? "nil"))")
+                        }
+
+                        // Load votes with notification opt-in
+                        // Voter notifications are a Team-tier feature - check owner's tier
+                        try await project.$owner.load(on: req.db)
+                        let ownerHasTeamTier = project.owner.subscriptionTier.meetsRequirement(.team)
+                        req.logger.info("📧 Project owner: \(project.owner.email), tier: \(project.owner.subscriptionTier.rawValue), hasTeamTier: \(ownerHasTeamTier)")
+
+                        if ownerHasTeamTier {
+                            try await feedback.$votes.load(on: req.db)
+                            req.logger.info("📧 Checking \(feedback.votes.count) votes for notification opt-ins")
+                            for vote in feedback.votes {
+                                req.logger.info("📧 Vote: email=\(vote.email ?? "nil"), notifyStatusChange=\(vote.notifyStatusChange)")
+                                if vote.notifyStatusChange,
+                                   let email = vote.email,
+                                   !email.isEmpty,
+                                   !emails.contains(email) {  // De-duplicate
+                                    emails.append(email)
+                                    if let key = vote.permissionKey {
+                                        unsubscribeKeys[email] = key
+                                    }
+                                }
+                            }
+                        } else {
+                            req.logger.info("📧 Skipping voter emails (owner doesn't have Team tier)")
+                        }
+
+                        req.logger.info("📧 Final email list: \(emails)")
+                        try await req.emailService.sendFeedbackStatusChangeNotification(
+                            to: emails,
+                            projectName: project.name,
+                            feedbackTitle: feedback.title,
+                            oldStatus: oldStatus.rawValue,
+                            newStatus: newStatus.rawValue,
+                            rejectionReason: feedback.rejectionReason,
+                            unsubscribeKeys: unsubscribeKeys
+                        )
+                    } catch {
+                        req.logger.error("Failed to send status change notification: \(error)")
                     }
-
-                    // Note: Votes currently don't store email addresses
-                    // To notify voters, you would need to add userEmail field to Vote model
-
-                    try await req.emailService.sendFeedbackStatusChangeNotification(
-                        to: emails,
-                        projectName: project.name,
-                        feedbackTitle: feedback.title,
-                        oldStatus: oldStatus.rawValue,
-                        newStatus: newStatus.rawValue
-                    )
-                } catch {
-                    req.logger.error("Failed to send status change notification: \(error)")
                 }
             }
 
@@ -441,12 +502,104 @@ struct FeedbackController: RouteCollection {
                     }
                 }
             }
+
+            // Sync to Airtable if configured and active
+            if let recordId = feedback.airtableRecordId,
+               project.airtableIsActive,
+               project.airtableSyncStatus,
+               let token = project.airtableToken,
+               let baseId = project.airtableBaseId,
+               let tableId = project.airtableTableId,
+               let statusFieldId = project.airtableStatusFieldId,
+               !statusFieldId.isEmpty {
+                let airtableStatus = newStatus.airtableStatusName
+                Task {
+                    do {
+                        try await req.airtableService.updateRecord(
+                            baseId: baseId,
+                            tableId: tableId,
+                            recordId: recordId,
+                            token: token,
+                            fields: [statusFieldId: airtableStatus]
+                        )
+                    } catch {
+                        req.logger.error("Failed to sync Airtable record status: \(error)")
+                    }
+                }
+            }
+
+            // Sync to Asana if configured and active
+            if let taskId = feedback.asanaTaskId,
+               project.asanaIsActive,
+               project.asanaSyncStatus,
+               let token = project.asanaToken,
+               let asanaProjectId = project.asanaProjectId,
+               let statusFieldId = project.asanaStatusFieldId,
+               !statusFieldId.isEmpty {
+                let asanaStatus = newStatus.asanaStatusName
+                Task {
+                    do {
+                        // Get the status field options and find matching one
+                        let fields = try await req.asanaService.getCustomFields(projectId: asanaProjectId, token: token)
+                        if let statusField = fields.first(where: { $0.gid == statusFieldId }),
+                           let options = statusField.enumOptions {
+                            if let option = options.first(where: { $0.name.lowercased() == asanaStatus.lowercased() && $0.enabled }) {
+                                try await req.asanaService.updateTaskStatus(
+                                    taskId: taskId,
+                                    statusFieldId: statusFieldId,
+                                    statusOptionId: option.gid,
+                                    token: token
+                                )
+                            }
+                        }
+                    } catch {
+                        req.logger.error("Failed to sync Asana task status: \(error)")
+                    }
+                }
+            }
+
+            // Sync to Basecamp if configured and active
+            if let todoId = feedback.basecampTodoId,
+               let bucketId = feedback.basecampBucketId,
+               project.basecampIsActive,
+               project.basecampSyncStatus,
+               let token = project.basecampAccessToken,
+               let accountId = project.basecampAccountId {
+                let isCompleted = newStatus.basecampIsCompleted
+                Task {
+                    do {
+                        _ = try await req.basecampService.updateTodo(
+                            accountId: accountId,
+                            bucketId: bucketId,
+                            todoId: todoId,
+                            token: token,
+                            completed: isCompleted
+                        )
+                    } catch {
+                        req.logger.error("Failed to sync Basecamp to-do status: \(error)")
+                    }
+                }
+            }
+
+            // Send push notification for status change
+            Task {
+                await req.pushNotificationService.sendStatusChangeNotification(
+                    feedback: feedback,
+                    oldStatus: oldStatus,
+                    newStatus: newStatus,
+                    project: project,
+                    on: req.db
+                )
+            }
         }
 
         try await feedback.$votes.load(on: req.db)
         try await feedback.$comments.load(on: req.db)
 
-        return FeedbackResponseDTO(feedback: feedback, commentCount: feedback.comments.count)
+        let responseDTO = FeedbackResponseDTO(feedback: feedback, commentCount: feedback.comments.count)
+        req.logger.info("🔴 Response DTO rejectionReason: \(responseDTO.rejectionReason ?? "nil")")
+
+        return responseDTO
     }
 
     @Sendable

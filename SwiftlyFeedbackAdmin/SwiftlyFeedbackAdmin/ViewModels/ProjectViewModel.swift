@@ -1,5 +1,23 @@
 import SwiftUI
 
+enum AddMemberResult {
+    case success
+    case paymentRequired
+    case otherError
+}
+
+enum CreateProjectResult {
+    case success
+    case paymentRequired(SubscriptionTier)
+    case otherError
+}
+
+enum IntegrationUpdateResult {
+    case success
+    case paymentRequired
+    case otherError
+}
+
 @MainActor
 @Observable
 final class ProjectViewModel {
@@ -26,6 +44,7 @@ final class ProjectViewModel {
     // Add member fields
     var newMemberEmail = ""
     var newMemberRole: ProjectRole = .member
+    var shouldShowPaywallAfterAddMember = false
 
     // Track if projects are currently being loaded to prevent duplicate requests
     private var isLoadingProjects = false
@@ -69,10 +88,10 @@ final class ProjectViewModel {
         isLoadingDetail = false
     }
 
-    func createProject() async -> Bool {
+    func createProject() async -> CreateProjectResult {
         guard !newProjectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             showError(message: "Project name is required")
-            return false
+            return .otherError
         }
 
         isLoading = true
@@ -87,11 +106,14 @@ final class ProjectViewModel {
             clearCreateProjectFields()
             await loadProjects()
             isLoading = false
-            return true
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired(error.requiredSubscriptionTier)
         } catch {
             showError(message: error.localizedDescription)
             isLoading = false
-            return false
+            return .otherError
         }
     }
 
@@ -175,6 +197,85 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Ownership Transfer
+
+    enum TransferOwnershipResult {
+        case success(newOwnerName: String)
+        case paymentRequired
+        case notFound
+        case otherError(String)
+    }
+
+    func transferOwnership(projectId: UUID, toMemberId memberId: UUID) async -> TransferOwnershipResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.transferProjectOwnership(
+                projectId: projectId,
+                newOwnerId: memberId
+            )
+
+            // Reload project and members to reflect the changes
+            await loadProject(id: projectId)
+            await loadMembers(projectId: projectId)
+            await loadProjects()
+
+            isLoading = false
+            return .success(newOwnerName: response.newOwner.name)
+
+        } catch let error as APIError {
+            isLoading = false
+
+            if error.isPaymentRequired {
+                return .paymentRequired
+            } else if case .serverError(let statusCode, _) = error, statusCode == 404 {
+                return .notFound
+            } else {
+                return .otherError(error.localizedDescription)
+            }
+
+        } catch {
+            isLoading = false
+            return .otherError(error.localizedDescription)
+        }
+    }
+
+    func transferOwnership(projectId: UUID, toEmail email: String) async -> TransferOwnershipResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.transferProjectOwnership(
+                projectId: projectId,
+                newOwnerEmail: email
+            )
+
+            // Reload project and members to reflect the changes
+            await loadProject(id: projectId)
+            await loadMembers(projectId: projectId)
+            await loadProjects()
+
+            isLoading = false
+            return .success(newOwnerName: response.newOwner.name)
+
+        } catch let error as APIError {
+            isLoading = false
+
+            if error.isPaymentRequired {
+                return .paymentRequired
+            } else if case .serverError(let statusCode, _) = error, statusCode == 404 {
+                return .notFound
+            } else {
+                return .otherError(error.localizedDescription)
+            }
+
+        } catch {
+            isLoading = false
+            return .otherError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Members
 
     func loadMembers(projectId: UUID) async {
@@ -185,10 +286,10 @@ final class ProjectViewModel {
         }
     }
 
-    func addMember(projectId: UUID) async -> Bool {
+    func addMember(projectId: UUID) async -> AddMemberResult {
         guard !newMemberEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             showError(message: "Email is required")
-            return false
+            return .otherError
         }
 
         isLoading = true
@@ -210,11 +311,14 @@ final class ProjectViewModel {
             }
 
             isLoading = false
-            return true
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
         } catch {
             showError(message: error.localizedDescription)
             isLoading = false
-            return false
+            return .otherError
         }
     }
 
@@ -306,7 +410,7 @@ final class ProjectViewModel {
         slackNotifyNewComments: Bool?,
         slackNotifyStatusChanges: Bool?,
         slackIsActive: Bool?
-    ) async -> Bool {
+    ) async -> IntegrationUpdateResult {
         isLoading = true
         errorMessage = nil
 
@@ -320,11 +424,14 @@ final class ProjectViewModel {
                 slackIsActive: slackIsActive
             )
             isLoading = false
-            return true
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
         } catch {
             showError(message: error.localizedDescription)
             isLoading = false
-            return false
+            return .otherError
         }
     }
 
@@ -348,6 +455,29 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Email Notification Status Settings
+
+    func updateEmailNotifyStatuses(projectId: UUID, emailNotifyStatuses: [String]) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            selectedProject = try await AdminAPIClient.shared.updateProjectEmailNotifyStatuses(
+                projectId: projectId,
+                emailNotifyStatuses: emailNotifyStatuses
+            )
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
     // MARK: - GitHub Settings
 
     func updateGitHubSettings(
@@ -358,7 +488,7 @@ final class ProjectViewModel {
         githubDefaultLabels: [String]?,
         githubSyncStatus: Bool?,
         githubIsActive: Bool?
-    ) async -> Bool {
+    ) async -> IntegrationUpdateResult {
         isLoading = true
         errorMessage = nil
 
@@ -373,11 +503,14 @@ final class ProjectViewModel {
                 githubIsActive: githubIsActive
             )
             isLoading = false
-            return true
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
         } catch {
             showError(message: error.localizedDescription)
             isLoading = false
-            return false
+            return .otherError
         }
     }
 
@@ -394,7 +527,7 @@ final class ProjectViewModel {
         clickupSyncComments: Bool?,
         clickupVotesFieldId: String?,
         clickupIsActive: Bool?
-    ) async -> Bool {
+    ) async -> IntegrationUpdateResult {
         isLoading = true
         errorMessage = nil
 
@@ -412,11 +545,14 @@ final class ProjectViewModel {
                 clickupIsActive: clickupIsActive
             )
             isLoading = false
-            return true
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
         } catch {
             showError(message: error.localizedDescription)
             isLoading = false
-            return false
+            return .otherError
         }
     }
 
@@ -486,7 +622,7 @@ final class ProjectViewModel {
         notionStatusProperty: String?,
         notionVotesProperty: String?,
         notionIsActive: Bool?
-    ) async -> Bool {
+    ) async -> IntegrationUpdateResult {
         isLoading = true
         errorMessage = nil
 
@@ -503,11 +639,14 @@ final class ProjectViewModel {
                 notionIsActive: notionIsActive
             )
             isLoading = false
-            return true
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
         } catch {
             showError(message: error.localizedDescription)
             isLoading = false
-            return false
+            return .otherError
         }
     }
 
@@ -543,7 +682,7 @@ final class ProjectViewModel {
         mondayStatusColumnId: String?,
         mondayVotesColumnId: String?,
         mondayIsActive: Bool?
-    ) async -> Bool {
+    ) async -> IntegrationUpdateResult {
         isLoading = true
         errorMessage = nil
 
@@ -562,11 +701,14 @@ final class ProjectViewModel {
                 mondayIsActive: mondayIsActive
             )
             isLoading = false
-            return true
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
         } catch {
             showError(message: error.localizedDescription)
             isLoading = false
-            return false
+            return .otherError
         }
     }
 
@@ -610,7 +752,7 @@ final class ProjectViewModel {
         linearSyncStatus: Bool?,
         linearSyncComments: Bool?,
         linearIsActive: Bool?
-    ) async -> Bool {
+    ) async -> IntegrationUpdateResult {
         isLoading = true
         errorMessage = nil
 
@@ -629,11 +771,14 @@ final class ProjectViewModel {
             let updated = try await AdminAPIClient.shared.updateLinearSettings(projectId: projectId, request: request)
             selectedProject = updated
             isLoading = false
-            return true
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
         } catch {
             showError(message: error.localizedDescription)
             isLoading = false
-            return false
+            return .otherError
         }
     }
 
@@ -658,6 +803,302 @@ final class ProjectViewModel {
     func loadLinearLabels(projectId: UUID, teamId: String) async -> [LinearLabel] {
         do {
             return try await AdminAPIClient.shared.getLinearLabels(projectId: projectId, teamId: teamId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    // MARK: - Trello Integration
+
+    func updateTrelloSettings(
+        projectId: UUID,
+        trelloToken: String?,
+        trelloBoardId: String?,
+        trelloBoardName: String?,
+        trelloListId: String?,
+        trelloListName: String?,
+        trelloSyncStatus: Bool?,
+        trelloSyncComments: Bool?,
+        trelloIsActive: Bool?
+    ) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let request = UpdateProjectTrelloRequest(
+                trelloToken: trelloToken,
+                trelloBoardId: trelloBoardId,
+                trelloBoardName: trelloBoardName,
+                trelloListId: trelloListId,
+                trelloListName: trelloListName,
+                trelloSyncStatus: trelloSyncStatus,
+                trelloSyncComments: trelloSyncComments,
+                trelloIsActive: trelloIsActive
+            )
+            let updated = try await AdminAPIClient.shared.updateTrelloSettings(projectId: projectId, request: request)
+            selectedProject = updated
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
+    func loadTrelloBoards(projectId: UUID) async -> [TrelloBoard] {
+        do {
+            return try await AdminAPIClient.shared.getTrelloBoards(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadTrelloLists(projectId: UUID, boardId: String) async -> [TrelloList] {
+        do {
+            return try await AdminAPIClient.shared.getTrelloLists(projectId: projectId, boardId: boardId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    // MARK: - Airtable Integration
+
+    func updateAirtableSettings(
+        projectId: UUID,
+        airtableToken: String?,
+        airtableBaseId: String?,
+        airtableBaseName: String?,
+        airtableTableId: String?,
+        airtableTableName: String?,
+        airtableSyncStatus: Bool?,
+        airtableSyncComments: Bool?,
+        airtableStatusFieldId: String?,
+        airtableVotesFieldId: String?,
+        airtableTitleFieldId: String?,
+        airtableDescriptionFieldId: String?,
+        airtableCategoryFieldId: String?,
+        airtableIsActive: Bool?
+    ) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let request = UpdateProjectAirtableRequest(
+                airtableToken: airtableToken,
+                airtableBaseId: airtableBaseId,
+                airtableBaseName: airtableBaseName,
+                airtableTableId: airtableTableId,
+                airtableTableName: airtableTableName,
+                airtableSyncStatus: airtableSyncStatus,
+                airtableSyncComments: airtableSyncComments,
+                airtableStatusFieldId: airtableStatusFieldId,
+                airtableVotesFieldId: airtableVotesFieldId,
+                airtableTitleFieldId: airtableTitleFieldId,
+                airtableDescriptionFieldId: airtableDescriptionFieldId,
+                airtableCategoryFieldId: airtableCategoryFieldId,
+                airtableIsActive: airtableIsActive
+            )
+            let updated = try await AdminAPIClient.shared.updateAirtableSettings(projectId: projectId, request: request)
+            selectedProject = updated
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
+    func loadAirtableBases(projectId: UUID) async -> [AirtableBase] {
+        do {
+            return try await AdminAPIClient.shared.getAirtableBases(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAirtableTables(projectId: UUID, baseId: String) async -> [AirtableTable] {
+        do {
+            return try await AdminAPIClient.shared.getAirtableTables(projectId: projectId, baseId: baseId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAirtableFields(projectId: UUID) async -> [AirtableField] {
+        do {
+            return try await AdminAPIClient.shared.getAirtableFields(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    // MARK: - Asana Integration
+
+    func updateAsanaSettings(
+        projectId: UUID,
+        asanaToken: String?,
+        asanaWorkspaceId: String?,
+        asanaWorkspaceName: String?,
+        asanaProjectId: String?,
+        asanaProjectName: String?,
+        asanaSectionId: String?,
+        asanaSectionName: String?,
+        asanaSyncStatus: Bool?,
+        asanaSyncComments: Bool?,
+        asanaStatusFieldId: String?,
+        asanaVotesFieldId: String?,
+        asanaIsActive: Bool?
+    ) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let request = UpdateProjectAsanaRequest(
+                asanaToken: asanaToken,
+                asanaWorkspaceId: asanaWorkspaceId,
+                asanaWorkspaceName: asanaWorkspaceName,
+                asanaProjectId: asanaProjectId,
+                asanaProjectName: asanaProjectName,
+                asanaSectionId: asanaSectionId,
+                asanaSectionName: asanaSectionName,
+                asanaSyncStatus: asanaSyncStatus,
+                asanaSyncComments: asanaSyncComments,
+                asanaStatusFieldId: asanaStatusFieldId,
+                asanaVotesFieldId: asanaVotesFieldId,
+                asanaIsActive: asanaIsActive
+            )
+            let updated = try await AdminAPIClient.shared.updateAsanaSettings(projectId: projectId, request: request)
+            selectedProject = updated
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
+    func loadAsanaWorkspaces(projectId: UUID) async -> [AsanaWorkspace] {
+        do {
+            return try await AdminAPIClient.shared.getAsanaWorkspaces(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAsanaProjects(projectId: UUID, workspaceId: String) async -> [AsanaProject] {
+        do {
+            return try await AdminAPIClient.shared.getAsanaProjects(projectId: projectId, workspaceId: workspaceId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAsanaSections(projectId: UUID, asanaProjectId: String) async -> [AsanaSection] {
+        do {
+            return try await AdminAPIClient.shared.getAsanaSections(projectId: projectId, asanaProjectId: asanaProjectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadAsanaCustomFields(projectId: UUID, asanaProjectId: String) async -> [AsanaCustomField] {
+        do {
+            return try await AdminAPIClient.shared.getAsanaCustomFields(projectId: projectId, asanaProjectId: asanaProjectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    // MARK: - Basecamp Integration
+
+    func updateBasecampSettings(
+        projectId: UUID,
+        basecampAccessToken: String?,
+        basecampAccountId: String?,
+        basecampAccountName: String?,
+        basecampProjectId: String?,
+        basecampProjectName: String?,
+        basecampTodosetId: String?,
+        basecampTodolistId: String?,
+        basecampTodolistName: String?,
+        basecampSyncStatus: Bool?,
+        basecampSyncComments: Bool?,
+        basecampIsActive: Bool?
+    ) async -> IntegrationUpdateResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let request = UpdateProjectBasecampRequest(
+                basecampAccessToken: basecampAccessToken,
+                basecampAccountId: basecampAccountId,
+                basecampAccountName: basecampAccountName,
+                basecampProjectId: basecampProjectId,
+                basecampProjectName: basecampProjectName,
+                basecampTodosetId: basecampTodosetId,
+                basecampTodolistId: basecampTodolistId,
+                basecampTodolistName: basecampTodolistName,
+                basecampSyncStatus: basecampSyncStatus,
+                basecampSyncComments: basecampSyncComments,
+                basecampIsActive: basecampIsActive
+            )
+            let updated = try await AdminAPIClient.shared.updateBasecampSettings(projectId: projectId, request: request)
+            selectedProject = updated
+            isLoading = false
+            return .success
+        } catch let error as APIError where error.isPaymentRequired {
+            isLoading = false
+            return .paymentRequired
+        } catch {
+            showError(message: error.localizedDescription)
+            isLoading = false
+            return .otherError
+        }
+    }
+
+    func loadBasecampAccounts(projectId: UUID) async -> [BasecampAccount] {
+        do {
+            return try await AdminAPIClient.shared.getBasecampAccounts(projectId: projectId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadBasecampProjects(projectId: UUID, accountId: String) async -> [BasecampProject] {
+        do {
+            return try await AdminAPIClient.shared.getBasecampProjects(projectId: projectId, accountId: accountId)
+        } catch {
+            showError(message: error.localizedDescription)
+            return []
+        }
+    }
+
+    func loadBasecampTodolists(projectId: UUID, accountId: String, basecampProjectId: String) async -> [BasecampTodolist] {
+        do {
+            return try await AdminAPIClient.shared.getBasecampTodolists(projectId: projectId, accountId: accountId, basecampProjectId: basecampProjectId)
         } catch {
             showError(message: error.localizedDescription)
             return []
@@ -740,6 +1181,22 @@ final class ProjectViewModel {
     private func clearAddMemberFields() {
         newMemberEmail = ""
         newMemberRole = .member
+    }
+
+    // MARK: - Cache Management
+
+    /// Clears all cached project data. Called when environment changes.
+    func clearCache() {
+        AppLogger.viewModel.info("🧹 Clearing project cache")
+        projects = []
+        selectedProject = nil
+        projectMembers = []
+        selectedFilterProject = nil
+        pendingInvites = []
+        invitePreview = nil
+        clearCreateProjectFields()
+        clearAddMemberFields()
+        clearInviteFields()
     }
 }
 

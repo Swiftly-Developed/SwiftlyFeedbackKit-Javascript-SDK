@@ -16,11 +16,11 @@ struct FeatureGatedView<Content: View>: View {
     let featureName: String
     @ViewBuilder let content: () -> Content
 
-    @State private var subscriptionService = SubscriptionService.shared
+    @Environment(SubscriptionService.self) private var subscriptionService
     @State private var showPaywall = false
 
     var body: some View {
-        if subscriptionService.currentTier.meetsRequirement(requiredTier) {
+        if subscriptionService.meetsRequirement(requiredTier) {
             content()
         } else {
             Button {
@@ -43,7 +43,7 @@ struct FeatureGatedView<Content: View>: View {
             }
             .buttonStyle(.plain)
             .sheet(isPresented: $showPaywall) {
-                PaywallView()
+                PaywallView(requiredTier: requiredTier)
             }
         }
     }
@@ -56,12 +56,12 @@ struct SubscriptionGatedButton<Label: View>: View {
     let action: () -> Void
     @ViewBuilder let label: () -> Label
 
-    @State private var subscriptionService = SubscriptionService.shared
+    @Environment(SubscriptionService.self) private var subscriptionService
     @State private var showPaywall = false
 
     var body: some View {
         Button {
-            if subscriptionService.currentTier.meetsRequirement(requiredTier) {
+            if subscriptionService.meetsRequirement(requiredTier) {
                 action()
             } else {
                 showPaywall = true
@@ -70,7 +70,7 @@ struct SubscriptionGatedButton<Label: View>: View {
             label()
         }
         .sheet(isPresented: $showPaywall) {
-            PaywallView()
+            PaywallView(requiredTier: requiredTier)
         }
     }
 }
@@ -79,13 +79,13 @@ struct SubscriptionGatedButton<Label: View>: View {
 struct TierBadgeModifier: ViewModifier {
     let tier: SubscriptionTier
 
-    @State private var subscriptionService = SubscriptionService.shared
+    @Environment(SubscriptionService.self) private var subscriptionService
 
     func body(content: Content) -> some View {
         HStack(spacing: 6) {
             content
 
-            if !subscriptionService.currentTier.meetsRequirement(tier) {
+            if !subscriptionService.meetsRequirement(tier) {
                 Text(tier.displayName)
                     .font(.caption2)
                     .fontWeight(.semibold)

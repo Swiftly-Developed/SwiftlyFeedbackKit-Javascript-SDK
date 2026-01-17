@@ -1,65 +1,19 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with this repository.
 
 > **Note**: See [AGENTS.md](./AGENTS.md) for Swift and SwiftUI coding guidelines.
 
 ## Project Overview
 
 Feedback Kit is a feedback collection platform with four subprojects:
-- **SwiftlyFeedbackServer** - Vapor backend with PostgreSQL
-- **SwiftlyFeedbackKit** - Swift SDK with SwiftUI views (iOS/macOS/visionOS)
-- **SwiftlyFeedbackAdmin** - Admin app for managing feedback
-- **SwiftlyFeedbackDemoApp** - Demo app showcasing the SDK
 
-Each subproject has its own `CLAUDE.md` with detailed documentation.
-
-## Tech Stack
-
-- **Language**: Swift 6.2
-- **Backend**: Vapor 4, Fluent ORM, PostgreSQL
-- **Auth**: Token-based with bcrypt
-- **Platforms**: iOS 26+, macOS 12+, visionOS 1+
-- **Testing**: Swift Testing (`@Test`) + XCTest
-
-## Build Commands
-
-```bash
-# Open workspace
-open Swiftlyfeedback.xcworkspace
-
-# Database (Docker)
-docker run --name swiftly-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=swiftly_feedback -p 5432:5432 -d postgres
-
-# Server
-cd SwiftlyFeedbackServer && swift build
-cd SwiftlyFeedbackServer && swift run          # http://localhost:8080
-cd SwiftlyFeedbackServer && swift test
-
-# SDK
-cd SwiftlyFeedbackKit && swift build
-cd SwiftlyFeedbackKit && swift test
-
-# Admin app
-xcodebuild -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAdmin -sdk iphonesimulator -configuration Debug
-xcodebuild -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAdmin test -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16'
-
-# Demo app
-xcodebuild -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackDemoApp -sdk iphonesimulator -configuration Debug
-```
-
-### Running Single Tests
-
-```bash
-# Server - single test file
-cd SwiftlyFeedbackServer && swift test --filter TestClassName
-
-# Server - single test method
-cd SwiftlyFeedbackServer && swift test --filter TestClassName/testMethodName
-
-# Xcode projects - single test
-xcodebuild test -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAdmin -only-testing:SwiftlyFeedbackAdminTests/TestClassName/testMethodName -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16'
-```
+| Subproject | Description | Documentation |
+|------------|-------------|---------------|
+| **SwiftlyFeedbackServer** | Vapor 4 backend with PostgreSQL | [Server CLAUDE.md](./SwiftlyFeedbackServer/CLAUDE.md) |
+| **SwiftlyFeedbackKit** | Swift SDK with SwiftUI views (iOS/macOS/visionOS) | [SDK CLAUDE.md](./SwiftlyFeedbackKit/CLAUDE.md) |
+| **SwiftlyFeedbackAdmin** | Admin app for managing feedback | [Admin CLAUDE.md](./SwiftlyFeedbackAdmin/CLAUDE.md) |
+| **SwiftlyFeedbackDemoApp** | Demo app showcasing the SDK | [Demo CLAUDE.md](./SwiftlyFeedbackDemoApp/CLAUDE.md) |
 
 ## Architecture
 
@@ -91,14 +45,58 @@ xcodebuild test -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAd
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Auth Model:**
-- Admin app uses Bearer token auth (user accounts)
-- SDK uses X-API-Key auth (project API keys)
+## Tech Stack
+
+- **Language**: Swift 6.2
+- **Backend**: Vapor 4, Fluent ORM, PostgreSQL
+- **Auth**: Token-based (Bearer for Admin, X-API-Key for SDK)
+- **Platforms**: iOS 26+, macOS 12+, visionOS 1+
+- **Testing**: Swift Testing (`@Test`) + XCTest
+
+## Quick Start
+
+```bash
+# Open workspace
+open Swiftlyfeedback.xcworkspace
+
+# Database (Docker)
+docker run --name swiftly-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=swiftly_feedback -p 5432:5432 -d postgres
+
+# Server
+cd SwiftlyFeedbackServer && swift run
+
+# See each subproject's CLAUDE.md for specific build/test commands
+```
+
+## Git Remotes & Branching
+
+This workspace pushes to multiple GitHub repositories using **git subtree**:
+
+| Remote | Repository | Push Command |
+|--------|------------|--------------|
+| `origin` | FeedbackKit-Workspace | `git push origin dev` |
+| `feedbackkit-sdk` | SwiftlyFeedbackKit | `git subtree push --prefix=SwiftlyFeedbackKit feedbackkit-sdk dev` |
+| `feedbackkit-server` | SwiftlyFeedbackServer | `git subtree push --prefix=SwiftlyFeedbackServer feedbackkit-server dev` |
+| `feedbackkit-admin` | SwiftlyFeedbackAdmin | `git subtree push --prefix=SwiftlyFeedbackAdmin feedbackkit-admin dev` |
+| `feedbackkit-demo` | SwiftlyFeedbackDemoApp | `git subtree push --prefix=SwiftlyFeedbackDemoApp feedbackkit-demo dev` |
+
+**Branches:** `dev` (development), `testflight` (staging), `main` (production)
+
+**Push all remotes:**
+```bash
+git push origin dev && \
+git subtree push --prefix=SwiftlyFeedbackKit feedbackkit-sdk dev && \
+git subtree push --prefix=SwiftlyFeedbackServer feedbackkit-server dev && \
+git subtree push --prefix=SwiftlyFeedbackAdmin feedbackkit-admin dev && \
+git subtree push --prefix=SwiftlyFeedbackDemoApp feedbackkit-demo dev
+```
+
+> **Important:** Never use `git push feedbackkit-server dev` directly - always use `git subtree push`.
 
 ## Authorization Model
 
 **Project Roles:**
-- **Owner**: Full access (delete, archive, manage members, regenerate API key)
+- **Owner**: Full access (delete, archive, manage members, regenerate API key, transfer ownership)
 - **Admin**: Manage settings/members, update/delete feedback
 - **Member**: View and respond to feedback
 - **Viewer**: Read-only
@@ -106,7 +104,17 @@ xcodebuild test -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAd
 **Key Rules:**
 - Archived projects: reads allowed, writes blocked
 - Voting blocked on `completed`/`rejected` status feedback
-- `FeedbackStatus.canVote` indicates votability
+- Feedback creators automatically get a vote (voteCount starts at 1)
+
+## Subscription Tiers
+
+| Tier | Projects | Feedback | Members | Integrations |
+|------|----------|----------|---------|--------------|
+| Free | 1 | 10/project | No | No |
+| Pro | 2 | Unlimited | No | Yes |
+| Team | Unlimited | Unlimited | Yes | Yes |
+
+Server enforces limits via 402 Payment Required responses. See [Admin CLAUDE.md](./SwiftlyFeedbackAdmin/CLAUDE.md) for client-side subscription handling.
 
 ## Feedback Statuses
 
@@ -119,158 +127,19 @@ xcodebuild test -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAd
 | completed | Green | No |
 | rejected | Red | No |
 
-Statuses are configurable per-project via Admin app or `PATCH /projects/:id/statuses`.
-
-## SDK Configuration
-
-```swift
-// Basic setup
-SwiftlyFeedback.configure(apiKey: "sf_...", baseURL: URL(string: "https://...")!)
-
-// Disable submission (e.g., free users)
-SwiftlyFeedback.config.allowFeedbackSubmission = false
-SwiftlyFeedback.config.feedbackSubmissionDisabledMessage = "Upgrade to Pro!"
-
-// Disable logging
-SwiftlyFeedback.config.loggingEnabled = false
-
-// Event tracking
-SwiftlyFeedback.view("feature_details", properties: ["id": "123"])
-SwiftlyFeedback.config.enableAutomaticViewTracking = false
-```
-
-## Swift 6 Concurrency
-
-Admin app uses `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`. Key patterns:
-
-```swift
-// DTOs must be nonisolated for Codable from any actor
-nonisolated struct Feedback: Codable, Sendable { ... }
-
-// Thread-safe services opt out
-nonisolated enum KeychainService { ... }
-
-// Global state flags
-nonisolated(unsafe) private var _loggingEnabled = true
-```
-
-**Common fixes:**
-- "Codable cannot be used in actor-isolated context" → Add `nonisolated` to type
-- "Static method cannot be called from outside actor" → Mark type as `nonisolated`
-
 ## Integrations
 
-All integrations support: create/bulk create, status sync, comment sync, link tracking, and active toggles.
+Supported: Slack, GitHub, Notion, ClickUp, Linear, Monday.com, Trello, Airtable, Asana, Basecamp
 
-| Integration | Push To | Status Sync | Extra Features |
-|-------------|---------|-------------|----------------|
-| Slack | Webhook | N/A | Notifications (new feedback, comments, status changes) |
-| GitHub | Issues | Close/reopen | Labels |
-| Notion | Database pages | Status property | Votes property |
-| ClickUp | Tasks | Status | Tags, votes custom field |
-| Linear | Issues | Workflow states | Labels, projects |
-| Monday.com | Board items | Status column | Votes column |
+All support: create/bulk create, status sync, comment sync, link tracking, active toggles.
 
-**Status mapping** (all integrations follow similar pattern):
-- pending → backlog/to do
-- approved → approved/unstarted
-- in_progress → in progress/started
-- completed → complete/done
-- rejected → closed/canceled
-
-Configure via Admin app: Project Details > Menu (⋯) > [Integration] Integration.
-
-See `SwiftlyFeedbackServer/CLAUDE.md` for API endpoints and request/response formats.
-
-## Email Notifications
-
-Via Resend API. User preferences in Settings:
-- `notifyNewFeedback` / `notifyNewComments`
-
-**Types:** New feedback, new comments, status changes, email verification, project invites, password reset.
-
-**Branding:**
-- Primary color: `#F7A50D` (FeedbackKit orange)
-- Header gradient: `#FFB830` → `#F7A50D` → `#E85D04` (warm yellow-orange to deep orange-red)
-- Logo: Hosted on Squarespace CDN, displayed in email header (60x60px)
-- Footer: "Powered by Feedback Kit" branding
-
-**Email templates** are defined in `SwiftlyFeedbackServer/Sources/App/Services/EmailService.swift` with reusable `emailHeader()` and `emailFooter()` helpers.
-
-**Unsubscribe Link:** Notification emails (new feedback, new comments, status changes) include a "Manage email preferences" link in the footer. This uses the `feedbackkit://settings/notifications` URL scheme to deep link users to the app's Settings screen where they can toggle email preferences.
-
-## Password Reset
-
-1. User requests reset via email
-2. Server sends 8-char code (1-hour expiry)
-3. User enters code + new password
-4. All sessions invalidated
-
-## Feedback Merging
-
-Select 2+ feedback items → Merge. Primary keeps title/description, votes are de-duplicated, comments migrated with prefix. Secondary items soft-deleted.
-
-`POST /feedbacks/merge` with `primary_feedback_id` and `secondary_feedback_ids[]`.
-
-## Onboarding Flow (Admin App)
-
-1. Welcome → 2. Create Account → 3. Verify Email → 4. Project Choice → 5. Create/Join Project → 6. Completion
-
-`OnboardingManager` singleton tracks state in `UserDefaults`.
-
-## Developer Commands (Admin App)
-
-Available in DEBUG and TestFlight builds only. Access via:
-- **macOS**: Menu bar → Feedback Kit → Developer Commands... (⌘⇧D)
-- **iOS**: Settings → Developer section
-
-**Features:**
-- Generate dummy projects, feedback, and comments
-- Reset onboarding, auth token, UserDefaults
-- Clear project feedback, delete all projects
-- Full database reset (DEBUG only - not available in TestFlight)
-
-Controlled by `AppEnvironment.isDeveloperMode` (DEBUG || TestFlight) and `AppEnvironment.isDebug`.
-
-## Analytics
-
-- **Events**: `POST /events/track`, `GET /events/project/:id/stats?days=N`
-- **Users**: Auto-registered on SDK init, tracks first/last seen, MRR
-- **Dashboard**: Home tab shows KPIs, feedback by status, per-project stats
-- **MRR**: Displayed on feedback cards, sortable
-
-## Project Icons
-
-`colorIndex` (0-7) maps to gradient pairs. Archived projects show gray.
-
-## Deep Linking (URL Scheme)
-
-The Admin app supports the `feedbackkit://` URL scheme for deep linking.
-
-**Supported URLs:**
-- `feedbackkit://settings` - Opens the Settings tab
-- `feedbackkit://settings/notifications` - Opens the Settings tab (for managing email preferences)
-
-**Implementation:**
-- `DeepLinkManager` (singleton) handles URL parsing and navigation state
-- `SwiftlyFeedbackAdminApp` uses `.onOpenURL` to capture incoming URLs
-- `MainTabView` (iOS) and `MacNavigationView` (macOS) respond to `pendingDestination` changes
+See [Server CLAUDE.md](./SwiftlyFeedbackServer/CLAUDE.md) for API endpoints and configuration.
 
 ## Code Conventions
 
 - `@main` for entry points
-- `@Observable` + `Bindable()` for state
+- `@Observable` + `Bindable()` for state management
 - `#Preview` macro for previews
 - `@Test` macro for tests
 - Models: `Codable`, `Sendable`, `Equatable`
-- Platform: `#if os(macOS)` / `#if os(iOS)`
-
-## Monetization (Planned)
-
-RevenueCat integration not yet complete. All users on Free tier.
-
-| Tier | Projects | Feedback | Members | Integrations |
-|------|----------|----------|---------|--------------|
-| Free | 1 | 10/project | No | No |
-| Pro | 2 | Unlimited | No | No |
-| Team | Unlimited | Unlimited | Yes | Yes |
+- Platform conditionals: `#if os(macOS)` / `#if os(iOS)`
