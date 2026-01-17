@@ -308,8 +308,15 @@ When rejecting feedback, admins can optionally provide a reason that explains wh
 ## SDK Configuration
 
 ```swift
-// Basic setup
+// Basic setup (single environment)
 SwiftlyFeedback.configure(apiKey: "sf_...", baseURL: URL(string: "https://...")!)
+
+// Multi-environment setup (recommended)
+SwiftlyFeedback.configureAuto(keys: EnvironmentAPIKeys(
+    debug: "sf_local_...",        // Optional: localhost
+    testflight: "sf_staging_...",  // Required: staging server
+    production: "sf_prod_..."      // Required: production server
+))
 
 // Disable submission (e.g., free users)
 SwiftlyFeedback.config.allowFeedbackSubmission = false
@@ -327,6 +334,35 @@ SwiftlyFeedback.config.userEmail = "user@example.com"  // Pre-set email (skips d
 SwiftlyFeedback.config.showVoteEmailField = true       // Show email dialog when voting
 SwiftlyFeedback.config.voteNotificationDefaultOptIn = false  // Default opt-in state
 ```
+
+## Multi-Environment API Keys
+
+The SDK supports automatic environment detection with separate API keys per server:
+
+| Build Type | Server | API Key Used |
+|------------|--------|--------------|
+| DEBUG | localhost:8080 | `debug` (or `testflight` if nil) |
+| TestFlight | staging server | `testflight` |
+| App Store | production server | `production` |
+
+```swift
+// Recommended: Different keys for each environment
+SwiftlyFeedback.configureAuto(keys: EnvironmentAPIKeys(
+    debug: "sf_local_key",        // Optional
+    testflight: "sf_staging_key",  // Required
+    production: "sf_prod_key"      // Required
+))
+
+// If no debug key provided, testflight key is used for localhost
+SwiftlyFeedback.configureAuto(keys: EnvironmentAPIKeys(
+    testflight: "sf_staging_key",
+    production: "sf_prod_key"
+))
+```
+
+**Security:** Store API keys in Info.plist with xcconfig files or environment variables, not hardcoded in source.
+
+The old single-key `configureAuto(with:)` method is deprecated but still works for backward compatibility.
 
 ## Voter Email Notifications
 
@@ -571,7 +607,7 @@ Controlled by `BuildEnvironment.canShowTestingFeatures` (DEBUG || TestFlight) an
 
 ## Server Environments (Admin App)
 
-The Admin app supports multiple server environments configured via `AppEnvironment` enum:
+The Admin app supports multiple server environments configured via `AppEnvironment` enum. The Login Screen and Developer Center use identical environment availability logic.
 
 | Environment | URL | Color | Available In |
 |-------------|-----|-------|--------------|
@@ -580,10 +616,10 @@ The Admin app supports multiple server environments configured via `AppEnvironme
 | TestFlight | `api.feedbackkit.testflight.swiftly-developed.com` | Orange | DEBUG, TestFlight builds |
 | Production | `api.feedbackkit.prod.swiftly-developed.com` | Red | All builds |
 
-**Build type restrictions:**
-- **DEBUG**: All environments available, defaults to Development
+**Build type restrictions (Login Screen & Developer Center):**
+- **DEBUG**: All 4 environments available, defaults to Development
 - **TestFlight build**: TestFlight and Production only, defaults to TestFlight
-- **App Store build**: Locked to Production
+- **App Store build**: Locked to Production (no picker shown)
 
 **Command line arguments** (DEBUG only):
 - `--localhost` → Localhost
@@ -731,7 +767,7 @@ BuildEnvironment.canShowTestingFeatures  // true for DEBUG or TestFlight
 
 ## Push Notifications (In Development)
 
-> **Status:** In development. See `docs/PUSH_NOTIFICATIONS_PLAN.md` for full technical plan.
+> **Status:** Infrastructure in place, implementation in progress.
 
 Push notifications will notify Admin app users when:
 - New feedback is submitted to their projects
@@ -952,3 +988,13 @@ The server independently enforces subscription limits and returns 402 Payment Re
 - Project owner must have Team tier to send invites
 - Invitee must have Team tier to accept
 - If owner downgrades after sending invite, accept fails with 402
+
+## Planning Documents
+
+The `docs/` folder contains detailed planning documents for major features:
+
+- `PROJECT_OWNERSHIP_TRANSFER_PLAN.md` - Complete implementation plan for ownership transfer
+- `MULTI_ENVIRONMENT_API_KEYS_PLAN.md` - Plan for environment-specific API keys
+- `LOGIN_ENVIRONMENT_PICKER_PLAN.md` - Plan for environment picker on login screen
+
+These documents contain detailed specs, API contracts, and implementation details useful for understanding complex features.
