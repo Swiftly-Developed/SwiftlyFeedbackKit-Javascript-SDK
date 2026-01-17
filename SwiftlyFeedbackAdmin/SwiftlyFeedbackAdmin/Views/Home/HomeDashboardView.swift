@@ -305,6 +305,23 @@ struct HomeStatCard: View {
 struct FeedbackStatusBreakdownView: View {
     let feedbackByStatus: FeedbackByStatus
 
+    #if os(macOS)
+    private let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
+    #else
+    private let columns = [
+        GridItem(.flexible()),
+        GridItem(.flexible()),
+        GridItem(.flexible())
+    ]
+    #endif
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Feedback by Status")
@@ -312,7 +329,7 @@ struct FeedbackStatusBreakdownView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
 
-            HStack(spacing: 12) {
+            LazyVGrid(columns: columns, spacing: 12) {
                 StatusCard(title: "Pending", count: feedbackByStatus.pending, color: .gray)
                 StatusCard(title: "Approved", count: feedbackByStatus.approved, color: .blue)
                 StatusCard(title: "In Progress", count: feedbackByStatus.inProgress, color: .orange)
