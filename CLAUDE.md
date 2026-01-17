@@ -989,12 +989,3 @@ The server independently enforces subscription limits and returns 402 Payment Re
 - Invitee must have Team tier to accept
 - If owner downgrades after sending invite, accept fails with 402
 
-## Planning Documents
-
-The `docs/` folder contains detailed planning documents for major features:
-
-- `PROJECT_OWNERSHIP_TRANSFER_PLAN.md` - Complete implementation plan for ownership transfer
-- `MULTI_ENVIRONMENT_API_KEYS_PLAN.md` - Plan for environment-specific API keys
-- `LOGIN_ENVIRONMENT_PICKER_PLAN.md` - Plan for environment picker on login screen
-
-These documents contain detailed specs, API contracts, and implementation details useful for understanding complex features.
