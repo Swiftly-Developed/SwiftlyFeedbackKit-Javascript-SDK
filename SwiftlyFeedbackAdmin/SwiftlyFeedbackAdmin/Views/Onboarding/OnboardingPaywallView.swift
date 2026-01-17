@@ -114,10 +114,22 @@ struct OnboardingPaywallView: View {
                 } label: {
                     Text("Continue with Free")
                         .font(.subheadline)
+                        .fontWeight(.medium)
                         .foregroundStyle(.secondary)
-                        .frame(minHeight: 44)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 48)
+                        #if os(iOS)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        #else
+                        .background(Color(NSColor.controlBackgroundColor))
+                        #endif
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                        )
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(TierCardButtonStyle())
 
                 // Footer
                 footerSection
@@ -135,7 +147,8 @@ struct OnboardingPaywallView: View {
 
     @ViewBuilder
     private var billingPeriodToggle: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
+            // Monthly button
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isYearly = false
@@ -143,14 +156,17 @@ struct OnboardingPaywallView: View {
             } label: {
                 Text("Monthly")
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .frame(minHeight: 40)
                     .background(isYearly ? Color.clear : Color.accentColor)
                     .foregroundStyle(isYearly ? Color.secondary : Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .contentShape(RoundedRectangle(cornerRadius: 6))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BillingToggleButtonStyle())
 
+            // Yearly button
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isYearly = true
@@ -159,29 +175,32 @@ struct OnboardingPaywallView: View {
                 HStack(spacing: 4) {
                     Text("Yearly")
                         .font(.subheadline)
-                        .fontWeight(.medium)
+                        .fontWeight(.semibold)
                     Text("-17%")
                         .font(.caption2)
                         .fontWeight(.bold)
-                        .padding(.horizontal, 4)
+                        .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(isYearly ? Color.white.opacity(0.2) : Color.green.opacity(0.2))
+                        .background(isYearly ? Color.white.opacity(0.25) : Color.green.opacity(0.2))
                         .foregroundStyle(isYearly ? .white : .green)
                         .clipShape(Capsule())
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .frame(minHeight: 40)
                 .background(isYearly ? Color.accentColor : Color.clear)
                 .foregroundStyle(isYearly ? .white : .secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .contentShape(RoundedRectangle(cornerRadius: 6))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BillingToggleButtonStyle())
         }
+        .padding(4)
         #if os(iOS)
         .background(Color(UIColor.secondarySystemBackground))
         #else
         .background(Color(NSColor.controlBackgroundColor))
         #endif
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Compact Feature Comparison
@@ -535,19 +554,22 @@ private struct OnboardingTierCard: View {
                     .foregroundStyle(isSelected ? tierColor : .secondary.opacity(0.4))
             }
             .frame(maxWidth: .infinity)
-            .padding(12)
+            .frame(minHeight: 140)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 12)
             #if os(iOS)
-            .background(isSelected ? tierColor.opacity(0.08) : Color(UIColor.secondarySystemBackground))
+            .background(isSelected ? tierColor.opacity(0.12) : Color(UIColor.secondarySystemBackground))
             #else
-            .background(isSelected ? tierColor.opacity(0.08) : Color(NSColor.controlBackgroundColor))
+            .background(isSelected ? tierColor.opacity(0.12) : Color(NSColor.controlBackgroundColor))
             #endif
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? tierColor : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? tierColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2.5 : 1)
             )
+            .contentShape(RoundedRectangle(cornerRadius: 10))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TierCardButtonStyle())
     }
 
     private func priceText(for package: Package) -> String {

@@ -12,10 +12,28 @@ import UserNotifications
 #if os(macOS)
 import AppKit
 
+extension Notification.Name {
+    static let reopenMainWindow = Notification.Name("reopenMainWindow")
+}
+
 class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Set up notification delegate
         UNUserNotificationCenter.current().delegate = self
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        // Reopen main window when user clicks dock icon and no windows are visible
+        if !flag {
+            // Find and show the main window, or create a new one
+            if let window = sender.windows.first(where: { $0.identifier?.rawValue == "main" || $0.title == "FeedbackKit" }) {
+                window.makeKeyAndOrderFront(nil)
+            } else {
+                // Post notification to open new window via SwiftUI's openWindow
+                NotificationCenter.default.post(name: .reopenMainWindow, object: nil)
+            }
+        }
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -148,16 +166,29 @@ struct SwiftlyFeedbackAdminApp: App {
 
     var body: some Scene {
         // Main app window
-        WindowGroup {
+        WindowGroup(id: "main") {
             RootView()
                 .environment(SubscriptionService.shared)
                 .environment(deepLinkManager)
                 .onOpenURL { url in
                     deepLinkManager.handleURL(url)
                 }
+                #if os(macOS)
+                .onReceive(NotificationCenter.default.publisher(for: .reopenMainWindow)) { _ in
+                    openWindow(id: "main")
+                }
+                #endif
         }
         #if os(macOS)
         .commands {
+            // Add Window menu with main window item
+            CommandGroup(after: .windowList) {
+                Button("FeedbackKit") {
+                    openWindow(id: "main")
+                }
+                .keyboardShortcut("0", modifiers: .command)
+            }
+
             // Disable Cmd+N to prevent multiple main windows
             CommandGroup(replacing: .newItem) { }
 

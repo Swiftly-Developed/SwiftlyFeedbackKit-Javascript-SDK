@@ -157,7 +157,8 @@ struct PaywallView: View {
 
     @ViewBuilder
     private var billingPeriodToggle: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 4) {
+            // Monthly button
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isYearly = false
@@ -165,14 +166,17 @@ struct PaywallView: View {
             } label: {
                 Text("Monthly")
                     .font(.subheadline)
-                    .fontWeight(.medium)
+                    .fontWeight(.semibold)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    .frame(minHeight: 44)
                     .background(isYearly ? Color.clear : Color.accentColor)
                     .foregroundStyle(isYearly ? Color.secondary : Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .contentShape(RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BillingToggleButtonStyle())
 
+            // Yearly button
             Button {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isYearly = true
@@ -181,29 +185,32 @@ struct PaywallView: View {
                 HStack(spacing: 6) {
                     Text("Yearly")
                         .font(.subheadline)
-                        .fontWeight(.medium)
+                        .fontWeight(.semibold)
                     Text("-17%")
                         .font(.caption)
                         .fontWeight(.bold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(isYearly ? Color.white.opacity(0.2) : Color.green.opacity(0.2))
+                        .background(isYearly ? Color.white.opacity(0.25) : Color.green.opacity(0.2))
                         .foregroundStyle(isYearly ? .white : .green)
                         .clipShape(Capsule())
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .frame(minHeight: 44)
                 .background(isYearly ? Color.accentColor : Color.clear)
                 .foregroundStyle(isYearly ? .white : .secondary)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .contentShape(RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BillingToggleButtonStyle())
         }
+        .padding(4)
         #if os(iOS)
         .background(Color(UIColor.secondarySystemBackground))
         #else
         .background(Color(NSColor.controlBackgroundColor))
         #endif
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // MARK: - Feature Comparison Table
@@ -368,7 +375,7 @@ struct PaywallView: View {
                 .multilineTextAlignment(.center)
 
             HStack(spacing: 16) {
-                Link("Terms of Service", destination: URL(string: "https://swiftly-developed.com/feedback-kit-termsofservice")!)
+                Link("Terms of Use", destination: URL(string: "https://swiftly-developed.com/feedback-kit-termsofservice")!)
                 Link("Privacy Policy", destination: URL(string: "https://swiftly-developed.com/feedbackkit-privacypolicy")!)
             }
             .font(.caption)
@@ -528,19 +535,22 @@ struct TierSelectionCard: View {
                     .foregroundStyle(isSelected ? tierColor : .secondary.opacity(0.4))
             }
             .frame(maxWidth: .infinity)
-            .padding()
+            .frame(minHeight: 160)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
             #if os(iOS)
-            .background(isSelected ? tierColor.opacity(0.08) : Color(UIColor.secondarySystemBackground))
+            .background(isSelected ? tierColor.opacity(0.12) : Color(UIColor.secondarySystemBackground))
             #else
-            .background(isSelected ? tierColor.opacity(0.08) : Color(NSColor.controlBackgroundColor))
+            .background(isSelected ? tierColor.opacity(0.12) : Color(NSColor.controlBackgroundColor))
             #endif
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? tierColor : Color.clear, lineWidth: 2)
+                    .stroke(isSelected ? tierColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2.5 : 1)
             )
+            .contentShape(RoundedRectangle(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TierCardButtonStyle())
     }
 
     private func priceText(for package: Package) -> String {
@@ -563,6 +573,27 @@ struct TierSelectionCard: View {
         default:
             return price
         }
+    }
+}
+
+// MARK: - Tier Card Button Style
+
+struct TierCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Billing Toggle Button Style
+
+struct BillingToggleButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

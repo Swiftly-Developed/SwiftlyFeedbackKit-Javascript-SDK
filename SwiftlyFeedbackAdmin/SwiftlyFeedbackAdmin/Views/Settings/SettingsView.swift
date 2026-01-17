@@ -409,7 +409,7 @@ struct SettingsView: View {
                 SettingsRowView(
                     icon: "doc.text.fill",
                     iconColor: .teal,
-                    title: "Terms of Service",
+                    title: "Terms of Use",
                     showChevron: true
                 )
             }

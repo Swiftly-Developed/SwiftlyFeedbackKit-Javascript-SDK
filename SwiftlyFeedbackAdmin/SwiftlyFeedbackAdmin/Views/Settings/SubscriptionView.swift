@@ -256,67 +256,31 @@ struct SubscriptionView: View {
 
     // MARK: - Upgrade Section
 
-    /// The next tier to upgrade to
-    private var upgradeTier: SubscriptionTier {
-        displayTier == .free ? .pro : .team
-    }
-
-    /// Upgrade section icon and colors based on target tier
-    private var upgradeIcon: String {
-        upgradeTier == .pro ? "crown.fill" : "person.3.fill"
-    }
-
-    private var upgradeGradientColors: [Color] {
-        upgradeTier == .pro ? [.purple, .pink] : [.blue, .cyan]
-    }
-
-    private var upgradeTitle: String {
-        "Upgrade to \(upgradeTier.displayName)"
-    }
-
-    private var upgradeSubtitle: String {
-        switch upgradeTier {
-        case .pro:
-            return "Unlock 2 projects, unlimited feedback, and integrations"
-        case .team:
-            return "Unlock unlimited projects and team collaboration"
+    /// Available tiers to upgrade to based on current tier
+    private var availableUpgradeTiers: [SubscriptionTier] {
+        switch displayTier {
         case .free:
-            return ""
+            return [.pro, .team]
+        case .pro:
+            return [.team]
+        case .team:
+            return []
         }
     }
 
     @ViewBuilder
     private var upgradeSection: some View {
         Section {
-            Button {
-                paywallRequiredTier = upgradeTier
-                showPaywall = true
-            } label: {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 12) {
-                        Image(systemName: upgradeIcon)
-                            .font(.system(size: 40))
-                            .foregroundStyle(.linearGradient(
-                                colors: upgradeGradientColors,
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
-
-                        Text(upgradeTitle)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-
-                        Text(upgradeSubtitle)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+            VStack(spacing: 12) {
+                ForEach(availableUpgradeTiers, id: \.self) { tier in
+                    UpgradeButton(tier: tier) {
+                        paywallRequiredTier = tier
+                        showPaywall = true
                     }
-                    .padding(.vertical, 16)
-                    Spacer()
                 }
             }
-            .buttonStyle(.plain)
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            .listRowBackground(Color.clear)
         }
     }
 
@@ -521,6 +485,97 @@ struct SubscriptionFeatureRow: View {
             isCurrentTier ? color.opacity(0.15) : Color.clear,
             in: RoundedRectangle(cornerRadius: 6)
         )
+    }
+}
+
+// MARK: - Upgrade Button
+
+/// A styled button for upgrading to a specific subscription tier
+private struct UpgradeButton: View {
+    let tier: SubscriptionTier
+    let action: () -> Void
+
+    private var icon: String {
+        tier == .team ? "person.3.fill" : "crown.fill"
+    }
+
+    private var title: String {
+        "Upgrade to \(tier.displayName)"
+    }
+
+    private var subtitle: String {
+        switch tier {
+        case .pro:
+            return "2 projects, unlimited feedback, integrations"
+        case .team:
+            return "Unlimited projects, team collaboration"
+        case .free:
+            return ""
+        }
+    }
+
+    private var backgroundColors: [Color] {
+        tier == .team ? [.blue, .cyan] : [.purple, .pink]
+    }
+
+    private var iconBackgroundColor: Color {
+        tier == .team ? .white.opacity(0.25) : .white.opacity(0.25)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                // Icon with contrasting background
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(iconBackgroundColor, in: RoundedRectangle(cornerRadius: 10))
+
+                // Text content
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                // Chevron
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background(
+                LinearGradient(
+                    colors: backgroundColors,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(UpgradeButtonStyle())
+    }
+}
+
+// MARK: - Upgrade Button Style
+
+private struct UpgradeButtonStyle: ButtonStyle {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
