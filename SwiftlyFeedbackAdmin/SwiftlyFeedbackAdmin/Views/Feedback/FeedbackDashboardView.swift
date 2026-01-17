@@ -27,9 +27,23 @@ struct FeedbackDashboardView: View {
     @Bindable var projectViewModel: ProjectViewModel
     @State private var feedbackViewModel = FeedbackViewModel()
     @State private var feedbackToOpen: Feedback?
-    @AppStorage("dashboardViewMode") private var viewMode: DashboardViewMode = .kanban
+    @SecureAppStorage(.dashboardViewMode) private var viewModeRaw: String = DashboardViewMode.kanban.rawValue
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @State private var subscriptionService = SubscriptionService.shared
+    @Environment(SubscriptionService.self) private var subscriptionService
+    @State private var showingPaywall = false
+
+    // Rejection reason sheet state
+    @State private var showingRejectionReasonSheet = false
+    @State private var rejectionReason = ""
+    @State private var feedbackToReject: Feedback?
+
+    private var viewMode: DashboardViewMode {
+        DashboardViewMode(rawValue: viewModeRaw) ?? .kanban
+    }
+
+    private func setViewMode(_ mode: DashboardViewMode) {
+        viewModeRaw = mode.rawValue
+    }
 
     /// Uses the shared project filter from ProjectViewModel
     private var selectedProject: ProjectListItem? {
@@ -37,14 +51,23 @@ struct FeedbackDashboardView: View {
         nonmutating set { projectViewModel.selectedFilterProject = newValue }
     }
 
+    /// Whether the Free tier user has reached their feedback limit
+    private var isAtFeedbackLimit: Bool {
+        guard subscriptionService.effectiveTier == .free,
+              let maxFeedback = subscriptionService.effectiveTier.maxFeedbackPerProject else {
+            return false
+        }
+        return feedbackViewModel.feedbacks.count >= maxFeedback
+    }
+
     /// Shows feedback count for Free tier users (e.g., "5/10")
     @ViewBuilder
     private var feedbackCountIndicator: some View {
-        if subscriptionService.currentTier == .free,
-           let maxFeedback = subscriptionService.currentTier.maxFeedbackPerProject {
+        if subscriptionService.effectiveTier == .free,
+           let maxFeedback = subscriptionService.effectiveTier.maxFeedbackPerProject {
             Text("\(feedbackViewModel.feedbacks.count)/\(maxFeedback)")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isAtFeedbackLimit ? .red : .secondary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .background(feedbackCountBackground, in: Capsule())
@@ -59,10 +82,46 @@ struct FeedbackDashboardView: View {
         #endif
     }
 
+    /// Warning banner shown when Free tier user reaches feedback limit
+    @ViewBuilder
+    private var feedbackLimitBanner: some View {
+        if isAtFeedbackLimit {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Feedback Limit Reached")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                    Text("Upgrade to Pro for unlimited feedback")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Upgrade") {
+                    showingPaywall = true
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+            .padding()
+            .background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+            .padding(.horizontal)
+            .padding(.top, 8)
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
-            dashboardContent
-                .navigationTitle("Feedback")
+            VStack(spacing: 0) {
+                feedbackLimitBanner
+                dashboardContent
+            }
+            .navigationTitle("Feedback")
                 #if os(iOS)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbarBackground(.visible, for: .navigationBar)
@@ -148,10 +207,31 @@ struct FeedbackDashboardView: View {
         .sheet(isPresented: $feedbackViewModel.showMergeSheet) {
             MergeFeedbackSheet(viewModel: feedbackViewModel)
         }
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView(requiredTier: .pro)
+        }
+        .sheet(isPresented: $showingRejectionReasonSheet) {
+            RejectionReasonSheet(
+                rejectionReason: $rejectionReason,
+                onReject: { reason in
+                    if let feedback = feedbackToReject {
+                        Task {
+                            await feedbackViewModel.updateFeedbackStatus(
+                                id: feedback.id,
+                                status: .rejected,
+                                rejectionReason: reason
+                            )
+                        }
+                    }
+                    feedbackToReject = nil
+                    rejectionReason = ""
+                }
+            )
+        }
         .navigationDestination(for: Feedback.self) { feedback in
             if let project = selectedProject {
                 FeedbackDetailView(
-                    feedback: feedback,
+                    initialFeedback: feedback,
                     apiKey: projectApiKey(for: project),
                     allowedStatuses: allowedStatuses,
                     viewModel: feedbackViewModel
@@ -161,7 +241,7 @@ struct FeedbackDashboardView: View {
         .navigationDestination(item: $feedbackToOpen) { feedback in
             if let project = selectedProject {
                 FeedbackDetailView(
-                    feedback: feedback,
+                    initialFeedback: feedback,
                     apiKey: projectApiKey(for: project),
                     allowedStatuses: allowedStatuses,
                     viewModel: feedbackViewModel
@@ -323,7 +403,10 @@ struct FeedbackDashboardView: View {
     // MARK: - View Mode Picker
 
     private var viewModePicker: some View {
-        Picker("View Mode", selection: $viewMode) {
+        Picker("View Mode", selection: Binding(
+            get: { viewMode },
+            set: { setViewMode($0) }
+        )) {
             ForEach(DashboardViewMode.allCases, id: \.self) { mode in
                 Label(mode.label, systemImage: mode.icon)
                     .tag(mode)
@@ -541,7 +624,10 @@ struct FeedbackDashboardView: View {
                         apiKey: selectedProject.map { projectApiKey(for: $0) } ?? "",
                         allowedStatuses: allowedStatuses,
                         project: projectViewModel.selectedProject,
-                        feedbackToOpen: $feedbackToOpen
+                        feedbackToOpen: $feedbackToOpen,
+                        showingRejectionReasonSheet: $showingRejectionReasonSheet,
+                        rejectionReason: $rejectionReason,
+                        feedbackToReject: $feedbackToReject
                     )
                 }
             }
@@ -710,8 +796,15 @@ struct FeedbackDashboardView: View {
         Menu {
             ForEach(allowedStatuses, id: \.self) { status in
                 Button {
-                    Task {
-                        await feedbackViewModel.updateFeedbackStatus(id: feedback.id, status: status)
+                    if status == .rejected {
+                        // Show rejection reason sheet instead of directly updating
+                        feedbackToReject = feedback
+                        rejectionReason = ""
+                        showingRejectionReasonSheet = true
+                    } else {
+                        Task {
+                            await feedbackViewModel.updateFeedbackStatus(id: feedback.id, status: status)
+                        }
                     }
                 } label: {
                     HStack {
@@ -807,6 +900,10 @@ struct DashboardKanbanColumnView: View {
     let allowedStatuses: [FeedbackStatus]
     let project: Project?
     @Binding var feedbackToOpen: Feedback?
+    // Rejection reason bindings
+    @Binding var showingRejectionReasonSheet: Bool
+    @Binding var rejectionReason: String
+    @Binding var feedbackToReject: Feedback?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -858,8 +955,17 @@ struct DashboardKanbanColumnView: View {
                   let feedbackId = UUID(uuidString: feedbackIdString) else {
                 return false
             }
-            Task {
-                await viewModel.updateFeedbackStatus(id: feedbackId, status: status)
+            // If dropping on rejected column, show rejection reason sheet
+            if status == .rejected {
+                if let feedback = viewModel.feedbacks.first(where: { $0.id == feedbackId }) {
+                    feedbackToReject = feedback
+                    rejectionReason = ""
+                    showingRejectionReasonSheet = true
+                }
+            } else {
+                Task {
+                    await viewModel.updateFeedbackStatus(id: feedbackId, status: status)
+                }
             }
             return true
         }
@@ -1050,8 +1156,15 @@ struct DashboardKanbanColumnView: View {
         Menu {
             ForEach(allowedStatuses, id: \.self) { newStatus in
                 Button {
-                    Task {
-                        await viewModel.updateFeedbackStatus(id: feedback.id, status: newStatus)
+                    if newStatus == .rejected {
+                        // Show rejection reason sheet instead of directly updating
+                        feedbackToReject = feedback
+                        rejectionReason = ""
+                        showingRejectionReasonSheet = true
+                    } else {
+                        Task {
+                            await viewModel.updateFeedbackStatus(id: feedback.id, status: newStatus)
+                        }
                     }
                 } label: {
                     HStack {

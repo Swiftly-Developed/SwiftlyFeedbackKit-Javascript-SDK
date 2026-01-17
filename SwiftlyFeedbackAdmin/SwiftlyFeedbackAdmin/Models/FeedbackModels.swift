@@ -42,6 +42,21 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     // Linear integration fields
     let linearIssueUrl: String?
     let linearIssueId: String?
+    // Trello integration fields
+    let trelloCardUrl: String?
+    let trelloCardId: String?
+    // Airtable integration fields
+    let airtableRecordUrl: String?
+    let airtableRecordId: String?
+    // Asana integration fields
+    let asanaTaskUrl: String?
+    let asanaTaskId: String?
+    // Basecamp integration fields
+    let basecampTodoUrl: String?
+    let basecampTodoId: String?
+    let basecampBucketId: String?
+    // Rejection reason (only present when status is rejected)
+    let rejectionReason: String?
 
     /// Formatted total MRR string for display (always shows, even if $0)
     var formattedMrr: String {
@@ -90,6 +105,26 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     /// Whether this feedback has a linked Linear issue
     var hasLinearIssue: Bool {
         linearIssueUrl != nil
+    }
+
+    /// Whether this feedback has a linked Trello card
+    var hasTrelloCard: Bool {
+        trelloCardUrl != nil
+    }
+
+    /// Whether this feedback has a linked Airtable record
+    var hasAirtableRecord: Bool {
+        airtableRecordUrl != nil
+    }
+
+    /// Whether this feedback has a linked Asana task
+    var hasAsanaTask: Bool {
+        asanaTaskUrl != nil
+    }
+
+    /// Whether this feedback has a linked Basecamp to-do
+    var hasBasecampTodo: Bool {
+        basecampTodoUrl != nil
     }
 }
 
@@ -183,6 +218,21 @@ struct UpdateFeedbackRequest: Encodable, Sendable {
     let description: String?
     let status: FeedbackStatus?
     let category: FeedbackCategory?
+    let rejectionReason: String?
+
+    init(
+        title: String? = nil,
+        description: String? = nil,
+        status: FeedbackStatus? = nil,
+        category: FeedbackCategory? = nil,
+        rejectionReason: String? = nil
+    ) {
+        self.title = title
+        self.description = description
+        self.status = status
+        self.category = category
+        self.rejectionReason = rejectionReason
+    }
 }
 
 nonisolated

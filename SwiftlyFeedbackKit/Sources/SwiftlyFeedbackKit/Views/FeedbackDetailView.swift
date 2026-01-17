@@ -84,6 +84,30 @@ struct FeedbackDetailHeaderView: View {
                 .font(.body)
                 .foregroundStyle(.secondary)
 
+            // Rejection reason section (only shown when status is rejected and reason is provided)
+            if feedback.status == .rejected,
+               let reason = feedback.rejectionReason,
+               !reason.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                        Text(Strings.rejectionReasonTitle)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(.red)
+
+                    Text(reason)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+
             if let createdAt = feedback.createdAt {
                 Text(String(format: Strings.feedbackSubmitted, createdAt.formatted(date: .abbreviated, time: .shortened)))
                     .font(.caption)
@@ -103,29 +127,74 @@ struct FeedbackDetailVoteView: View {
     private var config: SwiftlyFeedbackConfiguration { SwiftlyFeedback.config }
     private var theme: SwiftlyFeedbackTheme { SwiftlyFeedback.theme }
 
-    var body: some View {
-        HStack {
-            if config.showVoteCount {
-                VoteButton(
-                    voteCount: viewModel.currentFeedback.voteCount,
-                    hasVoted: viewModel.currentFeedback.hasVoted,
-                    status: viewModel.currentFeedback.status
-                ) {
-                    Task { await viewModel.toggleVote() }
-                }
-            }
+    private var themeColor: Color {
+        theme.primaryColor.resolve(for: colorScheme)
+    }
 
-            Text(viewModel.currentFeedback.hasVoted
-                 ? Strings.votedButton
-                 : Strings.voteButton)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+    private var isDisabled: Bool {
+        let status = viewModel.currentFeedback.status
+        let hasVoted = viewModel.currentFeedback.hasVoted
+        return !status.canVote || (!config.allowUndoVote && hasVoted)
+    }
 
-            Spacer()
+    private var foregroundColor: Color {
+        if !viewModel.currentFeedback.status.canVote {
+            return .secondary.opacity(0.5)
         }
-        .padding()
-        .background(.background.secondary)
-        .clipShape(.rect(cornerRadius: 12))
+        return themeColor
+    }
+
+    private var backgroundColor: Color {
+        if viewModel.currentFeedback.hasVoted {
+            return themeColor.opacity(0.15)
+        }
+        return .clear
+    }
+
+    private var borderColor: Color {
+        if !viewModel.currentFeedback.status.canVote {
+            return .secondary.opacity(0.3)
+        }
+        return themeColor.opacity(0.5)
+    }
+
+    var body: some View {
+        Button {
+            Task { await viewModel.toggleVote() }
+        } label: {
+            HStack(spacing: 12) {
+                if config.showVoteCount {
+                    VStack(spacing: 2) {
+                        Image(systemName: viewModel.currentFeedback.hasVoted ? "arrowtriangle.up.fill" : "arrowtriangle.up")
+                            .font(.system(size: 14, weight: .bold))
+                        Text(viewModel.currentFeedback.voteCount, format: .number)
+                            .font(.system(size: 13))
+                            .fontWeight(.medium)
+                    }
+                    .foregroundStyle(foregroundColor)
+                    .frame(width: 44, height: 44)
+                }
+
+                Text(viewModel.currentFeedback.hasVoted
+                     ? Strings.votedButton
+                     : Strings.voteButton)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(foregroundColor)
+
+                Spacer()
+            }
+            .padding()
+            .background(backgroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(borderColor, lineWidth: 1.5)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
     }
 }
 
@@ -506,7 +575,8 @@ final class FeedbackDetailViewModel {
                 updatedAt: currentFeedback.updatedAt,
                 mergedIntoId: currentFeedback.mergedIntoId,
                 mergedAt: currentFeedback.mergedAt,
-                mergedFeedbackIds: currentFeedback.mergedFeedbackIds
+                mergedFeedbackIds: currentFeedback.mergedFeedbackIds,
+                rejectionReason: currentFeedback.rejectionReason
             )
         } catch let error as SwiftlyFeedbackError where error == .invalidApiKey {
             hasInvalidApiKey = true

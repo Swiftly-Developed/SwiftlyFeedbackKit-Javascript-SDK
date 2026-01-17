@@ -5,7 +5,7 @@ struct SettingsView: View {
     var projectViewModel: ProjectViewModel?
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    @State private var subscriptionService = SubscriptionService.shared
+    @Environment(SubscriptionService.self) private var subscriptionService
     @State private var appConfiguration = AppConfiguration.shared
     @State private var showingLogoutConfirmation = false
     @State private var showingChangePassword = false
@@ -167,7 +167,7 @@ struct SettingsView: View {
                     .overlay {
                         Image(systemName: subscriptionIcon)
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(subscriptionService.isPaidSubscriber ? .white : .gray)
+                            .foregroundStyle(subscriptionService.effectiveTier != .free ? .white : .gray)
                     }
 
                     Text("Subscription")
@@ -204,7 +204,7 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var subscriptionGradient: some View {
-        switch subscriptionService.currentTier {
+        switch subscriptionService.effectiveTier {
         case .free:
             Color.gray.opacity(0.3)
         case .pro:
@@ -223,7 +223,7 @@ struct SettingsView: View {
     }
 
     private var subscriptionIcon: String {
-        switch subscriptionService.currentTier {
+        switch subscriptionService.effectiveTier {
         case .free: return "crown"
         case .pro: return "crown.fill"
         case .team: return "person.3.fill"
@@ -235,6 +235,19 @@ struct SettingsView: View {
     @ViewBuilder
     private var notificationsSection: some View {
         Section {
+            // Push Notifications link
+            NavigationLink {
+                PushNotificationSettingsView(authViewModel: authViewModel)
+            } label: {
+                SettingsRowView(
+                    icon: "bell.badge.fill",
+                    iconColor: .red,
+                    title: "Push Notifications",
+                    showChevron: true
+                )
+            }
+
+            // Email: New Feedback
             Toggle(isOn: Binding(
                 get: { authViewModel.currentUser?.notifyNewFeedback ?? true },
                 set: { newValue in
@@ -262,14 +275,25 @@ struct SettingsView: View {
                 }
             }
 
+            // New Comments notification (Pro tier only - disabled for Free)
             Toggle(isOn: Binding(
-                get: { authViewModel.currentUser?.notifyNewComments ?? true },
+                get: {
+                    // Free tier: always OFF
+                    // Pro+: use actual setting
+                    if subscriptionService.meetsRequirement(.pro) {
+                        return authViewModel.currentUser?.notifyNewComments ?? true
+                    }
+                    return false
+                },
                 set: { newValue in
-                    Task {
-                        await authViewModel.updateNotificationSettings(
-                            notifyNewFeedback: nil,
-                            notifyNewComments: newValue
-                        )
+                    // Only allow changes for Pro+ users
+                    if subscriptionService.meetsRequirement(.pro) {
+                        Task {
+                            await authViewModel.updateNotificationSettings(
+                                notifyNewFeedback: nil,
+                                notifyNewComments: newValue
+                            )
+                        }
                     }
                 }
             )) {
@@ -281,17 +305,29 @@ struct SettingsView: View {
                         .background(.green, in: RoundedRectangle(cornerRadius: 6))
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("New Comments")
+                        HStack(spacing: 6) {
+                            Text("New Comments")
+                            if !subscriptionService.meetsRequirement(.pro) {
+                                Text("Pro")
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.purple, in: Capsule())
+                            }
+                        }
                         Text("Receive email when comments are added")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
+            .disabled(!subscriptionService.meetsRequirement(.pro))
         } header: {
             Text("Notifications")
         } footer: {
-            Text("Email notifications for your projects.")
+            Text("Configure email and push notifications for your projects.")
         }
     }
 

@@ -34,4 +34,7 @@ func routes(_ app: Application) throws {
 
     // Webhook routes (RevenueCat subscription events)
     try api.register(collection: RevenueCatWebhookController())
+
+    // Device management routes (push notifications)
+    try api.register(collection: DeviceController())
 }

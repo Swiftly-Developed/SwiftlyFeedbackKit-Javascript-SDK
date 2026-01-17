@@ -88,7 +88,7 @@ actor AdminAPIClient {
         AppLogger.api.info("📤 Request: \(method) \(url.absoluteString)")
 
         if requiresAuth {
-            guard let token = KeychainService.getToken() else {
+            guard let token = await MainActor.run(body: { SecureStorageManager.shared.authToken }) else {
                 AppLogger.api.error("❌ No auth token found in keychain")
                 throw APIError.unauthorized
             }
@@ -612,11 +612,24 @@ actor AdminAPIClient {
 
     // MARK: - Notification Settings API
 
-    func updateNotificationSettings(notifyNewFeedback: Bool?, notifyNewComments: Bool?) async throws -> User {
+    func updateNotificationSettings(
+        notifyNewFeedback: Bool? = nil,
+        notifyNewComments: Bool? = nil,
+        pushNotificationsEnabled: Bool? = nil,
+        pushNotifyNewFeedback: Bool? = nil,
+        pushNotifyNewComments: Bool? = nil,
+        pushNotifyVotes: Bool? = nil,
+        pushNotifyStatusChanges: Bool? = nil
+    ) async throws -> User {
         let path = "auth/notifications"
         let body = UpdateNotificationSettingsRequest(
             notifyNewFeedback: notifyNewFeedback,
-            notifyNewComments: notifyNewComments
+            notifyNewComments: notifyNewComments,
+            pushNotificationsEnabled: pushNotificationsEnabled,
+            pushNotifyNewFeedback: pushNotifyNewFeedback,
+            pushNotifyNewComments: pushNotifyNewComments,
+            pushNotifyVotes: pushNotifyVotes,
+            pushNotifyStatusChanges: pushNotifyStatusChanges
         )
 
         AppLogger.api.info("🟠 PATCH \(path) (notification settings)")
@@ -647,6 +660,50 @@ actor AdminAPIClient {
             return decoded
         } catch {
             AppLogger.api.error("❌ PATCH \(path) - failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    // MARK: - Project Ownership Transfer API
+
+    func transferProjectOwnership(
+        projectId: UUID,
+        newOwnerId: UUID
+    ) async throws -> TransferOwnershipResponse {
+        let path = "projects/\(projectId)/transfer-ownership"
+        let body = TransferOwnershipRequest(newOwnerId: newOwnerId)
+
+        AppLogger.api.info("🟢 POST \(path) (transfer ownership by ID)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(TransferOwnershipResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - ownership transferred successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func transferProjectOwnership(
+        projectId: UUID,
+        newOwnerEmail: String
+    ) async throws -> TransferOwnershipResponse {
+        let path = "projects/\(projectId)/transfer-ownership"
+        let body = TransferOwnershipRequest(newOwnerEmail: newOwnerEmail)
+
+        AppLogger.api.info("🟢 POST \(path) (transfer ownership by email)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(TransferOwnershipResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - ownership transferred successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
             throw APIError.decodingError(error)
         }
     }
@@ -694,6 +751,29 @@ actor AdminAPIClient {
         let body = UpdateProjectStatusesRequest(allowedStatuses: allowedStatuses)
 
         AppLogger.api.info("🟠 PATCH \(path) (allowed statuses)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    // MARK: - Email Notification Status Settings API
+
+    func updateProjectEmailNotifyStatuses(
+        projectId: UUID,
+        emailNotifyStatuses: [String]
+    ) async throws -> Project {
+        let path = "projects/\(projectId)/email-notify-statuses"
+        let body = UpdateProjectEmailNotifyStatusesRequest(emailNotifyStatuses: emailNotifyStatuses)
+
+        AppLogger.api.info("🟠 PATCH \(path) (email notify statuses)")
         let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
         try validateResponse(response, data: data, path: path)
 
@@ -1359,6 +1439,434 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Trello Integration API
+
+    func updateTrelloSettings(projectId: UUID, request: UpdateProjectTrelloRequest) async throws -> Project {
+        let path = "projects/\(projectId)/trello"
+        let body = request
+
+        AppLogger.api.info("🟠 PATCH \(path) (Trello settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createTrelloCard(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateTrelloCardResponse {
+        let path = "projects/\(projectId)/trello/card"
+        let body = CreateTrelloCardRequest(feedbackId: feedbackId)
+
+        AppLogger.api.info("🟢 POST \(path) (create Trello card)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateTrelloCardResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - decoded successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateTrelloCards(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateTrelloCardsResponse {
+        let path = "projects/\(projectId)/trello/cards"
+        let body = BulkCreateTrelloCardsRequest(feedbackIds: feedbackIds)
+
+        AppLogger.api.info("🟢 POST \(path) (bulk create Trello cards)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateTrelloCardsResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - decoded: \(decoded.created.count) created, \(decoded.failed.count) failed")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getTrelloBoards(projectId: UUID) async throws -> [TrelloBoard] {
+        let path = "projects/\(projectId)/trello/boards"
+        AppLogger.api.info("🔵 GET \(path) (Trello boards)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([TrelloBoard].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) boards")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getTrelloLists(projectId: UUID, boardId: String) async throws -> [TrelloList] {
+        let path = "projects/\(projectId)/trello/boards/\(boardId)/lists"
+        AppLogger.api.info("🔵 GET \(path) (Trello lists)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([TrelloList].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) lists")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    // MARK: - Airtable Integration API
+
+    func updateAirtableSettings(projectId: UUID, request: UpdateProjectAirtableRequest) async throws -> Project {
+        let path = "projects/\(projectId)/airtable"
+        AppLogger.api.info("🟡 PATCH \(path) (Airtable settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: request, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - Airtable settings updated")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createAirtableRecord(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateAirtableRecordResponse {
+        let path = "projects/\(projectId)/airtable/record"
+        let body = CreateAirtableRecordRequest(feedbackId: feedbackId)
+        AppLogger.api.info("🟢 POST \(path) (create Airtable record)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateAirtableRecordResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - record created: \(decoded.recordUrl)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateAirtableRecords(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateAirtableRecordsResponse {
+        let path = "projects/\(projectId)/airtable/records"
+        let body = BulkCreateAirtableRecordsRequest(feedbackIds: feedbackIds)
+        AppLogger.api.info("🟢 POST \(path) (bulk create Airtable records)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateAirtableRecordsResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - created \(decoded.created.count), failed \(decoded.failed.count)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAirtableBases(projectId: UUID) async throws -> [AirtableBase] {
+        let path = "projects/\(projectId)/airtable/bases"
+        AppLogger.api.info("🔵 GET \(path) (Airtable bases)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AirtableBase].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) bases")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAirtableTables(projectId: UUID, baseId: String) async throws -> [AirtableTable] {
+        let path = "projects/\(projectId)/airtable/tables/\(baseId)"
+        AppLogger.api.info("🔵 GET \(path) (Airtable tables)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AirtableTable].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) tables")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAirtableFields(projectId: UUID) async throws -> [AirtableField] {
+        let path = "projects/\(projectId)/airtable/fields"
+        AppLogger.api.info("🔵 GET \(path) (Airtable fields)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AirtableField].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) fields")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    // MARK: - Asana Integration API
+
+    func updateAsanaSettings(projectId: UUID, request: UpdateProjectAsanaRequest) async throws -> Project {
+        let path = "projects/\(projectId)/asana"
+        AppLogger.api.info("🟡 PATCH \(path) (Asana settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: request, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - Asana settings updated")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createAsanaTask(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateAsanaTaskResponse {
+        let path = "projects/\(projectId)/asana/task"
+        let body = CreateAsanaTaskRequest(feedbackId: feedbackId)
+        AppLogger.api.info("🟢 POST \(path) (create Asana task)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateAsanaTaskResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - task created: \(decoded.taskUrl)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateAsanaTasks(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateAsanaTasksResponse {
+        let path = "projects/\(projectId)/asana/tasks"
+        let body = BulkCreateAsanaTasksRequest(feedbackIds: feedbackIds)
+        AppLogger.api.info("🟢 POST \(path) (bulk create Asana tasks)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateAsanaTasksResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - created \(decoded.created.count), failed \(decoded.failed.count)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAsanaWorkspaces(projectId: UUID) async throws -> [AsanaWorkspace] {
+        let path = "projects/\(projectId)/asana/workspaces"
+        AppLogger.api.info("🔵 GET \(path) (Asana workspaces)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AsanaWorkspace].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) workspaces")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAsanaProjects(projectId: UUID, workspaceId: String) async throws -> [AsanaProject] {
+        let path = "projects/\(projectId)/asana/workspaces/\(workspaceId)/projects"
+        AppLogger.api.info("🔵 GET \(path) (Asana projects)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AsanaProject].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) projects")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAsanaSections(projectId: UUID, asanaProjectId: String) async throws -> [AsanaSection] {
+        let path = "projects/\(projectId)/asana/projects/\(asanaProjectId)/sections"
+        AppLogger.api.info("🔵 GET \(path) (Asana sections)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AsanaSection].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) sections")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getAsanaCustomFields(projectId: UUID, asanaProjectId: String) async throws -> [AsanaCustomField] {
+        let path = "projects/\(projectId)/asana/projects/\(asanaProjectId)/custom-fields"
+        AppLogger.api.info("🔵 GET \(path) (Asana custom fields)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([AsanaCustomField].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) custom fields")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    // MARK: - Basecamp Integration API
+
+    func updateBasecampSettings(projectId: UUID, request: UpdateProjectBasecampRequest) async throws -> Project {
+        let path = "projects/\(projectId)/basecamp"
+        AppLogger.api.info("🟡 PATCH \(path) (Basecamp settings)")
+        let (data, response) = try await makeRequest(path: path, method: "PATCH", body: request, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(Project.self, from: data)
+            AppLogger.api.info("✅ PATCH \(path) - Basecamp settings updated")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ PATCH \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createBasecampTodo(
+        projectId: UUID,
+        feedbackId: UUID
+    ) async throws -> CreateBasecampTodoResponse {
+        let path = "projects/\(projectId)/basecamp/todo"
+        let body = CreateBasecampTodoRequest(feedbackId: feedbackId)
+        AppLogger.api.info("🟢 POST \(path) (create Basecamp to-do)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(CreateBasecampTodoResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - to-do created: \(decoded.todoUrl)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func bulkCreateBasecampTodos(
+        projectId: UUID,
+        feedbackIds: [UUID]
+    ) async throws -> BulkCreateBasecampTodosResponse {
+        let path = "projects/\(projectId)/basecamp/todos"
+        let body = BulkCreateBasecampTodosRequest(feedbackIds: feedbackIds)
+        AppLogger.api.info("🟢 POST \(path) (bulk create Basecamp to-dos)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(BulkCreateBasecampTodosResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - created \(decoded.created.count), failed \(decoded.failed.count)")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getBasecampAccounts(projectId: UUID) async throws -> [BasecampAccount] {
+        let path = "projects/\(projectId)/basecamp/accounts"
+        AppLogger.api.info("🔵 GET \(path) (Basecamp accounts)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([BasecampAccount].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) accounts")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getBasecampProjects(projectId: UUID, accountId: String) async throws -> [BasecampProject] {
+        let path = "projects/\(projectId)/basecamp/accounts/\(accountId)/projects"
+        AppLogger.api.info("🔵 GET \(path) (Basecamp projects)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([BasecampProject].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) projects")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func getBasecampTodolists(projectId: UUID, accountId: String, basecampProjectId: String) async throws -> [BasecampTodolist] {
+        let path = "projects/\(projectId)/basecamp/accounts/\(accountId)/projects/\(basecampProjectId)/todolists"
+        AppLogger.api.info("🔵 GET \(path) (Basecamp to-do lists)")
+        let (data, response) = try await makeRequest(path: path, method: "GET", requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode([BasecampTodolist].self, from: data)
+            AppLogger.api.info("✅ GET \(path) - decoded \(decoded.count) to-do lists")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ GET \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Merge Feedback API
 
     func mergeFeedback(primaryId: UUID, secondaryIds: [UUID]) async throws -> MergeFeedbackResponse {
@@ -1466,5 +1974,25 @@ enum APIError: Error, LocalizedError {
     var isPaymentRequired: Bool {
         if case .paymentRequired = self { return true }
         return false
+    }
+
+    /// The error message for payment required errors
+    var errorMessage: String {
+        switch self {
+        case .paymentRequired(let message):
+            return message
+        default:
+            return errorDescription ?? "Unknown error"
+        }
+    }
+
+    /// Determines the required subscription tier from a 402 error message
+    var requiredSubscriptionTier: SubscriptionTier {
+        guard isPaymentRequired else { return .pro }
+        let message = errorMessage.lowercased()
+        if message.contains("team") {
+            return .team
+        }
+        return .pro
     }
 }

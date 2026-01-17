@@ -8,10 +8,11 @@ struct OnboardingProjectChoiceView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
-        GeometryReader { geometry in
+        VStack(spacing: 0) {
+            // Scrollable content
             ScrollView {
                 VStack(spacing: platformSpacing) {
-                    Spacer(minLength: topSpacing(for: geometry))
+                    Spacer(minLength: 16)
 
                     // Header
                     VStack(spacing: 12) {
@@ -74,32 +75,36 @@ struct OnboardingProjectChoiceView: View {
                         }
                     }
 
-                    Spacer(minLength: 40)
-
-                    // Skip Option
-                    VStack(spacing: 8) {
-                        Text("Not sure yet?")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Button {
-                            viewModel.skipProjectSetup()
-                        } label: {
-                            Text("Skip for now")
-                                .foregroundStyle(.secondary)
-                                .frame(minHeight: 44) // HIG: minimum touch target
-                        }
-                        .font(.subheadline)
-                        .accessibilityLabel("Skip project setup for now")
-                        .accessibilityHint("You can create or join a project later from the Projects tab")
-                    }
-                    .padding(.bottom, bottomPadding)
+                    Spacer(minLength: 16)
                 }
                 .padding(.horizontal, horizontalPadding)
                 .frame(maxWidth: maxContentWidth)
                 .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            // Fixed bottom buttons
+            VStack(spacing: 8) {
+                Text("Not sure yet?")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    viewModel.skipProjectSetup()
+                } label: {
+                    Text("Skip for now")
+                        .foregroundStyle(.secondary)
+                        .frame(minHeight: 44)
+                }
+                .font(.subheadline)
+                .accessibilityLabel("Skip project setup for now")
+                .accessibilityHint("You can create or join a project later from the Projects tab")
+            }
+            .padding(.horizontal, horizontalPadding)
+            .padding(.top, 12)
+            .padding(.bottom, bottomPadding)
+            .frame(maxWidth: maxContentWidth)
+            .frame(maxWidth: .infinity)
+            .background(bottomBackground)
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.5)) {
@@ -158,33 +163,33 @@ struct OnboardingProjectChoiceView: View {
 
     private var iconBackgroundSize: CGFloat {
         #if os(macOS)
-        return 80
+        return 60
         #else
-        return isCompactWidth ? 80 : 100
+        return isCompactWidth ? 60 : 72
         #endif
     }
 
     private var iconSize: CGFloat {
         #if os(macOS)
-        return 36
+        return 28
         #else
-        return isCompactWidth ? 36 : 44
+        return isCompactWidth ? 28 : 32
         #endif
     }
 
     private var titleFont: Font {
         #if os(macOS)
-        return .title
+        return .title2
         #else
-        return isCompactWidth ? .title2 : .title
+        return isCompactWidth ? .title3 : .title2
         #endif
     }
 
     private var platformSpacing: CGFloat {
         #if os(macOS)
-        return 28
+        return 18
         #else
-        return isCompactWidth ? 24 : 32
+        return isCompactWidth ? 18 : 24
         #endif
     }
 
@@ -206,21 +211,17 @@ struct OnboardingProjectChoiceView: View {
 
     private var bottomPadding: CGFloat {
         #if os(macOS)
-        return 32
+        return 20
         #else
-        return isCompactWidth ? 16 : 32
+        return isCompactWidth ? 12 : 20
         #endif
     }
 
-    private func topSpacing(for geometry: GeometryProxy) -> CGFloat {
+    private var bottomBackground: some ShapeStyle {
         #if os(macOS)
-        return max(20, geometry.size.height * 0.05)
+        return Color(nsColor: .windowBackgroundColor)
         #else
-        if isCompactWidth {
-            return 20
-        } else {
-            return max(40, geometry.size.height * 0.08)
-        }
+        return Color(uiColor: .systemGroupedBackground)
         #endif
     }
 }

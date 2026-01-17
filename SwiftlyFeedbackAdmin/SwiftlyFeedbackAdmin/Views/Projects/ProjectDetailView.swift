@@ -13,15 +13,21 @@ struct ProjectDetailView: View {
     @State private var showingEditSheet = false
     @State private var showingSlackSheet = false
     @State private var showingStatusSheet = false
+    @State private var showingEmailNotifyStatusesSheet = false
     @State private var showingGitHubSheet = false
     @State private var showingClickUpSheet = false
     @State private var showingNotionSheet = false
     @State private var showingMondaySheet = false
     @State private var showingLinearSheet = false
+    @State private var showingTrelloSheet = false
+    @State private var showingAirtableSheet = false
+    @State private var showingAsanaSheet = false
+    @State private var showingBasecampSheet = false
+    @State private var showingTransferSheet = false
     @State private var copiedToClipboard = false
     @State private var showingPaywall = false
     @State private var paywallRequiredTier: SubscriptionTier = .pro
-    @State private var subscriptionService = SubscriptionService.shared
+    @Environment(SubscriptionService.self) private var subscriptionService
 
     private var isCompact: Bool {
         #if os(macOS)
@@ -80,84 +86,150 @@ struct ProjectDetailView: View {
                         }
 
                         Button {
-                            showingStatusSheet = true
+                            if subscriptionService.meetsRequirement(.pro) {
+                                showingStatusSheet = true
+                            } else {
+                                paywallRequiredTier = .pro
+                                showingPaywall = true
+                            }
                         } label: {
                             Label("Status Settings", systemImage: "list.bullet.clipboard")
+                                .tierBadge(.pro)
+                        }
+
+                        Button {
+                            if subscriptionService.meetsRequirement(.pro) {
+                                showingEmailNotifyStatusesSheet = true
+                            } else {
+                                paywallRequiredTier = .pro
+                                showingPaywall = true
+                            }
+                        } label: {
+                            Label("Email Notifications", systemImage: "envelope.badge")
+                                .tierBadge(.pro)
                         }
 
                         Divider()
 
                         Menu {
                             Button {
-                                if subscriptionService.currentTier.meetsRequirement(.team) {
+                                if subscriptionService.meetsRequirement(.pro) {
                                     showingSlackSheet = true
                                 } else {
-                                    paywallRequiredTier = .team
+                                    paywallRequiredTier = .pro
                                     showingPaywall = true
                                 }
                             } label: {
                                 Label("Slack", systemImage: "number")
-                                    .tierBadge(.team)
+                                    .tierBadge(.pro)
                             }
 
                             Button {
-                                if subscriptionService.currentTier.meetsRequirement(.team) {
+                                if subscriptionService.meetsRequirement(.pro) {
                                     showingGitHubSheet = true
                                 } else {
-                                    paywallRequiredTier = .team
+                                    paywallRequiredTier = .pro
                                     showingPaywall = true
                                 }
                             } label: {
                                 Label("GitHub", systemImage: "arrow.triangle.branch")
-                                    .tierBadge(.team)
+                                    .tierBadge(.pro)
                             }
 
                             Button {
-                                if subscriptionService.currentTier.meetsRequirement(.team) {
+                                if subscriptionService.meetsRequirement(.pro) {
                                     showingClickUpSheet = true
                                 } else {
-                                    paywallRequiredTier = .team
+                                    paywallRequiredTier = .pro
                                     showingPaywall = true
                                 }
                             } label: {
                                 Label("ClickUp", systemImage: "checklist")
-                                    .tierBadge(.team)
+                                    .tierBadge(.pro)
                             }
 
                             Button {
-                                if subscriptionService.currentTier.meetsRequirement(.team) {
+                                if subscriptionService.meetsRequirement(.pro) {
                                     showingNotionSheet = true
                                 } else {
-                                    paywallRequiredTier = .team
+                                    paywallRequiredTier = .pro
                                     showingPaywall = true
                                 }
                             } label: {
                                 Label("Notion", systemImage: "doc.text")
-                                    .tierBadge(.team)
+                                    .tierBadge(.pro)
                             }
 
                             Button {
-                                if subscriptionService.currentTier.meetsRequirement(.team) {
+                                if subscriptionService.meetsRequirement(.pro) {
                                     showingMondaySheet = true
                                 } else {
-                                    paywallRequiredTier = .team
+                                    paywallRequiredTier = .pro
                                     showingPaywall = true
                                 }
                             } label: {
                                 Label("Monday.com", systemImage: "calendar")
-                                    .tierBadge(.team)
+                                    .tierBadge(.pro)
                             }
 
                             Button {
-                                if subscriptionService.currentTier.meetsRequirement(.team) {
+                                if subscriptionService.meetsRequirement(.pro) {
                                     showingLinearSheet = true
                                 } else {
-                                    paywallRequiredTier = .team
+                                    paywallRequiredTier = .pro
                                     showingPaywall = true
                                 }
                             } label: {
                                 Label("Linear", systemImage: "arrow.triangle.branch")
-                                    .tierBadge(.team)
+                                    .tierBadge(.pro)
+                            }
+
+                            Button {
+                                if subscriptionService.meetsRequirement(.pro) {
+                                    showingTrelloSheet = true
+                                } else {
+                                    paywallRequiredTier = .pro
+                                    showingPaywall = true
+                                }
+                            } label: {
+                                Label("Trello", systemImage: "square.grid.2x2")
+                                    .tierBadge(.pro)
+                            }
+
+                            Button {
+                                if subscriptionService.meetsRequirement(.pro) {
+                                    showingAirtableSheet = true
+                                } else {
+                                    paywallRequiredTier = .pro
+                                    showingPaywall = true
+                                }
+                            } label: {
+                                Label("Airtable", systemImage: "tablecells")
+                                    .tierBadge(.pro)
+                            }
+
+                            Button {
+                                if subscriptionService.meetsRequirement(.pro) {
+                                    showingAsanaSheet = true
+                                } else {
+                                    paywallRequiredTier = .pro
+                                    showingPaywall = true
+                                }
+                            } label: {
+                                Label("Asana", systemImage: "list.bullet.rectangle")
+                                    .tierBadge(.pro)
+                            }
+
+                            Button {
+                                if subscriptionService.meetsRequirement(.pro) {
+                                    showingBasecampSheet = true
+                                } else {
+                                    paywallRequiredTier = .pro
+                                    showingPaywall = true
+                                }
+                            } label: {
+                                Label("Basecamp", systemImage: "tent")
+                                    .tierBadge(.pro)
                             }
                         } label: {
                             Label("Integrations", systemImage: "puzzlepiece.extension")
@@ -173,6 +245,12 @@ struct ProjectDetailView: View {
                             } else {
                                 Label("Archive Project", systemImage: "archivebox")
                             }
+                        }
+
+                        Button {
+                            showingTransferSheet = true
+                        } label: {
+                            Label("Transfer Ownership", systemImage: "arrow.right.arrow.left.circle")
                         }
 
                         Divider()
@@ -261,6 +339,14 @@ struct ProjectDetailView: View {
                     #endif
             }
         }
+        .sheet(isPresented: $showingEmailNotifyStatusesSheet) {
+            if let project = viewModel.selectedProject {
+                EmailNotifyStatusesView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 400, minHeight: 400)
+                    #endif
+            }
+        }
         .sheet(isPresented: $showingGitHubSheet) {
             if let project = viewModel.selectedProject {
                 GitHubSettingsView(project: project, viewModel: viewModel)
@@ -298,6 +384,46 @@ struct ProjectDetailView: View {
                 LinearSettingsView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 500, minHeight: 500)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingTrelloSheet) {
+            if let project = viewModel.selectedProject {
+                TrelloSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 500)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingAirtableSheet) {
+            if let project = viewModel.selectedProject {
+                AirtableSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 600)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingAsanaSheet) {
+            if let project = viewModel.selectedProject {
+                AsanaSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 600)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingBasecampSheet) {
+            if let project = viewModel.selectedProject {
+                BasecampSettingsView(project: project, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 500, minHeight: 600)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingTransferSheet) {
+            if let project = viewModel.selectedProject {
+                TransferOwnershipSheet(project: project, projectId: projectId, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 450, minHeight: 400)
                     #endif
             }
         }
@@ -630,6 +756,70 @@ struct ProjectDetailView: View {
                         showingLinearSheet = true
                     }
                 }
+
+                if project.isTrelloConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured || project.isLinearConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "square.grid.2x2",
+                        iconColor: Color(red: 0.0, green: 0.47, blue: 0.8),
+                        name: "Trello",
+                        detail: project.trelloIsActive ? (project.trelloBoardName ?? "Connected") : "Paused",
+                        isActive: project.trelloIsActive
+                    ) {
+                        showingTrelloSheet = true
+                    }
+                }
+
+                if project.isAirtableConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured || project.isLinearConfigured || project.isTrelloConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "tablecells",
+                        iconColor: Color(red: 0.09, green: 0.63, blue: 0.52),
+                        name: "Airtable",
+                        detail: project.airtableIsActive ? (project.airtableTableName ?? "Connected") : "Paused",
+                        isActive: project.airtableIsActive
+                    ) {
+                        showingAirtableSheet = true
+                    }
+                }
+
+                if project.isAsanaConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured || project.isLinearConfigured || project.isTrelloConfigured || project.isAirtableConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "list.bullet.rectangle",
+                        iconColor: Color(red: 0.96, green: 0.45, blue: 0.50),
+                        name: "Asana",
+                        detail: project.asanaIsActive ? (project.asanaProjectName ?? "Connected") : "Paused",
+                        isActive: project.asanaIsActive
+                    ) {
+                        showingAsanaSheet = true
+                    }
+                }
+
+                if project.isBasecampConfigured {
+                    if project.isSlackConfigured || project.isGitHubConfigured || project.isClickUpConfigured || project.isNotionConfigured || project.isMondayConfigured || project.isLinearConfigured || project.isTrelloConfigured || project.isAirtableConfigured || project.isAsanaConfigured {
+                        Divider()
+                            .padding(.leading, 44)
+                    }
+                    integrationRow(
+                        icon: "tent",
+                        iconColor: Color(red: 0.13, green: 0.59, blue: 0.95),
+                        name: "Basecamp",
+                        detail: project.basecampIsActive ? (project.basecampTodolistName ?? "Connected") : "Paused",
+                        isActive: project.basecampIsActive
+                    ) {
+                        showingBasecampSheet = true
+                    }
+                }
             }
         }
         .padding()
@@ -699,7 +889,7 @@ struct ProjectDetailView: View {
                 title: "Manage Members",
                 subtitle: "\(project.memberCount) team members"
             ) {
-                if subscriptionService.currentTier.meetsRequirement(.team) {
+                if subscriptionService.meetsRequirement(.team) {
                     showingMembersSheet = true
                 } else {
                     paywallRequiredTier = .team
@@ -707,7 +897,7 @@ struct ProjectDetailView: View {
                 }
             }
             .overlay(alignment: .trailing) {
-                if !subscriptionService.currentTier.meetsRequirement(.team) {
+                if !subscriptionService.meetsRequirement(.team) {
                     Text("Team")
                         .font(.caption2)
                         .fontWeight(.semibold)

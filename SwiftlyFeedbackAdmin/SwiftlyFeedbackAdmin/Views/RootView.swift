@@ -7,7 +7,11 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if authViewModel.isAuthenticated {
+            if authViewModel.isCheckingAuthState {
+                // Show loading while checking auth state (including auto re-login)
+                ProgressView("Signing in...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if authViewModel.isAuthenticated {
                 if authViewModel.needsEmailVerification {
                     // User is authenticated but needs email verification
                     // This handles returning users who haven't verified yet
@@ -36,6 +40,7 @@ struct RootView: View {
                 }
             }
         }
+        .animation(.default, value: authViewModel.isCheckingAuthState)
         .animation(.default, value: authViewModel.isAuthenticated)
         .animation(.default, value: authViewModel.needsEmailVerification)
         .animation(.default, value: onboardingManager.hasCompletedOnboarding)
@@ -48,14 +53,17 @@ struct RootView: View {
             guard let newEnvironment = notification.object as? AppEnvironment else { return }
             AppLogger.viewModel.info("🔄 Environment changed to \(newEnvironment.displayName) - logging out user")
 
-            // Clear auth token (environment-specific)
-            KeychainService.deleteToken()
+            // Clear auth token (environment-specific) - use SecureStorageManager
+            SecureStorageManager.shared.authToken = nil
 
             // Force logout to reset auth state
             authViewModel.forceLogout()
 
             // Clear project cache
             projectViewModel.clearCache()
+
+            // Refresh onboarding state for new environment
+            onboardingManager.refreshFromStorage()
         }
     }
 }
@@ -100,7 +108,7 @@ struct OnboardingPostAuthView: View {
                 // Content
                 Group {
                     switch viewModel.currentStep {
-                    case .welcome, .createAccount, .verifyEmail:
+                    case .welcome1, .welcome2, .welcome3, .createAccount, .verifyEmail, .paywall:
                         // These shouldn't happen in post-auth flow, redirect to project choice
                         OnboardingProjectChoiceView(
                             viewModel: viewModel,

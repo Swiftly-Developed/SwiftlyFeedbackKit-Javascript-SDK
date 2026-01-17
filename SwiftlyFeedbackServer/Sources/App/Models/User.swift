@@ -84,6 +84,22 @@ final class User: Model, Content, @unchecked Sendable {
     @Field(key: "notify_new_comments")
     var notifyNewComments: Bool
 
+    // Push notification settings
+    @Field(key: "push_notifications_enabled")
+    var pushNotificationsEnabled: Bool
+
+    @Field(key: "push_notify_new_feedback")
+    var pushNotifyNewFeedback: Bool
+
+    @Field(key: "push_notify_new_comments")
+    var pushNotifyNewComments: Bool
+
+    @Field(key: "push_notify_votes")
+    var pushNotifyVotes: Bool
+
+    @Field(key: "push_notify_status_changes")
+    var pushNotifyStatusChanges: Bool
+
     // Subscription fields
     @Field(key: "subscription_tier")
     var subscriptionTier: SubscriptionTier
@@ -126,6 +142,11 @@ final class User: Model, Content, @unchecked Sendable {
         isEmailVerified: Bool = false,
         notifyNewFeedback: Bool = true,
         notifyNewComments: Bool = true,
+        pushNotificationsEnabled: Bool = true,
+        pushNotifyNewFeedback: Bool = true,
+        pushNotifyNewComments: Bool = true,
+        pushNotifyVotes: Bool = true,
+        pushNotifyStatusChanges: Bool = true,
         subscriptionTier: SubscriptionTier = .free
     ) {
         self.id = id
@@ -136,6 +157,11 @@ final class User: Model, Content, @unchecked Sendable {
         self.isEmailVerified = isEmailVerified
         self.notifyNewFeedback = notifyNewFeedback
         self.notifyNewComments = notifyNewComments
+        self.pushNotificationsEnabled = pushNotificationsEnabled
+        self.pushNotifyNewFeedback = pushNotifyNewFeedback
+        self.pushNotifyNewComments = pushNotifyNewComments
+        self.pushNotifyVotes = pushNotifyVotes
+        self.pushNotifyStatusChanges = pushNotifyStatusChanges
         self.subscriptionTier = subscriptionTier
     }
 }
@@ -171,6 +197,11 @@ extension User {
         let isEmailVerified: Bool
         let notifyNewFeedback: Bool
         let notifyNewComments: Bool
+        let pushNotificationsEnabled: Bool
+        let pushNotifyNewFeedback: Bool
+        let pushNotifyNewComments: Bool
+        let pushNotifyVotes: Bool
+        let pushNotifyStatusChanges: Bool
         let subscriptionTier: SubscriptionTier
         let subscriptionStatus: SubscriptionStatus?
         let subscriptionExpiresAt: Date?
@@ -182,6 +213,11 @@ extension User {
             case isEmailVerified = "is_email_verified"
             case notifyNewFeedback = "notify_new_feedback"
             case notifyNewComments = "notify_new_comments"
+            case pushNotificationsEnabled = "push_notifications_enabled"
+            case pushNotifyNewFeedback = "push_notify_new_feedback"
+            case pushNotifyNewComments = "push_notify_new_comments"
+            case pushNotifyVotes = "push_notify_votes"
+            case pushNotifyStatusChanges = "push_notify_status_changes"
             case subscriptionTier = "subscription_tier"
             case subscriptionStatus = "subscription_status"
             case subscriptionExpiresAt = "subscription_expires_at"
@@ -198,6 +234,11 @@ extension User {
             isEmailVerified: isEmailVerified,
             notifyNewFeedback: notifyNewFeedback,
             notifyNewComments: notifyNewComments,
+            pushNotificationsEnabled: pushNotificationsEnabled,
+            pushNotifyNewFeedback: pushNotifyNewFeedback,
+            pushNotifyNewComments: pushNotifyNewComments,
+            pushNotifyVotes: pushNotifyVotes,
+            pushNotifyStatusChanges: pushNotifyStatusChanges,
             subscriptionTier: subscriptionTier,
             subscriptionStatus: subscriptionStatus,
             subscriptionExpiresAt: subscriptionExpiresAt,

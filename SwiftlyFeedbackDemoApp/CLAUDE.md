@@ -1,54 +1,55 @@
 # CLAUDE.md - Feedback Kit Demo App
 
-Demo application showcasing the Feedback Kit SDK integration.
+Demo application showcasing SDK integration patterns for iOS and macOS.
 
 ## Build & Test
 
 ```bash
-# Build via workspace
+# Build
 xcodebuild -workspace ../Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackDemoApp -sdk iphonesimulator -configuration Debug
 
 # Test
-xcodebuild -workspace ../Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackDemoApp test -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild -workspace ../Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackDemoApp test -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
 ## Directory Structure
 
 ```
 SwiftlyFeedbackDemoApp/
-├── SwiftlyFeedbackDemoAppApp.swift   # App entry point with SDK configuration
-├── ContentView.swift                  # Platform-adaptive navigation (TabView iOS, NavigationSplitView macOS)
+├── SwiftlyFeedbackDemoAppApp.swift   # Entry point with SDK config
+├── ContentView.swift                  # Platform-adaptive navigation
 ├── Models/
-│   └── AppSettings.swift             # @Observable settings class with UserDefaults persistence
+│   └── AppSettings.swift             # @Observable settings with persistence
 └── Views/
-    ├── HomeView.swift                # Welcome screen explaining SwiftlyFeedback features
-    └── ConfigurationView.swift       # Settings form for user profile and SDK configuration
+    ├── HomeView.swift                # Welcome screen
+    └── ConfigurationView.swift       # SDK configuration form
 ```
 
 ## App Structure
 
-### iOS (TabView)
-Three tabs: Home, Feedback, Settings
+### iOS
+`TabView` with three tabs: Home, Feedback, Settings
 
-### macOS (NavigationSplitView)
-Sidebar navigation with: Home, Feedback, Settings
-- Minimum window size: 800x500
-- Default window size: 1000x700
+### macOS
+`NavigationSplitView` with sidebar: Home, Feedback, Settings
+- Minimum window: 800x500
+- Default window: 1000x700
 
-### Screens
+## Screens
 
-1. **Home** - Welcome screen with hero section, feature highlights, and getting started guide
-2. **Feedback** - SDK's built-in `FeedbackListView` for browsing and submitting feedback
-3. **Settings** - Configuration screen for:
+1. **Home** - Welcome screen with feature highlights and getting started guide
+2. **Feedback** - SDK's `FeedbackListView` for browsing and submitting feedback
+3. **Settings** - Configuration form demonstrating SDK options:
    - User profile (email, name, custom ID)
-   - Subscription settings (amount and billing cycle for MRR tracking)
-   - Permissions (allow/disallow feedback submission with custom message)
-   - SDK behavior options (vote undo, comment section, email field)
+   - Subscription settings (amount, billing cycle for MRR)
+   - Permissions (allow/disallow submission with custom message)
+   - SDK behavior (vote undo, comments, email field)
    - Display options (badges, vote count, description expansion)
 
-## SDK Features Demonstrated
+## SDK Integration Examples
 
 ### Configuration at Launch
+
 ```swift
 SwiftlyFeedback.configure(with: "your_api_key")
 SwiftlyFeedback.theme.primaryColor = .color(.blue)
@@ -56,17 +57,20 @@ SwiftlyFeedback.theme.statusColors.completed = .green
 ```
 
 ### User Identification
+
 ```swift
 SwiftlyFeedback.updateUser(customID: "user123")
 ```
 
 ### Payment/Subscription Tracking
+
 ```swift
 SwiftlyFeedback.updateUser(payment: .monthly(9.99))
 SwiftlyFeedback.clearUserPayment()
 ```
 
-### SDK Configuration Options
+### SDK Options
+
 ```swift
 SwiftlyFeedback.config.allowUndoVote = true
 SwiftlyFeedback.config.showCommentSection = true
@@ -77,29 +81,29 @@ SwiftlyFeedback.config.showVoteCount = true
 SwiftlyFeedback.config.expandDescriptionInList = false
 
 // Permission controls
-SwiftlyFeedback.config.allowFeedbackSubmission = true  // Disable for free users
+SwiftlyFeedback.config.allowFeedbackSubmission = true
 SwiftlyFeedback.config.feedbackSubmissionDisabledMessage = "Upgrade to Pro!"
 
 // Logging
-SwiftlyFeedback.config.loggingEnabled = false  // Reduce console clutter
+SwiftlyFeedback.config.loggingEnabled = false
 ```
 
 ## Settings Persistence
 
-The `AppSettings` class uses `@Observable` and persists all settings to `UserDefaults`:
-- Settings are automatically loaded on app launch
-- Changes are saved immediately via `didSet` observers
-- SDK configuration is applied on init and when settings change
-- Use `Bindable(settings).propertyName` for bindings in views
+`AppSettings` class uses `@Observable` with `UserDefaults` persistence:
+- Settings loaded on app launch
+- Changes saved immediately via `didSet`
+- SDK configuration applied on init and when settings change
+- Use `Bindable(settings).propertyName` for view bindings
 
-## Platform-Specific Notes
+## Platform Notes
 
 ### macOS
-- Uses `NavigationSplitView` with sidebar `List` and `NavigationLink`
-- Window constraints set via `.frame(minWidth:minHeight:)` and `.defaultSize()`
+- `NavigationSplitView` with sidebar `List`
+- Window constraints via `.frame(minWidth:minHeight:)` and `.defaultSize()`
 
 ### iOS
-- Uses `TabView` with modern `Tab` API
+- `TabView` with modern `Tab` API
 - Each tab wraps content in `NavigationStack` where needed
 
 ## Development Notes
@@ -107,5 +111,5 @@ The `AppSettings` class uses `@Observable` and persists all settings to `UserDef
 - Depends on SwiftlyFeedbackKit package
 - Server must be running for full functionality
 - Update API key for your environment
-- Uses modern SwiftUI patterns: @Observable, Bindable()
+- Uses modern SwiftUI: `@Observable`, `Bindable()`, `#Preview`
 - Platform conditionals: `#if os(macOS)` / `#if os(iOS)`

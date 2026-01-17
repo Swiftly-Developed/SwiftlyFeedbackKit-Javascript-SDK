@@ -6,13 +6,16 @@ final class OnboardingViewModel {
     // MARK: - Onboarding State
 
     enum OnboardingStep: Int, CaseIterable {
-        case welcome = 0
-        case createAccount = 1
-        case verifyEmail = 2
-        case projectChoice = 3
-        case createProject = 4
-        case joinProject = 5
-        case completion = 6
+        case welcome1 = 0
+        case welcome2 = 1
+        case welcome3 = 2
+        case createAccount = 3
+        case verifyEmail = 4
+        case paywall = 5
+        case projectChoice = 6
+        case createProject = 7
+        case joinProject = 8
+        case completion = 9
 
         var progress: Double {
             Double(rawValue) / Double(OnboardingStep.allCases.count - 1)
@@ -24,7 +27,7 @@ final class OnboardingViewModel {
         case join
     }
 
-    var currentStep: OnboardingStep = .welcome
+    var currentStep: OnboardingStep = .welcome1
     var projectSetupChoice: ProjectSetupChoice?
 
     // MARK: - Account Creation Fields
@@ -82,11 +85,17 @@ final class OnboardingViewModel {
     func goToNextStep() {
         withAnimation(.easeInOut(duration: 0.3)) {
             switch currentStep {
-            case .welcome:
+            case .welcome1:
+                currentStep = .welcome2
+            case .welcome2:
+                currentStep = .welcome3
+            case .welcome3:
                 currentStep = .createAccount
             case .createAccount:
                 currentStep = .verifyEmail
             case .verifyEmail:
+                currentStep = .paywall
+            case .paywall:
                 currentStep = .projectChoice
             case .projectChoice:
                 if projectSetupChoice == .create {
@@ -106,15 +115,22 @@ final class OnboardingViewModel {
     func goToPreviousStep() {
         withAnimation(.easeInOut(duration: 0.3)) {
             switch currentStep {
-            case .welcome:
+            case .welcome1:
                 break
+            case .welcome2:
+                currentStep = .welcome1
+            case .welcome3:
+                currentStep = .welcome2
             case .createAccount:
-                currentStep = .welcome
+                currentStep = .welcome3
             case .verifyEmail:
                 // Can't go back from email verification
                 break
+            case .paywall:
+                // Can't go back from paywall (after verification)
+                break
             case .projectChoice:
-                // Can't go back to verification
+                // Can't go back to paywall
                 break
             case .createProject, .joinProject:
                 currentStep = .projectChoice
@@ -129,9 +145,9 @@ final class OnboardingViewModel {
 
     var canGoBack: Bool {
         switch currentStep {
-        case .welcome, .verifyEmail, .projectChoice, .completion:
+        case .welcome1, .verifyEmail, .paywall, .projectChoice, .completion:
             return false
-        case .createAccount, .createProject, .joinProject:
+        case .welcome2, .welcome3, .createAccount, .createProject, .joinProject:
             return true
         }
     }
@@ -273,7 +289,9 @@ final class OnboardingViewModel {
         projectViewModel.newProjectName = newProjectName
         projectViewModel.newProjectDescription = newProjectDescription
 
-        if await projectViewModel.createProject() {
+        let result = await projectViewModel.createProject()
+        switch result {
+        case .success:
             AppLogger.viewModel.info("Onboarding: Project created successfully")
             // Load the projects to get the newly created one
             await projectViewModel.loadProjects()
@@ -285,9 +303,15 @@ final class OnboardingViewModel {
             }
 
             goToNextStep()
-        } else if projectViewModel.showError {
-            showError(message: projectViewModel.errorMessage ?? "Failed to create project")
-            projectViewModel.showError = false
+        case .paymentRequired:
+            // During onboarding, users are creating their first project which should always be free
+            // This shouldn't happen, but handle it gracefully
+            showError(message: "Upgrade your subscription to create more projects")
+        case .otherError:
+            if projectViewModel.showError {
+                showError(message: projectViewModel.errorMessage ?? "Failed to create project")
+                projectViewModel.showError = false
+            }
         }
 
         isLoading = false
@@ -381,7 +405,7 @@ final class OnboardingViewModel {
         await authViewModel.logout()
 
         // Reset onboarding state
-        currentStep = .welcome
+        currentStep = .welcome1
         signupName = ""
         signupEmail = ""
         signupPassword = ""
@@ -404,27 +428,44 @@ final class OnboardingViewModel {
 final class OnboardingManager {
     static let shared = OnboardingManager()
 
-    private let hasCompletedOnboardingKey = "hasCompletedOnboarding"
+    /// Stored property that @Observable can track for SwiftUI reactivity.
+    /// Synced with SecureStorageManager for persistence.
+    private var _hasCompletedOnboarding: Bool
 
-    // Store as a tracked property so @Observable can detect changes
-    // (computed properties reading from UserDefaults are not tracked)
-    var hasCompletedOnboarding: Bool
+    /// Whether onboarding has been completed for the current environment.
+    /// This is environment-scoped, so each environment tracks completion independently.
+    var hasCompletedOnboarding: Bool {
+        get {
+            _hasCompletedOnboarding
+        }
+        set {
+            _hasCompletedOnboarding = newValue
+            SecureStorageManager.shared.hasCompletedOnboarding = newValue
+        }
+    }
 
     private init() {
-        // Initialize from UserDefaults
-        self.hasCompletedOnboarding = UserDefaults.standard.bool(forKey: hasCompletedOnboardingKey)
-        AppLogger.viewModel.info("OnboardingManager initialized - hasCompleted: \(self.hasCompletedOnboarding)")
+        // Initialize stored property from SecureStorageManager
+        _hasCompletedOnboarding = SecureStorageManager.shared.hasCompletedOnboarding
+        AppLogger.storage.info("OnboardingManager initialized - hasCompleted: \(_hasCompletedOnboarding) for environment: \(SecureStorageManager.shared.currentEnvironment.rawValue)")
     }
 
+    /// Marks onboarding as complete for the current environment.
     func completeOnboarding() {
         hasCompletedOnboarding = true
-        UserDefaults.standard.set(true, forKey: hasCompletedOnboardingKey)
-        AppLogger.viewModel.info("OnboardingManager: Onboarding marked as complete")
+        AppLogger.storage.info("Onboarding completed for environment: \(SecureStorageManager.shared.currentEnvironment.rawValue)")
     }
 
+    /// Resets onboarding for the current environment (Developer Center feature).
     func resetOnboarding() {
         hasCompletedOnboarding = false
-        UserDefaults.standard.set(false, forKey: hasCompletedOnboardingKey)
-        AppLogger.viewModel.info("OnboardingManager: Onboarding reset")
+        AppLogger.storage.info("Onboarding reset for environment: \(SecureStorageManager.shared.currentEnvironment.rawValue)")
+    }
+
+    /// Refreshes the stored property from SecureStorageManager.
+    /// Call this after environment changes to sync the state.
+    func refreshFromStorage() {
+        _hasCompletedOnboarding = SecureStorageManager.shared.hasCompletedOnboarding
+        AppLogger.storage.info("OnboardingManager refreshed - hasCompleted: \(_hasCompletedOnboarding)")
     }
 }

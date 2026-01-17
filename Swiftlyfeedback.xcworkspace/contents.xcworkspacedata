@@ -19,7 +19,4 @@
    <FileRef
       location = "group:AGENTS.md">
    </FileRef>
-   <FileRef
-      location = "group:docs/PUSH_NOTIFICATIONS_PLAN.md">
-   </FileRef>
 </Workspace>

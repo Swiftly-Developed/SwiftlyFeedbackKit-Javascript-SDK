@@ -269,11 +269,31 @@ struct AuthController: RouteCollection {
         let user = try req.auth.require(User.self)
         let dto = try req.content.decode(UpdateNotificationSettingsDTO.self)
 
+        // Email preferences
         if let notifyNewFeedback = dto.notifyNewFeedback {
             user.notifyNewFeedback = notifyNewFeedback
         }
         if let notifyNewComments = dto.notifyNewComments {
-            user.notifyNewComments = notifyNewComments
+            // Only Pro+ users can enable comment notifications
+            // Free users silently stay OFF (preserves intent if they upgrade)
+            user.notifyNewComments = user.subscriptionTier.meetsRequirement(.pro) ? notifyNewComments : false
+        }
+
+        // Push notification preferences
+        if let pushNotificationsEnabled = dto.pushNotificationsEnabled {
+            user.pushNotificationsEnabled = pushNotificationsEnabled
+        }
+        if let pushNotifyNewFeedback = dto.pushNotifyNewFeedback {
+            user.pushNotifyNewFeedback = pushNotifyNewFeedback
+        }
+        if let pushNotifyNewComments = dto.pushNotifyNewComments {
+            user.pushNotifyNewComments = pushNotifyNewComments
+        }
+        if let pushNotifyVotes = dto.pushNotifyVotes {
+            user.pushNotifyVotes = pushNotifyVotes
+        }
+        if let pushNotifyStatusChanges = dto.pushNotifyStatusChanges {
+            user.pushNotifyStatusChanges = pushNotifyStatusChanges
         }
 
         try await user.save(on: req.db)

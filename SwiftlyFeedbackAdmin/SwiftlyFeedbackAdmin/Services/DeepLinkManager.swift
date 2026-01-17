@@ -31,12 +31,29 @@ final class DeepLinkManager {
                 switch firstComponent {
                 case "notifications":
                     pendingDestination = .settingsNotifications
+                case "push-notifications":
+                    pendingDestination = .settingsPushNotifications
                 default:
                     pendingDestination = .settings
                 }
             } else {
                 pendingDestination = .settings
             }
+
+        case "feedback":
+            // feedbackkit://feedback/{feedbackId}
+            if let feedbackIdString = pathComponents.first,
+               let feedbackId = UUID(uuidString: feedbackIdString) {
+                pendingDestination = .feedback(id: feedbackId)
+            }
+
+        case "project":
+            // feedbackkit://project/{projectId}
+            if let projectIdString = pathComponents.first,
+               let projectId = UUID(uuidString: projectIdString) {
+                pendingDestination = .project(id: projectId)
+            }
+
         default:
             break
         }
@@ -52,4 +69,7 @@ final class DeepLinkManager {
 enum DeepLinkDestination: Equatable {
     case settings
     case settingsNotifications
+    case settingsPushNotifications
+    case feedback(id: UUID)
+    case project(id: UUID)
 }

@@ -61,8 +61,18 @@ struct VoteController: RouteCollection {
             throw Abort(.conflict, reason: "User has already voted for this feedback")
         }
 
-        let notifyStatusChange = dto.notifyStatusChange ?? false
+        var notifyStatusChange = dto.notifyStatusChange ?? false
         let validEmail = (email?.isEmpty == false) ? email : nil
+
+        // Only allow notification opt-in if project owner has Team tier
+        // Voter notifications are a Team-tier feature
+        if notifyStatusChange && validEmail != nil {
+            try await feedback.project.$owner.load(on: req.db)
+            if !feedback.project.owner.subscriptionTier.meetsRequirement(.team) {
+                // Silently disable - don't error, just don't save the preference
+                notifyStatusChange = false
+            }
+        }
 
         let vote = Vote(
             userId: dto.userId,
@@ -121,6 +131,51 @@ struct VoteController: RouteCollection {
                     value: feedback.voteCount
                 )
             }
+        }
+
+        // Sync vote count to Airtable if configured
+        if let votesFieldId = project.airtableVotesFieldId,
+           !votesFieldId.isEmpty,
+           let recordId = feedback.airtableRecordId,
+           let baseId = project.airtableBaseId,
+           let tableId = project.airtableTableId,
+           let token = project.airtableToken,
+           project.airtableIsActive {
+            Task {
+                try? await req.airtableService.updateRecordWithVotes(
+                    baseId: baseId,
+                    tableId: tableId,
+                    recordId: recordId,
+                    token: token,
+                    votesFieldId: votesFieldId,
+                    voteCount: feedback.voteCount
+                )
+            }
+        }
+
+        // Sync vote count to Asana if configured
+        if let votesFieldId = project.asanaVotesFieldId,
+           !votesFieldId.isEmpty,
+           let taskId = feedback.asanaTaskId,
+           let token = project.asanaToken,
+           project.asanaIsActive {
+            Task {
+                try? await req.asanaService.updateTaskVotes(
+                    taskId: taskId,
+                    votesFieldId: votesFieldId,
+                    voteCount: feedback.voteCount,
+                    token: token
+                )
+            }
+        }
+
+        // Send push notification for new vote
+        Task {
+            await req.pushNotificationService.sendVoteNotification(
+                feedback: feedback,
+                voteCount: feedback.voteCount,
+                on: req.db
+            )
         }
 
         return VoteResponseDTO(feedbackId: feedbackId, voteCount: feedback.voteCount, hasVoted: true)
@@ -202,6 +257,42 @@ struct VoteController: RouteCollection {
                     columnId: votesColumnId,
                     token: token,
                     value: feedback.voteCount
+                )
+            }
+        }
+
+        // Sync vote count to Airtable if configured
+        if let votesFieldId = project.airtableVotesFieldId,
+           !votesFieldId.isEmpty,
+           let recordId = feedback.airtableRecordId,
+           let baseId = project.airtableBaseId,
+           let tableId = project.airtableTableId,
+           let token = project.airtableToken,
+           project.airtableIsActive {
+            Task {
+                try? await req.airtableService.updateRecordWithVotes(
+                    baseId: baseId,
+                    tableId: tableId,
+                    recordId: recordId,
+                    token: token,
+                    votesFieldId: votesFieldId,
+                    voteCount: feedback.voteCount
+                )
+            }
+        }
+
+        // Sync vote count to Asana if configured
+        if let votesFieldId = project.asanaVotesFieldId,
+           !votesFieldId.isEmpty,
+           let taskId = feedback.asanaTaskId,
+           let token = project.asanaToken,
+           project.asanaIsActive {
+            Task {
+                try? await req.asanaService.updateTaskVotes(
+                    taskId: taskId,
+                    votesFieldId: votesFieldId,
+                    voteCount: feedback.voteCount,
+                    token: token
                 )
             }
         }

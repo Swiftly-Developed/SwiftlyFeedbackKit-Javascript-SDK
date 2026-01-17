@@ -41,24 +41,47 @@ struct OnboardingContainerView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Progress Bar (shown after welcome screen)
-                if viewModel.currentStep != .welcome {
-                    OnboardingProgressBar(
-                        progress: viewModel.currentStep.progress,
-                        isCompact: isCompactWidth
-                    )
-                    .padding(.horizontal, progressBarPadding)
-                    .padding(.top, 16)
-                    .transition(.opacity)
-                }
+                // Progress Bar (shown on all steps)
+                OnboardingProgressBar(
+                    progress: viewModel.currentStep.progress,
+                    isCompact: isCompactWidth
+                )
+                .padding(.horizontal, progressBarPadding)
+                .padding(.top, 12)
 
                 // Content
                 Group {
                     switch viewModel.currentStep {
-                    case .welcome:
+                    case .welcome1:
                         OnboardingWelcomeView(
                             onContinue: {
                                 viewModel.goToNextStep()
+                            },
+                            onLogin: {
+                                showLoginFlow = true
+                            }
+                        )
+
+                    case .welcome2:
+                        OnboardingWelcome2View(
+                            onContinue: {
+                                viewModel.goToNextStep()
+                            },
+                            onBack: {
+                                viewModel.goToPreviousStep()
+                            },
+                            onLogin: {
+                                showLoginFlow = true
+                            }
+                        )
+
+                    case .welcome3:
+                        OnboardingWelcome3View(
+                            onContinue: {
+                                viewModel.goToNextStep()
+                            },
+                            onBack: {
+                                viewModel.goToPreviousStep()
                             },
                             onLogin: {
                                 showLoginFlow = true
@@ -81,6 +104,13 @@ struct OnboardingContainerView: View {
                                 Task {
                                     await viewModel.logout()
                                 }
+                            }
+                        )
+
+                    case .paywall:
+                        OnboardingPaywallView(
+                            onContinue: {
+                                viewModel.goToNextStep()
                             }
                         )
 
@@ -171,15 +201,9 @@ private struct OnboardingProgressBar: View {
                         .fill(Color.secondary.opacity(0.2))
                         .frame(height: barHeight)
 
-                    // Progress fill
+                    // Progress fill with system accent color
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(
-                            LinearGradient(
-                                colors: [.blue, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
+                        .fill(Color.accentColor)
                         .frame(width: geometry.size.width * progress, height: barHeight)
                         .animation(.easeInOut(duration: 0.3), value: progress)
                 }

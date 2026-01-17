@@ -26,10 +26,23 @@ enum FeedbackViewMode: String, CaseIterable {
 struct FeedbackListView: View {
     let project: Project
     @Bindable var viewModel: FeedbackViewModel
-    @AppStorage("feedbackViewMode") private var viewMode: FeedbackViewMode = .list
+    @SecureAppStorage(.feedbackViewMode) private var viewModeRaw: String = FeedbackViewMode.list.rawValue
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var viewMode: FeedbackViewMode {
+        FeedbackViewMode(rawValue: viewModeRaw) ?? .list
+    }
+
+    private func setViewMode(_ mode: FeedbackViewMode) {
+        viewModeRaw = mode.rawValue
+    }
     @State private var selectedFeedbackId: UUID?
     @State private var feedbackToOpen: Feedback?
+
+    // Rejection reason sheet state
+    @State private var showingRejectionReasonSheet = false
+    @State private var rejectionReason = ""
+    @State private var feedbackToReject: Feedback?
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -80,9 +93,27 @@ struct FeedbackListView: View {
         .sheet(isPresented: $viewModel.showMergeSheet) {
             MergeFeedbackSheet(viewModel: viewModel)
         }
+        .sheet(isPresented: $showingRejectionReasonSheet) {
+            RejectionReasonSheet(
+                rejectionReason: $rejectionReason,
+                onReject: { reason in
+                    if let feedback = feedbackToReject {
+                        Task {
+                            await viewModel.updateFeedbackStatus(
+                                id: feedback.id,
+                                status: .rejected,
+                                rejectionReason: reason
+                            )
+                        }
+                    }
+                    feedbackToReject = nil
+                    rejectionReason = ""
+                }
+            )
+        }
         .navigationDestination(for: Feedback.self) { feedback in
             FeedbackDetailView(
-                feedback: feedback,
+                initialFeedback: feedback,
                 apiKey: project.apiKey,
                 allowedStatuses: allowedStatuses,
                 viewModel: viewModel
@@ -90,7 +121,7 @@ struct FeedbackListView: View {
         }
         .navigationDestination(item: $feedbackToOpen) { feedback in
             FeedbackDetailView(
-                feedback: feedback,
+                initialFeedback: feedback,
                 apiKey: project.apiKey,
                 allowedStatuses: allowedStatuses,
                 viewModel: viewModel
@@ -167,6 +198,19 @@ struct FeedbackListView: View {
                 .disabled(viewModel.selectedFeedbacks.allSatisfy { $0.hasLinearIssue })
             }
 
+            // Trello push button (only show if Trello is configured)
+            if project.isTrelloConfigured {
+                Button {
+                    Task {
+                        await viewModel.bulkCreateTrelloCards(projectId: project.id)
+                    }
+                } label: {
+                    Label("Push to Trello", systemImage: "square.grid.2x2")
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.selectedFeedbacks.allSatisfy { $0.hasTrelloCard })
+            }
+
             Button {
                 viewModel.startMergeWithSelection()
             } label: {
@@ -189,7 +233,10 @@ struct FeedbackListView: View {
     // MARK: - View Mode Picker
 
     private var viewModePicker: some View {
-        Picker("View Mode", selection: $viewMode) {
+        Picker("View Mode", selection: Binding(
+            get: { viewMode },
+            set: { setViewMode($0) }
+        )) {
             ForEach(FeedbackViewMode.allCases, id: \.self) { mode in
                 Label(mode.label, systemImage: mode.icon)
                     .tag(mode)
@@ -479,6 +526,26 @@ struct FeedbackListView: View {
             Divider()
         }
 
+        // Trello options
+        if project.isTrelloConfigured {
+            if feedback.hasTrelloCard {
+                if let cardUrl = feedback.trelloCardUrl, let url = URL(string: cardUrl) {
+                    Link(destination: url) {
+                        Label("View Trello Card", systemImage: "link")
+                    }
+                }
+            } else {
+                Button {
+                    Task {
+                        await viewModel.createTrelloCard(projectId: project.id, feedbackId: feedback.id)
+                    }
+                } label: {
+                    Label("Push to Trello", systemImage: "square.grid.2x2")
+                }
+            }
+            Divider()
+        }
+
         // Merge option (shows when this + selected >= 2)
         let canMergeThis = viewModel.selectedFeedbackIds.count >= 1 || viewModel.selectedFeedbackIds.contains(feedback.id)
         if canMergeThis {
@@ -532,7 +599,10 @@ struct FeedbackListView: View {
                         viewModel: viewModel,
                         project: project,
                         allowedStatuses: allowedStatuses,
-                        feedbackToOpen: $feedbackToOpen
+                        feedbackToOpen: $feedbackToOpen,
+                        showingRejectionReasonSheet: $showingRejectionReasonSheet,
+                        rejectionReason: $rejectionReason,
+                        feedbackToReject: $feedbackToReject
                     )
                 }
             }
@@ -551,8 +621,15 @@ struct FeedbackListView: View {
         Menu {
             ForEach(allowedStatuses, id: \.self) { status in
                 Button {
-                    Task {
-                        await viewModel.updateFeedbackStatus(id: feedback.id, status: status)
+                    if status == .rejected {
+                        // Show rejection reason sheet instead of directly updating
+                        feedbackToReject = feedback
+                        rejectionReason = ""
+                        showingRejectionReasonSheet = true
+                    } else {
+                        Task {
+                            await viewModel.updateFeedbackStatus(id: feedback.id, status: status)
+                        }
                     }
                 } label: {
                     HStack {
@@ -894,6 +971,10 @@ struct KanbanColumnView: View {
     let project: Project
     let allowedStatuses: [FeedbackStatus]
     @Binding var feedbackToOpen: Feedback?
+    // Rejection reason bindings
+    @Binding var showingRejectionReasonSheet: Bool
+    @Binding var rejectionReason: String
+    @Binding var feedbackToReject: Feedback?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -945,8 +1026,17 @@ struct KanbanColumnView: View {
                   let feedbackId = UUID(uuidString: feedbackIdString) else {
                 return false
             }
-            Task {
-                await viewModel.updateFeedbackStatus(id: feedbackId, status: status)
+            // If dropping on rejected column, show rejection reason sheet
+            if status == .rejected {
+                if let feedback = viewModel.feedbacks.first(where: { $0.id == feedbackId }) {
+                    feedbackToReject = feedback
+                    rejectionReason = ""
+                    showingRejectionReasonSheet = true
+                }
+            } else {
+                Task {
+                    await viewModel.updateFeedbackStatus(id: feedbackId, status: status)
+                }
             }
             return true
         }
@@ -1085,6 +1175,26 @@ struct KanbanColumnView: View {
             Divider()
         }
 
+        // Trello options
+        if project.isTrelloConfigured {
+            if feedback.hasTrelloCard {
+                if let cardUrl = feedback.trelloCardUrl, let url = URL(string: cardUrl) {
+                    Link(destination: url) {
+                        Label("View Trello Card", systemImage: "link")
+                    }
+                }
+            } else {
+                Button {
+                    Task {
+                        await viewModel.createTrelloCard(projectId: project.id, feedbackId: feedback.id)
+                    }
+                } label: {
+                    Label("Push to Trello", systemImage: "square.grid.2x2")
+                }
+            }
+            Divider()
+        }
+
         // Merge option
         if viewModel.selectedFeedbackIds.count >= 1 {
             Button {
@@ -1115,8 +1225,15 @@ struct KanbanColumnView: View {
         Menu {
             ForEach(allowedStatuses, id: \.self) { newStatus in
                 Button {
-                    Task {
-                        await viewModel.updateFeedbackStatus(id: feedback.id, status: newStatus)
+                    if newStatus == .rejected {
+                        // Show rejection reason sheet instead of directly updating
+                        feedbackToReject = feedback
+                        rejectionReason = ""
+                        showingRejectionReasonSheet = true
+                    } else {
+                        Task {
+                            await viewModel.updateFeedbackStatus(id: feedback.id, status: newStatus)
+                        }
                     }
                 } label: {
                     HStack {
@@ -1307,20 +1424,23 @@ struct FeedbackCategoryBadge: View {
 
 struct MrrBadge: View {
     let mrr: String
+    @Environment(SubscriptionService.self) private var subscriptionService
 
     var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "dollarsign.circle.fill")
-                .font(.caption2)
-            Text(mrr)
-                .font(.caption2)
-                .fontWeight(.medium)
+        if subscriptionService.meetsRequirement(.pro), !mrr.isEmpty {
+            HStack(spacing: 3) {
+                Image(systemName: "dollarsign.circle.fill")
+                    .font(.caption2)
+                Text(mrr)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(Color.green.opacity(0.15))
+            .foregroundStyle(.green)
+            .clipShape(Capsule())
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(Color.green.opacity(0.15))
-        .foregroundStyle(.green)
-        .clipShape(Capsule())
     }
 }
 

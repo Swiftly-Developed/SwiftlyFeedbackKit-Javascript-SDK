@@ -96,8 +96,21 @@ func configure(_ app: Application) async throws {
     app.migrations.add(CreatePasswordReset())
     app.migrations.add(AddUserSubscriptionFields())
     app.migrations.add(AddVoteEmailNotification())
+    app.migrations.add(AddProjectTrelloIntegration())
+    app.migrations.add(AddProjectAirtableIntegration())
+    app.migrations.add(AddProjectAsanaIntegration())
+    app.migrations.add(AddProjectBasecampIntegration())
+    app.migrations.add(AddProjectEmailNotifyStatuses())
+    app.migrations.add(AddFeedbackRejectionReason())
+    app.migrations.add(CreateDeviceToken())
+    app.migrations.add(CreateProjectMemberPreference())
+    app.migrations.add(CreatePushNotificationLog())
+    app.migrations.add(AddUserPushNotificationSettings())
 
     try await app.autoMigrate()
+
+    // Configure APNs (optional - only if environment variables are set)
+    try? app.apns.configure()
 
     // CORS middleware
     let corsConfiguration = CORSMiddleware.Configuration(

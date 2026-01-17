@@ -127,8 +127,11 @@ struct iOSTabView: View {
         guard let destination else { return }
 
         switch destination {
-        case .settings, .settingsNotifications:
+        case .settings, .settingsNotifications, .settingsPushNotifications:
             selectedTab = .settings
+        case .feedback, .project:
+            // These require additional navigation handling in the projects tab
+            selectedTab = .projects
         }
 
         deepLinkManager.clearPendingDestination()
@@ -253,8 +256,11 @@ struct MacNavigationView: View {
         guard let destination else { return }
 
         switch destination {
-        case .settings, .settingsNotifications:
+        case .settings, .settingsNotifications, .settingsPushNotifications:
             selectedSection = .settings
+        case .feedback, .project:
+            // These require additional navigation handling in the projects section
+            selectedSection = .projects
         }
 
         deepLinkManager.clearPendingDestination()

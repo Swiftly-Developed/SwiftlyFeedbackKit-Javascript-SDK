@@ -21,6 +21,9 @@ struct ProjectController: RouteCollection {
         // Regenerate API key
         protected.post(":projectId", "regenerate-key", use: regenerateApiKey)
 
+        // Transfer ownership
+        protected.post(":projectId", "transfer-ownership", use: transferOwnership)
+
         // Member management
         protected.get(":projectId", "members", use: listMembers)
         protected.post(":projectId", "members", use: addMember)
@@ -32,6 +35,9 @@ struct ProjectController: RouteCollection {
 
         // Status settings
         protected.patch(":projectId", "statuses", use: updateAllowedStatuses)
+
+        // Email notification status settings
+        protected.patch(":projectId", "email-notify-statuses", use: updateEmailNotifyStatuses)
 
         // GitHub integration
         protected.patch(":projectId", "github", use: updateGitHubSettings)
@@ -72,6 +78,38 @@ struct ProjectController: RouteCollection {
         protected.get(":projectId", "linear", "projects", ":teamId", use: getLinearProjects)
         protected.get(":projectId", "linear", "states", ":teamId", use: getLinearWorkflowStates)
         protected.get(":projectId", "linear", "labels", ":teamId", use: getLinearLabels)
+
+        // Trello integration
+        protected.patch(":projectId", "trello", use: updateTrelloSettings)
+        protected.post(":projectId", "trello", "card", use: createTrelloCard)
+        protected.post(":projectId", "trello", "cards", use: bulkCreateTrelloCards)
+        protected.get(":projectId", "trello", "boards", use: getTrelloBoards)
+        protected.get(":projectId", "trello", "boards", ":boardId", "lists", use: getTrelloLists)
+
+        // Airtable integration
+        protected.patch(":projectId", "airtable", use: updateAirtableSettings)
+        protected.post(":projectId", "airtable", "record", use: createAirtableRecord)
+        protected.post(":projectId", "airtable", "records", use: bulkCreateAirtableRecords)
+        protected.get(":projectId", "airtable", "bases", use: getAirtableBases)
+        protected.get(":projectId", "airtable", "tables", ":baseId", use: getAirtableTables)
+        protected.get(":projectId", "airtable", "fields", use: getAirtableFields)
+
+        // Asana integration
+        protected.patch(":projectId", "asana", use: updateAsanaSettings)
+        protected.post(":projectId", "asana", "task", use: createAsanaTask)
+        protected.post(":projectId", "asana", "tasks", use: bulkCreateAsanaTasks)
+        protected.get(":projectId", "asana", "workspaces", use: getAsanaWorkspaces)
+        protected.get(":projectId", "asana", "workspaces", ":workspaceId", "projects", use: getAsanaProjects)
+        protected.get(":projectId", "asana", "projects", ":asanaProjectId", "sections", use: getAsanaSections)
+        protected.get(":projectId", "asana", "projects", ":asanaProjectId", "custom-fields", use: getAsanaCustomFields)
+
+        // Basecamp integration
+        protected.patch(":projectId", "basecamp", use: updateBasecampSettings)
+        protected.post(":projectId", "basecamp", "todo", use: createBasecampTodo)
+        protected.post(":projectId", "basecamp", "todos", use: bulkCreateBasecampTodos)
+        protected.get(":projectId", "basecamp", "accounts", use: getBasecampAccounts)
+        protected.get(":projectId", "basecamp", "accounts", ":accountId", "projects", use: getBasecampProjects)
+        protected.get(":projectId", "basecamp", "accounts", ":accountId", "projects", ":basecampProjectId", "todolists", use: getBasecampTodolists)
 
         // Invite management
         protected.get(":projectId", "invites", use: listInvites)
@@ -303,6 +341,117 @@ struct ProjectController: RouteCollection {
         )
     }
 
+    // MARK: - Ownership Transfer
+
+    /// Transfer project ownership to another user
+    /// - Route: POST /projects/:projectId/transfer-ownership
+    /// - Authorization: Project owner only
+    @Sendable
+    func transferOwnership(req: Request) async throws -> TransferOwnershipResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwner(req: req, user: user)
+
+        // Decode and validate request
+        try TransferOwnershipDTO.validate(content: req)
+        let dto = try req.content.decode(TransferOwnershipDTO.self)
+        try dto.validate()
+
+        let currentOwnerId = try user.requireID()
+        let projectId = try project.requireID()
+
+        // Resolve new owner (by ID or email)
+        let newOwner: User
+        if let newOwnerId = dto.newOwnerId {
+            guard let foundUser = try await User.find(newOwnerId, on: req.db) else {
+                throw Abort(.notFound, reason: "User not found")
+            }
+            newOwner = foundUser
+        } else if let email = dto.newOwnerEmail {
+            guard let foundUser = try await User.query(on: req.db)
+                .filter(\.$email == email.lowercased())
+                .first() else {
+                throw Abort(.notFound, reason: "User not found")
+            }
+            newOwner = foundUser
+        } else {
+            throw Abort(.badRequest, reason: "Either newOwnerId or newOwnerEmail is required")
+        }
+
+        let newOwnerId = try newOwner.requireID()
+
+        // Validation 1: Cannot transfer to self
+        guard newOwnerId != currentOwnerId else {
+            throw Abort(.badRequest, reason: "Cannot transfer ownership to yourself")
+        }
+
+        // Validation 2: Check tier requirements if project has members
+        let memberCount = try await ProjectMember.query(on: req.db)
+            .filter(\.$project.$id == projectId)
+            .count()
+
+        if memberCount > 0 && !newOwner.subscriptionTier.meetsRequirement(.team) {
+            throw Abort(
+                .paymentRequired,
+                reason: "New owner needs Team subscription to own a project with members"
+            )
+        }
+
+        // Execute transfer in transaction
+        try await req.db.transaction { database in
+            // Check if new owner is currently a member
+            if let existingMembership = try await ProjectMember.query(on: database)
+                .filter(\.$project.$id == projectId)
+                .filter(\.$user.$id == newOwnerId)
+                .first() {
+                // Remove their membership (they're becoming owner)
+                try await existingMembership.delete(on: database)
+            }
+
+            // Update project owner
+            project.$owner.id = newOwnerId
+            try await project.save(on: database)
+
+            // Add previous owner as Admin member
+            let adminMember = ProjectMember(
+                projectId: projectId,
+                userId: currentOwnerId,
+                role: .admin
+            )
+            try await adminMember.save(on: database)
+        }
+
+        // Send notification email (outside transaction)
+        Task {
+            do {
+                try await req.emailService.sendOwnershipTransferNotification(
+                    to: newOwner.email,
+                    newOwnerName: newOwner.name,
+                    projectName: project.name,
+                    previousOwnerName: user.name
+                )
+            } catch {
+                req.logger.error("Failed to send ownership transfer email: \(error)")
+            }
+        }
+
+        // Build response
+        return TransferOwnershipResponseDTO(
+            projectId: projectId,
+            projectName: project.name,
+            newOwner: .init(
+                id: newOwnerId,
+                email: newOwner.email,
+                name: newOwner.name
+            ),
+            previousOwner: .init(
+                id: currentOwnerId,
+                email: user.email,
+                name: user.name
+            ),
+            transferredAt: Date()
+        )
+    }
+
     // MARK: - Member Management
 
     @Sendable
@@ -321,13 +470,13 @@ struct ProjectController: RouteCollection {
     @Sendable
     func addMember(req: Request) async throws -> Response {
         let user = try req.auth.require(User.self)
-
-        // Check Pro tier requirement for team members
-        guard user.subscriptionTier.meetsRequirement(.pro) else {
-            throw Abort(.paymentRequired, reason: "Team members require Pro subscription")
-        }
-
         let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        // Load project owner to check their tier (not the logged-in user's tier)
+        try await project.$owner.load(on: req.db)
+        guard project.owner.subscriptionTier.meetsRequirement(.team) else {
+            throw Abort(.paymentRequired, reason: "Project owner needs Team subscription to invite members")
+        }
 
         try AddMemberDTO.validate(content: req)
         let dto = try req.content.decode(AddMemberDTO.self)
@@ -565,6 +714,12 @@ struct ProjectController: RouteCollection {
     @Sendable
     func acceptInvite(req: Request) async throws -> AcceptInviteResponseDTO {
         let user = try req.auth.require(User.self)
+
+        // Check invitee has Team tier
+        guard user.subscriptionTier.meetsRequirement(.team) else {
+            throw Abort(.paymentRequired, reason: "You need a Team subscription to join projects as a member")
+        }
+
         let dto = try req.content.decode(AcceptInviteDTO.self)
 
         let normalizedCode = dto.code.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
@@ -584,6 +739,12 @@ struct ProjectController: RouteCollection {
         // Check if the invite email matches the user's email
         if invite.email != user.email.lowercased() {
             throw Abort(.forbidden, reason: "This invite was sent to a different email address")
+        }
+
+        // Check project owner still has Team tier
+        try await invite.project.$owner.load(on: req.db)
+        guard invite.project.owner.subscriptionTier.meetsRequirement(.team) else {
+            throw Abort(.paymentRequired, reason: "The project owner's subscription no longer supports team members")
         }
 
         let userId = try user.requireID()
@@ -683,6 +844,12 @@ struct ProjectController: RouteCollection {
     @Sendable
     func updateAllowedStatuses(req: Request) async throws -> ProjectResponseDTO {
         let user = try req.auth.require(User.self)
+
+        // Check Pro tier requirement for configurable statuses
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Configurable statuses require Pro subscription")
+        }
+
         let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
 
         let dto = try req.content.decode(UpdateProjectStatusesDTO.self)
@@ -701,6 +868,45 @@ struct ProjectController: RouteCollection {
         }
 
         project.allowedStatuses = dto.allowedStatuses
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,  // +1 for owner
+            ownerEmail: project.owner.email
+        )
+    }
+
+    // MARK: - Email Notification Status Settings
+
+    @Sendable
+    func updateEmailNotifyStatuses(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        // Check Pro tier requirement for configuring email notification statuses
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Configuring email notification statuses requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectEmailNotifyStatusesDTO.self)
+
+        // Validate that all provided statuses are valid FeedbackStatus values
+        let validStatuses = FeedbackStatus.allCases.map { $0.rawValue }
+        for status in dto.emailNotifyStatuses {
+            guard validStatuses.contains(status) else {
+                throw Abort(.badRequest, reason: "Invalid status: \(status). Valid statuses are: \(validStatuses.joined(separator: ", "))")
+            }
+        }
+
+        project.emailNotifyStatuses = dto.emailNotifyStatuses
 
         try await project.save(on: req.db)
 
@@ -2119,6 +2325,1272 @@ struct ProjectController: RouteCollection {
 
         let labels = try await req.linearService.getLabels(teamId: teamId, token: token)
         return labels.map { LinearLabelDTO(id: $0.id, name: $0.name, color: $0.color) }
+    }
+
+    // MARK: - Trello Integration
+
+    @Sendable
+    func updateTrelloSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        // Check Pro tier requirement for integrations
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Trello integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectTrelloDTO.self)
+
+        if let token = dto.trelloToken {
+            project.trelloToken = token.isEmpty ? nil : token
+        }
+        if let boardId = dto.trelloBoardId {
+            project.trelloBoardId = boardId.isEmpty ? nil : boardId
+        }
+        if let boardName = dto.trelloBoardName {
+            project.trelloBoardName = boardName.isEmpty ? nil : boardName
+        }
+        if let listId = dto.trelloListId {
+            project.trelloListId = listId.isEmpty ? nil : listId
+        }
+        if let listName = dto.trelloListName {
+            project.trelloListName = listName.isEmpty ? nil : listName
+        }
+        if let syncStatus = dto.trelloSyncStatus {
+            project.trelloSyncStatus = syncStatus
+        }
+        if let syncComments = dto.trelloSyncComments {
+            project.trelloSyncComments = syncComments
+        }
+        if let isActive = dto.trelloIsActive {
+            project.trelloIsActive = isActive
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,  // +1 for owner
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createTrelloCard(req: Request) async throws -> CreateTrelloCardResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.trelloToken,
+              let listId = project.trelloListId else {
+            throw Abort(.badRequest, reason: "Trello integration not configured")
+        }
+
+        guard project.trelloIsActive else {
+            throw Abort(.badRequest, reason: "Trello integration is not active")
+        }
+
+        let dto = try req.content.decode(CreateTrelloCardDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.trelloCardURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has a Trello card")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        let description = req.trelloService.buildCardDescription(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        let card = try await req.trelloService.createCard(
+            token: token,
+            listId: listId,
+            name: feedback.title,
+            description: description
+        )
+
+        feedback.trelloCardURL = card.url
+        feedback.trelloCardId = card.id
+        try await feedback.save(on: req.db)
+
+        return CreateTrelloCardResponseDTO(
+            feedbackId: feedback.id!,
+            cardUrl: card.url,
+            cardId: card.id
+        )
+    }
+
+    @Sendable
+    func bulkCreateTrelloCards(req: Request) async throws -> BulkCreateTrelloCardsResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.trelloToken,
+              let listId = project.trelloListId else {
+            throw Abort(.badRequest, reason: "Trello integration not configured")
+        }
+
+        guard project.trelloIsActive else {
+            throw Abort(.badRequest, reason: "Trello integration is not active")
+        }
+
+        let dto = try req.content.decode(BulkCreateTrelloCardsDTO.self)
+
+        var created: [CreateTrelloCardResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.trelloCardURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let description = req.trelloService.buildCardDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                let card = try await req.trelloService.createCard(
+                    token: token,
+                    listId: listId,
+                    name: feedback.title,
+                    description: description
+                )
+
+                feedback.trelloCardURL = card.url
+                feedback.trelloCardId = card.id
+                try await feedback.save(on: req.db)
+
+                created.append(CreateTrelloCardResponseDTO(
+                    feedbackId: feedback.id!,
+                    cardUrl: card.url,
+                    cardId: card.id
+                ))
+            } catch {
+                req.logger.error("Failed to create Trello card for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateTrelloCardsResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getTrelloBoards(req: Request) async throws -> [TrelloBoardDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.trelloToken else {
+            throw Abort(.badRequest, reason: "Trello token not configured")
+        }
+
+        let boards = try await req.trelloService.getBoards(token: token)
+        return boards.map { TrelloBoardDTO(id: $0.id, name: $0.name) }
+    }
+
+    @Sendable
+    func getTrelloLists(req: Request) async throws -> [TrelloListDTO] {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.trelloToken else {
+            throw Abort(.badRequest, reason: "Trello token not configured")
+        }
+
+        guard let boardId = req.parameters.get("boardId") else {
+            throw Abort(.badRequest, reason: "Board ID required")
+        }
+
+        let lists = try await req.trelloService.getLists(token: token, boardId: boardId)
+        return lists.map { TrelloListDTO(id: $0.id, name: $0.name) }
+    }
+
+    // MARK: - Airtable Integration
+
+    @Sendable
+    func updateAirtableSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        // Check Pro tier requirement for integrations
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectAirtableDTO.self)
+
+        if let token = dto.airtableToken {
+            project.airtableToken = token.isEmpty ? nil : token
+        }
+        if let baseId = dto.airtableBaseId {
+            project.airtableBaseId = baseId.isEmpty ? nil : baseId
+        }
+        if let baseName = dto.airtableBaseName {
+            project.airtableBaseName = baseName.isEmpty ? nil : baseName
+        }
+        if let tableId = dto.airtableTableId {
+            project.airtableTableId = tableId.isEmpty ? nil : tableId
+        }
+        if let tableName = dto.airtableTableName {
+            project.airtableTableName = tableName.isEmpty ? nil : tableName
+        }
+        if let syncStatus = dto.airtableSyncStatus {
+            project.airtableSyncStatus = syncStatus
+        }
+        if let syncComments = dto.airtableSyncComments {
+            project.airtableSyncComments = syncComments
+        }
+        if let statusFieldId = dto.airtableStatusFieldId {
+            project.airtableStatusFieldId = statusFieldId.isEmpty ? nil : statusFieldId
+        }
+        if let votesFieldId = dto.airtableVotesFieldId {
+            project.airtableVotesFieldId = votesFieldId.isEmpty ? nil : votesFieldId
+        }
+        if let titleFieldId = dto.airtableTitleFieldId {
+            project.airtableTitleFieldId = titleFieldId.isEmpty ? nil : titleFieldId
+        }
+        if let descriptionFieldId = dto.airtableDescriptionFieldId {
+            project.airtableDescriptionFieldId = descriptionFieldId.isEmpty ? nil : descriptionFieldId
+        }
+        if let categoryFieldId = dto.airtableCategoryFieldId {
+            project.airtableCategoryFieldId = categoryFieldId.isEmpty ? nil : categoryFieldId
+        }
+        if let isActive = dto.airtableIsActive {
+            project.airtableIsActive = isActive
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,  // +1 for owner
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createAirtableRecord(req: Request) async throws -> CreateAirtableRecordResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken,
+              let baseId = project.airtableBaseId,
+              let tableId = project.airtableTableId else {
+            throw Abort(.badRequest, reason: "Airtable integration not configured")
+        }
+
+        guard project.airtableIsActive else {
+            throw Abort(.badRequest, reason: "Airtable integration is not active")
+        }
+
+        let dto = try req.content.decode(CreateAirtableRecordDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.airtableRecordURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has an Airtable record")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        // Get field names from the fields (for Airtable, we use field names, not IDs for the API)
+        // The field IDs stored are actually the field names for Airtable's API
+        let fields = req.airtableService.buildRecordFields(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil,
+            titleFieldName: project.airtableTitleFieldId,
+            descriptionFieldName: project.airtableDescriptionFieldId,
+            categoryFieldName: project.airtableCategoryFieldId,
+            statusFieldName: project.airtableStatusFieldId,
+            votesFieldName: project.airtableVotesFieldId
+        )
+
+        let record = try await req.airtableService.createRecord(
+            baseId: baseId,
+            tableId: tableId,
+            token: token,
+            fields: fields
+        )
+
+        let recordUrl = req.airtableService.buildRecordURL(
+            baseId: baseId,
+            tableId: tableId,
+            recordId: record.id
+        )
+
+        feedback.airtableRecordURL = recordUrl
+        feedback.airtableRecordId = record.id
+        try await feedback.save(on: req.db)
+
+        return CreateAirtableRecordResponseDTO(
+            feedbackId: feedback.id!,
+            recordUrl: recordUrl,
+            recordId: record.id
+        )
+    }
+
+    @Sendable
+    func bulkCreateAirtableRecords(req: Request) async throws -> BulkCreateAirtableRecordsResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken,
+              let baseId = project.airtableBaseId,
+              let tableId = project.airtableTableId else {
+            throw Abort(.badRequest, reason: "Airtable integration not configured")
+        }
+
+        guard project.airtableIsActive else {
+            throw Abort(.badRequest, reason: "Airtable integration is not active")
+        }
+
+        let dto = try req.content.decode(BulkCreateAirtableRecordsDTO.self)
+
+        var created: [CreateAirtableRecordResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.airtableRecordURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let fields = req.airtableService.buildRecordFields(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil,
+                    titleFieldName: project.airtableTitleFieldId,
+                    descriptionFieldName: project.airtableDescriptionFieldId,
+                    categoryFieldName: project.airtableCategoryFieldId,
+                    statusFieldName: project.airtableStatusFieldId,
+                    votesFieldName: project.airtableVotesFieldId
+                )
+
+                let record = try await req.airtableService.createRecord(
+                    baseId: baseId,
+                    tableId: tableId,
+                    token: token,
+                    fields: fields
+                )
+
+                let recordUrl = req.airtableService.buildRecordURL(
+                    baseId: baseId,
+                    tableId: tableId,
+                    recordId: record.id
+                )
+
+                feedback.airtableRecordURL = recordUrl
+                feedback.airtableRecordId = record.id
+                try await feedback.save(on: req.db)
+
+                created.append(CreateAirtableRecordResponseDTO(
+                    feedbackId: feedback.id!,
+                    recordUrl: recordUrl,
+                    recordId: record.id
+                ))
+            } catch {
+                req.logger.error("Failed to create Airtable record for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateAirtableRecordsResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getAirtableBases(req: Request) async throws -> [AirtableBaseDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken else {
+            throw Abort(.badRequest, reason: "Airtable token not configured")
+        }
+
+        let bases = try await req.airtableService.getBases(token: token)
+        return bases.map { AirtableBaseDTO(id: $0.id, name: $0.name) }
+    }
+
+    @Sendable
+    func getAirtableTables(req: Request) async throws -> [AirtableTableDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken else {
+            throw Abort(.badRequest, reason: "Airtable token not configured")
+        }
+
+        guard let baseId = req.parameters.get("baseId") else {
+            throw Abort(.badRequest, reason: "Base ID required")
+        }
+
+        let tables = try await req.airtableService.getTables(baseId: baseId, token: token)
+        return tables.map { AirtableTableDTO(id: $0.id, name: $0.name) }
+    }
+
+    @Sendable
+    func getAirtableFields(req: Request) async throws -> [AirtableFieldDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Airtable integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.airtableToken,
+              let baseId = project.airtableBaseId,
+              let tableId = project.airtableTableId else {
+            throw Abort(.badRequest, reason: "Airtable base and table not configured")
+        }
+
+        let fields = try await req.airtableService.getFields(
+            baseId: baseId,
+            tableId: tableId,
+            token: token
+        )
+
+        return fields.map { AirtableFieldDTO(id: $0.id, name: $0.name, type: $0.type) }
+    }
+
+    // MARK: - Asana Integration
+
+    @Sendable
+    func updateAsanaSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectAsanaDTO.self)
+
+        if let token = dto.asanaToken {
+            project.asanaToken = token.isEmpty ? nil : token
+        }
+        if let workspaceId = dto.asanaWorkspaceId {
+            project.asanaWorkspaceId = workspaceId.isEmpty ? nil : workspaceId
+        }
+        if let workspaceName = dto.asanaWorkspaceName {
+            project.asanaWorkspaceName = workspaceName.isEmpty ? nil : workspaceName
+        }
+        if let projectId = dto.asanaProjectId {
+            project.asanaProjectId = projectId.isEmpty ? nil : projectId
+        }
+        if let projectName = dto.asanaProjectName {
+            project.asanaProjectName = projectName.isEmpty ? nil : projectName
+        }
+        if let sectionId = dto.asanaSectionId {
+            project.asanaSectionId = sectionId.isEmpty ? nil : sectionId
+        }
+        if let sectionName = dto.asanaSectionName {
+            project.asanaSectionName = sectionName.isEmpty ? nil : sectionName
+        }
+        if let syncStatus = dto.asanaSyncStatus {
+            project.asanaSyncStatus = syncStatus
+        }
+        if let syncComments = dto.asanaSyncComments {
+            project.asanaSyncComments = syncComments
+        }
+        if let statusFieldId = dto.asanaStatusFieldId {
+            project.asanaStatusFieldId = statusFieldId.isEmpty ? nil : statusFieldId
+        }
+        if let votesFieldId = dto.asanaVotesFieldId {
+            project.asanaVotesFieldId = votesFieldId.isEmpty ? nil : votesFieldId
+        }
+        if let isActive = dto.asanaIsActive {
+            project.asanaIsActive = isActive
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createAsanaTask(req: Request) async throws -> CreateAsanaTaskResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken,
+              let asanaProjectId = project.asanaProjectId else {
+            throw Abort(.badRequest, reason: "Asana integration not configured")
+        }
+
+        guard project.asanaIsActive else {
+            throw Abort(.badRequest, reason: "Asana integration is not active")
+        }
+
+        let dto = try req.content.decode(CreateAsanaTaskDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.asanaTaskURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has an Asana task")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        // Build task notes
+        let notes = req.asanaService.buildTaskNotes(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        // Build custom fields
+        var customFields: [String: Any] = [:]
+        if let statusFieldId = project.asanaStatusFieldId {
+            // Get the status field options and find matching one
+            let fields = try await req.asanaService.getCustomFields(projectId: asanaProjectId, token: token)
+            if let statusField = fields.first(where: { $0.gid == statusFieldId }),
+               let options = statusField.enumOptions {
+                let targetStatus = feedback.status.asanaStatusName
+                if let option = options.first(where: { $0.name.lowercased() == targetStatus.lowercased() && $0.enabled }) {
+                    customFields[statusFieldId] = option.gid
+                }
+            }
+        }
+        if let votesFieldId = project.asanaVotesFieldId {
+            customFields[votesFieldId] = feedback.voteCount
+        }
+
+        // Create task
+        let task = try await req.asanaService.createTask(
+            projectId: asanaProjectId,
+            sectionId: project.asanaSectionId,
+            token: token,
+            name: feedback.title,
+            notes: notes,
+            customFields: customFields.isEmpty ? nil : customFields
+        )
+
+        // Build URL (use permalink_url from response, or construct manually)
+        let taskUrl = task.permalinkUrl ?? req.asanaService.buildTaskURL(projectId: asanaProjectId, taskId: task.gid)
+
+        // Save link to feedback
+        feedback.asanaTaskURL = taskUrl
+        feedback.asanaTaskId = task.gid
+        try await feedback.save(on: req.db)
+
+        return CreateAsanaTaskResponseDTO(
+            feedbackId: feedback.id!,
+            taskUrl: taskUrl,
+            taskId: task.gid
+        )
+    }
+
+    @Sendable
+    func bulkCreateAsanaTasks(req: Request) async throws -> BulkCreateAsanaTasksResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken,
+              let asanaProjectId = project.asanaProjectId else {
+            throw Abort(.badRequest, reason: "Asana integration not configured")
+        }
+
+        guard project.asanaIsActive else {
+            throw Abort(.badRequest, reason: "Asana integration is not active")
+        }
+
+        let dto = try req.content.decode(BulkCreateAsanaTasksDTO.self)
+
+        var created: [CreateAsanaTaskResponseDTO] = []
+        var failed: [UUID] = []
+
+        // Pre-fetch custom field options if status sync is enabled
+        var statusOptions: [String: String] = [:]  // status name -> option gid
+        if let statusFieldId = project.asanaStatusFieldId {
+            let fields = try await req.asanaService.getCustomFields(projectId: asanaProjectId, token: token)
+            if let statusField = fields.first(where: { $0.gid == statusFieldId }),
+               let options = statusField.enumOptions {
+                for option in options where option.enabled {
+                    statusOptions[option.name.lowercased()] = option.gid
+                }
+            }
+        }
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.asanaTaskURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let notes = req.asanaService.buildTaskNotes(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                var customFields: [String: Any] = [:]
+                if let statusFieldId = project.asanaStatusFieldId {
+                    let targetStatus = feedback.status.asanaStatusName.lowercased()
+                    if let optionGid = statusOptions[targetStatus] {
+                        customFields[statusFieldId] = optionGid
+                    }
+                }
+                if let votesFieldId = project.asanaVotesFieldId {
+                    customFields[votesFieldId] = feedback.voteCount
+                }
+
+                let task = try await req.asanaService.createTask(
+                    projectId: asanaProjectId,
+                    sectionId: project.asanaSectionId,
+                    token: token,
+                    name: feedback.title,
+                    notes: notes,
+                    customFields: customFields.isEmpty ? nil : customFields
+                )
+
+                let taskUrl = task.permalinkUrl ?? req.asanaService.buildTaskURL(projectId: asanaProjectId, taskId: task.gid)
+
+                feedback.asanaTaskURL = taskUrl
+                feedback.asanaTaskId = task.gid
+                try await feedback.save(on: req.db)
+
+                created.append(CreateAsanaTaskResponseDTO(
+                    feedbackId: feedback.id!,
+                    taskUrl: taskUrl,
+                    taskId: task.gid
+                ))
+            } catch {
+                req.logger.error("Failed to create Asana task for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateAsanaTasksResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getAsanaWorkspaces(req: Request) async throws -> [AsanaWorkspaceDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken else {
+            throw Abort(.badRequest, reason: "Asana token not configured")
+        }
+
+        let workspaces = try await req.asanaService.getWorkspaces(token: token)
+        return workspaces.map { AsanaWorkspaceDTO(gid: $0.gid, name: $0.name) }
+    }
+
+    @Sendable
+    func getAsanaProjects(req: Request) async throws -> [AsanaProjectDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken else {
+            throw Abort(.badRequest, reason: "Asana token not configured")
+        }
+
+        guard let workspaceId = req.parameters.get("workspaceId") else {
+            throw Abort(.badRequest, reason: "Workspace ID required")
+        }
+
+        let projects = try await req.asanaService.getProjects(workspaceId: workspaceId, token: token)
+        return projects.map { AsanaProjectDTO(gid: $0.gid, name: $0.name) }
+    }
+
+    @Sendable
+    func getAsanaSections(req: Request) async throws -> [AsanaSectionDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken else {
+            throw Abort(.badRequest, reason: "Asana token not configured")
+        }
+
+        guard let asanaProjectId = req.parameters.get("asanaProjectId") else {
+            throw Abort(.badRequest, reason: "Asana Project ID required")
+        }
+
+        let sections = try await req.asanaService.getSections(projectId: asanaProjectId, token: token)
+        return sections.map { AsanaSectionDTO(gid: $0.gid, name: $0.name) }
+    }
+
+    @Sendable
+    func getAsanaCustomFields(req: Request) async throws -> [AsanaCustomFieldDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Asana integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.asanaToken else {
+            throw Abort(.badRequest, reason: "Asana token not configured")
+        }
+
+        guard let asanaProjectId = req.parameters.get("asanaProjectId") else {
+            throw Abort(.badRequest, reason: "Asana Project ID required")
+        }
+
+        let fields = try await req.asanaService.getCustomFields(projectId: asanaProjectId, token: token)
+        return fields.map { field in
+            AsanaCustomFieldDTO(
+                gid: field.gid,
+                name: field.name,
+                type: field.type,
+                enumOptions: field.enumOptions?.map { option in
+                    AsanaEnumOptionDTO(
+                        gid: option.gid,
+                        name: option.name,
+                        enabled: option.enabled,
+                        color: option.color
+                    )
+                }
+            )
+        }
+    }
+
+    // MARK: - Basecamp Integration
+
+    @Sendable
+    func updateBasecampSettings(req: Request) async throws -> ProjectResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        let dto = try req.content.decode(UpdateProjectBasecampDTO.self)
+
+        if let token = dto.basecampAccessToken {
+            project.basecampAccessToken = token.isEmpty ? nil : token
+        }
+        if let accountId = dto.basecampAccountId {
+            project.basecampAccountId = accountId.isEmpty ? nil : accountId
+        }
+        if let accountName = dto.basecampAccountName {
+            project.basecampAccountName = accountName.isEmpty ? nil : accountName
+        }
+        if let projectId = dto.basecampProjectId {
+            project.basecampProjectId = projectId.isEmpty ? nil : projectId
+        }
+        if let projectName = dto.basecampProjectName {
+            project.basecampProjectName = projectName.isEmpty ? nil : projectName
+        }
+        if let todosetId = dto.basecampTodosetId {
+            project.basecampTodosetId = todosetId.isEmpty ? nil : todosetId
+        }
+        if let todolistId = dto.basecampTodolistId {
+            project.basecampTodolistId = todolistId.isEmpty ? nil : todolistId
+        }
+        if let todolistName = dto.basecampTodolistName {
+            project.basecampTodolistName = todolistName.isEmpty ? nil : todolistName
+        }
+        if let syncStatus = dto.basecampSyncStatus {
+            project.basecampSyncStatus = syncStatus
+        }
+        if let syncComments = dto.basecampSyncComments {
+            project.basecampSyncComments = syncComments
+        }
+        if let isActive = dto.basecampIsActive {
+            project.basecampIsActive = isActive
+        }
+
+        try await project.save(on: req.db)
+
+        try await project.$feedbacks.load(on: req.db)
+        try await project.$members.load(on: req.db)
+        try await project.$owner.load(on: req.db)
+
+        return ProjectResponseDTO(
+            project: project,
+            feedbackCount: project.feedbacks.count,
+            memberCount: project.members.count + 1,
+            ownerEmail: project.owner.email
+        )
+    }
+
+    @Sendable
+    func createBasecampTodo(req: Request) async throws -> CreateBasecampTodoResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken,
+              let accountId = project.basecampAccountId,
+              let basecampProjectId = project.basecampProjectId,
+              let todolistId = project.basecampTodolistId else {
+            throw Abort(.badRequest, reason: "Basecamp integration not configured")
+        }
+
+        guard project.basecampIsActive else {
+            throw Abort(.badRequest, reason: "Basecamp integration is not active")
+        }
+
+        let dto = try req.content.decode(CreateBasecampTodoDTO.self)
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == dto.feedbackId)
+            .filter(\.$project.$id == project.id!)
+            .with(\.$votes)
+            .first() else {
+            throw Abort(.notFound, reason: "Feedback not found")
+        }
+
+        if feedback.basecampTodoURL != nil {
+            throw Abort(.conflict, reason: "Feedback already has a Basecamp to-do")
+        }
+
+        // Calculate MRR
+        let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+        let sdkUsers = try await SDKUser.query(on: req.db)
+            .filter(\.$project.$id == project.id!)
+            .filter(\.$userId ~~ Array(allUserIds))
+            .all()
+        let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+        var totalMrr: Double = 0
+        if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+            totalMrr += creatorMrr
+        }
+        for vote in feedback.votes {
+            if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                totalMrr += voterMrr
+            }
+        }
+
+        // Build description
+        let description = req.basecampService.buildTodoDescription(
+            feedback: feedback,
+            projectName: project.name,
+            voteCount: feedback.voteCount,
+            mrr: totalMrr > 0 ? totalMrr : nil
+        )
+
+        // Create to-do
+        let todo = try await req.basecampService.createTodo(
+            accountId: accountId,
+            projectId: basecampProjectId,
+            todolistId: todolistId,
+            token: token,
+            title: feedback.title,
+            description: description
+        )
+
+        // Save link to feedback
+        feedback.basecampTodoURL = todo.appUrl
+        feedback.basecampTodoId = String(todo.id)
+        feedback.basecampBucketId = basecampProjectId
+        try await feedback.save(on: req.db)
+
+        return CreateBasecampTodoResponseDTO(
+            feedbackId: feedback.id!,
+            todoUrl: todo.appUrl,
+            todoId: String(todo.id)
+        )
+    }
+
+    @Sendable
+    func bulkCreateBasecampTodos(req: Request) async throws -> BulkCreateBasecampTodosResponseDTO {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken,
+              let accountId = project.basecampAccountId,
+              let basecampProjectId = project.basecampProjectId,
+              let todolistId = project.basecampTodolistId else {
+            throw Abort(.badRequest, reason: "Basecamp integration not configured")
+        }
+
+        guard project.basecampIsActive else {
+            throw Abort(.badRequest, reason: "Basecamp integration is not active")
+        }
+
+        let dto = try req.content.decode(BulkCreateBasecampTodosDTO.self)
+
+        var created: [CreateBasecampTodoResponseDTO] = []
+        var failed: [UUID] = []
+
+        for feedbackId in dto.feedbackIds {
+            do {
+                guard let feedback = try await Feedback.query(on: req.db)
+                    .filter(\.$id == feedbackId)
+                    .filter(\.$project.$id == project.id!)
+                    .with(\.$votes)
+                    .first() else {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                if feedback.basecampTodoURL != nil {
+                    failed.append(feedbackId)
+                    continue
+                }
+
+                // Calculate MRR
+                let allUserIds = Set([feedback.userId] + feedback.votes.map { $0.userId })
+                let sdkUsers = try await SDKUser.query(on: req.db)
+                    .filter(\.$project.$id == project.id!)
+                    .filter(\.$userId ~~ Array(allUserIds))
+                    .all()
+                let mrrByUserId = Dictionary(uniqueKeysWithValues: sdkUsers.map { ($0.userId, $0.mrr) })
+
+                var totalMrr: Double = 0
+                if let creatorMrr = mrrByUserId[feedback.userId] ?? nil {
+                    totalMrr += creatorMrr
+                }
+                for vote in feedback.votes {
+                    if let voterMrr = mrrByUserId[vote.userId] ?? nil {
+                        totalMrr += voterMrr
+                    }
+                }
+
+                let description = req.basecampService.buildTodoDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: totalMrr > 0 ? totalMrr : nil
+                )
+
+                let todo = try await req.basecampService.createTodo(
+                    accountId: accountId,
+                    projectId: basecampProjectId,
+                    todolistId: todolistId,
+                    token: token,
+                    title: feedback.title,
+                    description: description
+                )
+
+                feedback.basecampTodoURL = todo.appUrl
+                feedback.basecampTodoId = String(todo.id)
+                feedback.basecampBucketId = basecampProjectId
+                try await feedback.save(on: req.db)
+
+                created.append(CreateBasecampTodoResponseDTO(
+                    feedbackId: feedback.id!,
+                    todoUrl: todo.appUrl,
+                    todoId: String(todo.id)
+                ))
+            } catch {
+                req.logger.error("Failed to create Basecamp to-do for \(feedbackId): \(error)")
+                failed.append(feedbackId)
+            }
+        }
+
+        return BulkCreateBasecampTodosResponseDTO(created: created, failed: failed)
+    }
+
+    @Sendable
+    func getBasecampAccounts(req: Request) async throws -> [BasecampAccountDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken else {
+            throw Abort(.badRequest, reason: "Basecamp token not configured")
+        }
+
+        let auth = try await req.basecampService.getAuthorization(token: token)
+        // Filter to Basecamp 3 accounts only
+        return auth.accounts
+            .filter { $0.product == "bc3" }
+            .map { BasecampAccountDTO(id: $0.id, name: $0.name) }
+    }
+
+    @Sendable
+    func getBasecampProjects(req: Request) async throws -> [BasecampProjectDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken else {
+            throw Abort(.badRequest, reason: "Basecamp token not configured")
+        }
+
+        guard let accountId = req.parameters.get("accountId") else {
+            throw Abort(.badRequest, reason: "Account ID required")
+        }
+
+        let basecampProjects = try await req.basecampService.getProjects(accountId: accountId, token: token)
+        return basecampProjects.map { BasecampProjectDTO(id: $0.id, name: $0.name, todosetId: $0.todosetId) }
+    }
+
+    @Sendable
+    func getBasecampTodolists(req: Request) async throws -> [BasecampTodolistDTO] {
+        let user = try req.auth.require(User.self)
+
+        guard user.subscriptionTier.meetsRequirement(.pro) else {
+            throw Abort(.paymentRequired, reason: "Basecamp integration requires Pro subscription")
+        }
+
+        let project = try await getProjectAsOwnerOrAdmin(req: req, user: user)
+
+        guard let token = project.basecampAccessToken else {
+            throw Abort(.badRequest, reason: "Basecamp token not configured")
+        }
+
+        guard let accountId = req.parameters.get("accountId"),
+              let basecampProjectId = req.parameters.get("basecampProjectId") else {
+            throw Abort(.badRequest, reason: "Account ID and Project ID required")
+        }
+
+        // First get the project to find the todoset
+        let basecampProject = try await req.basecampService.getProject(accountId: accountId, projectId: basecampProjectId, token: token)
+
+        guard let todosetId = basecampProject.todosetId else {
+            throw Abort(.badRequest, reason: "Project has no to-do list tool enabled")
+        }
+
+        let todolists = try await req.basecampService.getTodolists(
+            accountId: accountId,
+            projectId: basecampProjectId,
+            todosetId: todosetId,
+            token: token
+        )
+        return todolists.map { BasecampTodolistDTO(id: $0.id, name: $0.name) }
     }
 
     // MARK: - Helpers

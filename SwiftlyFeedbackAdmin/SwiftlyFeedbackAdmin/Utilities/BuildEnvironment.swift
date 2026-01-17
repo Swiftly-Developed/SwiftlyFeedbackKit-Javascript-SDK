@@ -31,8 +31,7 @@ enum Distribution: String, Sendable {
     static var current: Distribution {
         // 1. Compile-time detection (most reliable when configured)
         #if DEBUG
-        // In DEBUG, check for TestFlight simulation
-        return BuildEnvironment.simulateTestFlight ? .testflight : .debug
+        return .debug
         #elseif TESTFLIGHT
         return .testflight
         #else
@@ -51,31 +50,12 @@ enum Distribution: String, Sendable {
 /// Detects and provides information about the current build environment
 enum BuildEnvironment {
 
-    // MARK: - Simulation (Debug Only)
-
-    /// Debug override to simulate TestFlight (for local testing)
-    /// Set this to true in Debug Settings to test TestFlight behavior
-    static var simulateTestFlight: Bool {
-        get {
-            #if DEBUG
-            return UserDefaults.standard.bool(forKey: "debug.simulateTestFlight")
-            #else
-            return false
-            #endif
-        }
-        set {
-            #if DEBUG
-            UserDefaults.standard.set(newValue, forKey: "debug.simulateTestFlight")
-            #endif
-        }
-    }
-
     // MARK: - Build Type Detection
 
     /// Check if the app is running in DEBUG mode (Xcode development)
     static var isDebug: Bool {
         #if DEBUG
-        return !simulateTestFlight
+        return true
         #else
         return false
         #endif
@@ -85,8 +65,7 @@ enum BuildEnvironment {
     /// Uses compile-time flag if available, falls back to runtime detection
     static var isTestFlight: Bool {
         #if DEBUG
-        // In DEBUG mode, check if we're simulating TestFlight
-        return simulateTestFlight
+        return false
         #elseif TESTFLIGHT
         // Compile-time flag is set - this is a TestFlight build
         return true
@@ -214,7 +193,7 @@ extension BuildEnvironment {
         appStore: @autoclosure () -> T
     ) -> T {
         #if DEBUG
-        return simulateTestFlight ? testflight() : debug()
+        return debug()
         #elseif TESTFLIGHT
         return testflight()
         #else
