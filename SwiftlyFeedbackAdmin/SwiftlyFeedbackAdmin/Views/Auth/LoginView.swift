@@ -11,6 +11,8 @@ struct LoginView: View {
 
     @FocusState private var focusedField: LoginField?
     @State private var appConfiguration = AppConfiguration.shared
+    @State private var pendingEnvironment: AppEnvironment?
+    @State private var showingEnvironmentConfirmation = false
 
     var body: some View {
         VStack(spacing: 24) {
@@ -28,7 +30,7 @@ struct LoginView: View {
                     .foregroundStyle(.secondary)
 
                 // Environment picker (only shown when multiple environments available)
-                if AppEnvironment.availableEnvironments.count > 1 {
+                if appConfiguration.canSwitchEnvironment {
                     environmentPicker
                         .padding(.top, 4)
                 }
@@ -116,7 +118,10 @@ struct LoginView: View {
         Menu {
             ForEach(appConfiguration.availableEnvironments, id: \.self) { env in
                 Button {
-                    appConfiguration.switchTo(env)
+                    if env != appConfiguration.environment {
+                        pendingEnvironment = env
+                        showingEnvironmentConfirmation = true
+                    }
                 } label: {
                     HStack {
                         Text(env.displayName)
@@ -140,6 +145,22 @@ struct LoginView: View {
             .padding(.vertical, 6)
             .background(.ultraThinMaterial)
             .clipShape(Capsule())
+        }
+        .alert(
+            "Switch to \(pendingEnvironment?.displayName ?? "")?",
+            isPresented: $showingEnvironmentConfirmation
+        ) {
+            Button("Switch", role: .destructive) {
+                if let env = pendingEnvironment {
+                    appConfiguration.switchTo(env)
+                }
+                pendingEnvironment = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingEnvironment = nil
+            }
+        } message: {
+            Text("You will connect to the \(pendingEnvironment?.displayName ?? "") server.")
         }
     }
 }
