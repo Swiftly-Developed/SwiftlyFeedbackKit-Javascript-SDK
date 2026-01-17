@@ -1,12 +1,21 @@
 import SwiftUI
 
 struct FeedbackDetailView: View {
-    let feedback: Feedback
+    let initialFeedback: Feedback
     let apiKey: String
     let allowedStatuses: [FeedbackStatus]
     @Bindable var viewModel: FeedbackViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showingDeleteConfirmation = false
+    @State private var showRejectionReasonSheet = false
+    @State private var rejectionReason = ""
+    @State private var pendingRejectionFeedbackId: UUID?
+    @State private var currentFeedback: Feedback?
+
+    /// Use the current feedback state, falling back to viewModel or initial
+    private var feedback: Feedback {
+        currentFeedback ?? viewModel.feedbacks.first { $0.id == initialFeedback.id } ?? initialFeedback
+    }
 
     var body: some View {
         ScrollView {
@@ -24,6 +33,14 @@ struct FeedbackDetailView: View {
 
                 // Description section
                 descriptionSection
+
+                // Rejection reason section (if applicable)
+                if feedback.status == .rejected,
+                   let reason = feedback.rejectionReason,
+                   !reason.isEmpty {
+                    Divider()
+                    rejectionReasonSection(reason: reason)
+                }
 
                 Divider()
 
@@ -55,6 +72,12 @@ struct FeedbackDetailView: View {
         .task {
             await viewModel.loadComments(feedbackId: feedback.id, apiKey: apiKey)
         }
+        .onChange(of: viewModel.feedbacks) { _, newFeedbacks in
+            // Sync local state when viewModel feedbacks change
+            if let updated = newFeedbacks.first(where: { $0.id == initialFeedback.id }) {
+                currentFeedback = updated
+            }
+        }
         .alert("Delete Feedback", isPresented: $showingDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -71,6 +94,25 @@ struct FeedbackDetailView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage ?? "An error occurred")
+        }
+        .sheet(isPresented: $showRejectionReasonSheet) {
+            RejectionReasonSheet(rejectionReason: $rejectionReason) { reason in
+                if let feedbackId = pendingRejectionFeedbackId {
+                    Task {
+                        let success = await viewModel.updateFeedbackStatus(
+                            id: feedbackId,
+                            status: .rejected,
+                            rejectionReason: reason
+                        )
+                        if success {
+                            // Update local state to reflect the change immediately
+                            if let updated = viewModel.feedbacks.first(where: { $0.id == feedbackId }) {
+                                currentFeedback = updated
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -192,6 +234,27 @@ struct FeedbackDetailView: View {
             .background(Color(.secondarySystemGroupedBackground))
             #endif
             .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    // MARK: - Rejection Reason Section
+
+    private func rejectionReasonSection(reason: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+                Text("Rejection Reason")
+                    .font(.headline)
+            }
+
+            Text(reason)
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 
@@ -329,8 +392,15 @@ struct FeedbackDetailView: View {
         Menu {
             ForEach(allowedStatuses, id: \.self) { status in
                 Button {
-                    Task {
-                        await viewModel.updateFeedbackStatus(id: feedback.id, status: status)
+                    if status == .rejected {
+                        // Show rejection reason sheet instead of immediate update
+                        pendingRejectionFeedbackId = feedback.id
+                        rejectionReason = ""
+                        showRejectionReasonSheet = true
+                    } else {
+                        Task {
+                            await viewModel.updateFeedbackStatus(id: feedback.id, status: status)
+                        }
                     }
                 } label: {
                     HStack {
@@ -455,7 +525,7 @@ struct CommentRowView: View {
 #Preview("Feedback Detail") {
     NavigationStack {
         FeedbackDetailView(
-            feedback: Feedback(
+            initialFeedback: Feedback(
                 id: UUID(),
                 title: "Add dark mode support",
                 description: "It would be great to have a dark mode option for the app. The current bright theme is hard on the eyes when using the app at night.",
@@ -490,7 +560,8 @@ struct CommentRowView: View {
                 asanaTaskId: nil,
                 basecampTodoUrl: nil,
                 basecampTodoId: nil,
-                basecampBucketId: nil
+                basecampBucketId: nil,
+                rejectionReason: nil
             ),
             apiKey: "test-key",
             allowedStatuses: [.pending, .approved, .inProgress, .completed, .rejected],

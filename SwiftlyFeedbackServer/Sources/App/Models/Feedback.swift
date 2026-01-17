@@ -119,6 +119,10 @@ final class Feedback: Model, Content, @unchecked Sendable {
     @OptionalField(key: "basecamp_bucket_id")
     var basecampBucketId: String?
 
+    // Rejection reason (only used when status is rejected)
+    @OptionalField(key: "rejection_reason")
+    var rejectionReason: String?
+
     /// Whether this feedback has been merged into another
     var isMerged: Bool {
         mergedIntoId != nil

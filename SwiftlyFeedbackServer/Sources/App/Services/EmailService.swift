@@ -260,6 +260,7 @@ struct EmailService {
         feedbackTitle: String,
         oldStatus: String,
         newStatus: String,
+        rejectionReason: String? = nil,
         unsubscribeKeys: [String: UUID] = [:]
     ) async throws {
         guard !emails.isEmpty else { return }
@@ -282,6 +283,23 @@ struct EmailService {
 
         let formattedOldStatus = oldStatus.replacingOccurrences(of: "_", with: " ").capitalized
         let formattedNewStatus = newStatus.replacingOccurrences(of: "_", with: " ").capitalized
+
+        // Build rejection reason section if applicable
+        let rejectionReasonSection: String
+        if newStatus == "rejected", let reason = rejectionReason, !reason.isEmpty {
+            rejectionReasonSection = """
+            <div style="background-color: #FEF2F2; border-left: 4px solid #EF4444; padding: 16px 20px; border-radius: 0 8px 8px 0; margin-top: 20px;">
+                <p style="margin: 0 0 8px 0; font-weight: 600; color: #991B1B; font-size: 14px;">
+                    Reason for rejection:
+                </p>
+                <p style="margin: 0; color: #7F1D1D; font-size: 14px; line-height: 1.5;">
+                    \(reason.htmlEscaped)
+                </p>
+            </div>
+            """
+        } else {
+            rejectionReasonSection = ""
+        }
 
         // Send individual emails for personalized unsubscribe links
         for email in emails {
@@ -327,6 +345,7 @@ struct EmailService {
                     <p style="font-size: 14px; color: #555; margin-top: 20px;">
                         \(statusMessage)
                     </p>
+                    \(rejectionReasonSection)
                     <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 25px 0;">
                     <p style="font-size: 12px; color: #999; text-align: center;">
                         You received this email because you submitted or voted on this feedback.
@@ -424,5 +443,17 @@ private struct ResendEmailRequest: Content {
 extension Request {
     var emailService: EmailService {
         EmailService(client: self.client)
+    }
+}
+
+// MARK: - String HTML Escaping
+
+private extension String {
+    var htmlEscaped: String {
+        self.replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+            .replacingOccurrences(of: "'", with: "&#39;")
     }
 }

@@ -240,6 +240,33 @@ xcodebuild test -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAd
 
 Statuses are configurable per-project via Admin app or `PATCH /projects/:id/statuses`.
 
+## Rejection Reasons
+
+When rejecting feedback, admins can optionally provide a reason that explains why the feedback was rejected.
+
+**How it works:**
+1. Admin clicks "Rejected" in the status menu
+2. A sheet appears to enter an optional rejection reason (max 500 characters)
+3. Admin can choose "Reject with Reason" or "Reject Without Reason"
+4. If provided, the reason is stored and displayed in the feedback detail view
+5. The reason is included in the status change notification email sent to users
+
+**Admin app display:**
+- Rejection reason shown in a red-tinted section below the description
+- Only visible when status is `rejected` and a reason was provided
+
+**API:**
+- `PATCH /feedbacks/:id` accepts optional `rejectionReason` field
+- Reason is only stored when status is set to `rejected`
+- Changing to a non-rejected status clears the rejection reason
+
+**Email notification:**
+- When feedback is rejected with a reason, the status change email includes a styled "Reason for rejection" section
+- Reason text is HTML-escaped for security
+
+**Database field:**
+- `rejection_reason` (String, nullable) on the Feedback model
+
 ## SDK Configuration
 
 ```swift

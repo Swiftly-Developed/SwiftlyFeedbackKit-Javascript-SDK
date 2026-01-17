@@ -39,6 +39,11 @@ struct FeedbackListView: View {
     @State private var selectedFeedbackId: UUID?
     @State private var feedbackToOpen: Feedback?
 
+    // Rejection reason sheet state
+    @State private var showingRejectionReasonSheet = false
+    @State private var rejectionReason = ""
+    @State private var feedbackToReject: Feedback?
+
     var body: some View {
         ZStack(alignment: .bottom) {
             feedbackListContent
@@ -88,9 +93,27 @@ struct FeedbackListView: View {
         .sheet(isPresented: $viewModel.showMergeSheet) {
             MergeFeedbackSheet(viewModel: viewModel)
         }
+        .sheet(isPresented: $showingRejectionReasonSheet) {
+            RejectionReasonSheet(
+                rejectionReason: $rejectionReason,
+                onReject: { reason in
+                    if let feedback = feedbackToReject {
+                        Task {
+                            await viewModel.updateFeedbackStatus(
+                                id: feedback.id,
+                                status: .rejected,
+                                rejectionReason: reason
+                            )
+                        }
+                    }
+                    feedbackToReject = nil
+                    rejectionReason = ""
+                }
+            )
+        }
         .navigationDestination(for: Feedback.self) { feedback in
             FeedbackDetailView(
-                feedback: feedback,
+                initialFeedback: feedback,
                 apiKey: project.apiKey,
                 allowedStatuses: allowedStatuses,
                 viewModel: viewModel
@@ -98,7 +121,7 @@ struct FeedbackListView: View {
         }
         .navigationDestination(item: $feedbackToOpen) { feedback in
             FeedbackDetailView(
-                feedback: feedback,
+                initialFeedback: feedback,
                 apiKey: project.apiKey,
                 allowedStatuses: allowedStatuses,
                 viewModel: viewModel
@@ -576,7 +599,10 @@ struct FeedbackListView: View {
                         viewModel: viewModel,
                         project: project,
                         allowedStatuses: allowedStatuses,
-                        feedbackToOpen: $feedbackToOpen
+                        feedbackToOpen: $feedbackToOpen,
+                        showingRejectionReasonSheet: $showingRejectionReasonSheet,
+                        rejectionReason: $rejectionReason,
+                        feedbackToReject: $feedbackToReject
                     )
                 }
             }
@@ -595,8 +621,15 @@ struct FeedbackListView: View {
         Menu {
             ForEach(allowedStatuses, id: \.self) { status in
                 Button {
-                    Task {
-                        await viewModel.updateFeedbackStatus(id: feedback.id, status: status)
+                    if status == .rejected {
+                        // Show rejection reason sheet instead of directly updating
+                        feedbackToReject = feedback
+                        rejectionReason = ""
+                        showingRejectionReasonSheet = true
+                    } else {
+                        Task {
+                            await viewModel.updateFeedbackStatus(id: feedback.id, status: status)
+                        }
                     }
                 } label: {
                     HStack {
@@ -938,6 +971,10 @@ struct KanbanColumnView: View {
     let project: Project
     let allowedStatuses: [FeedbackStatus]
     @Binding var feedbackToOpen: Feedback?
+    // Rejection reason bindings
+    @Binding var showingRejectionReasonSheet: Bool
+    @Binding var rejectionReason: String
+    @Binding var feedbackToReject: Feedback?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -989,8 +1026,17 @@ struct KanbanColumnView: View {
                   let feedbackId = UUID(uuidString: feedbackIdString) else {
                 return false
             }
-            Task {
-                await viewModel.updateFeedbackStatus(id: feedbackId, status: status)
+            // If dropping on rejected column, show rejection reason sheet
+            if status == .rejected {
+                if let feedback = viewModel.feedbacks.first(where: { $0.id == feedbackId }) {
+                    feedbackToReject = feedback
+                    rejectionReason = ""
+                    showingRejectionReasonSheet = true
+                }
+            } else {
+                Task {
+                    await viewModel.updateFeedbackStatus(id: feedbackId, status: status)
+                }
             }
             return true
         }
@@ -1179,8 +1225,15 @@ struct KanbanColumnView: View {
         Menu {
             ForEach(allowedStatuses, id: \.self) { newStatus in
                 Button {
-                    Task {
-                        await viewModel.updateFeedbackStatus(id: feedback.id, status: newStatus)
+                    if newStatus == .rejected {
+                        // Show rejection reason sheet instead of directly updating
+                        feedbackToReject = feedback
+                        rejectionReason = ""
+                        showingRejectionReasonSheet = true
+                    } else {
+                        Task {
+                            await viewModel.updateFeedbackStatus(id: feedback.id, status: newStatus)
+                        }
                     }
                 } label: {
                     HStack {

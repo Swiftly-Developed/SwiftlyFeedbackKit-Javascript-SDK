@@ -274,10 +274,21 @@ struct FeedbackController: RouteCollection {
             }
             feedback.description = description.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if let status = dto.status { feedback.status = status }
+        if let status = dto.status {
+            feedback.status = status
+            // Only store rejection reason if status is rejected, otherwise clear it
+            if status == .rejected {
+                req.logger.info("🔴 Setting rejection reason: \(dto.rejectionReason ?? "nil")")
+                feedback.rejectionReason = dto.rejectionReason
+            } else {
+                feedback.rejectionReason = nil
+            }
+        }
         if let category = dto.category { feedback.category = category }
 
         try await feedback.save(on: req.db)
+
+        req.logger.info("🔴 After save - feedback.rejectionReason: \(feedback.rejectionReason ?? "nil")")
 
         // Send status change notification if status changed
         if let newStatus = dto.status, newStatus != oldStatus {
@@ -325,6 +336,7 @@ struct FeedbackController: RouteCollection {
                             feedbackTitle: feedback.title,
                             oldStatus: oldStatus.rawValue,
                             newStatus: newStatus.rawValue,
+                            rejectionReason: feedback.rejectionReason,
                             unsubscribeKeys: unsubscribeKeys
                         )
                     } catch {
@@ -554,7 +566,10 @@ struct FeedbackController: RouteCollection {
         try await feedback.$votes.load(on: req.db)
         try await feedback.$comments.load(on: req.db)
 
-        return FeedbackResponseDTO(feedback: feedback, commentCount: feedback.comments.count)
+        let responseDTO = FeedbackResponseDTO(feedback: feedback, commentCount: feedback.comments.count)
+        req.logger.info("🔴 Response DTO rejectionReason: \(responseDTO.rejectionReason ?? "nil")")
+
+        return responseDTO
     }
 
     @Sendable

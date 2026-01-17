@@ -55,6 +55,8 @@ struct Feedback: Codable, Identifiable, Sendable, Hashable {
     let basecampTodoUrl: String?
     let basecampTodoId: String?
     let basecampBucketId: String?
+    // Rejection reason (only present when status is rejected)
+    let rejectionReason: String?
 
     /// Formatted total MRR string for display (always shows, even if $0)
     var formattedMrr: String {
@@ -216,6 +218,21 @@ struct UpdateFeedbackRequest: Encodable, Sendable {
     let description: String?
     let status: FeedbackStatus?
     let category: FeedbackCategory?
+    let rejectionReason: String?
+
+    init(
+        title: String? = nil,
+        description: String? = nil,
+        status: FeedbackStatus? = nil,
+        category: FeedbackCategory? = nil,
+        rejectionReason: String? = nil
+    ) {
+        self.title = title
+        self.description = description
+        self.status = status
+        self.category = category
+        self.rejectionReason = rejectionReason
+    }
 }
 
 nonisolated

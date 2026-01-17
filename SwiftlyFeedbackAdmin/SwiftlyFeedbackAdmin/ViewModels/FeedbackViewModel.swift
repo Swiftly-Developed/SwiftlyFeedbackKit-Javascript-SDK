@@ -206,13 +206,15 @@ final class FeedbackViewModel {
 
     // MARK: - Update Feedback Status
 
-    func updateFeedbackStatus(id: UUID, status: FeedbackStatus) async -> Bool {
+    func updateFeedbackStatus(id: UUID, status: FeedbackStatus, rejectionReason: String? = nil) async -> Bool {
         isLoading = true
         errorMessage = nil
 
         do {
-            let request = UpdateFeedbackRequest(title: nil, description: nil, status: status, category: nil)
+            let request = UpdateFeedbackRequest(status: status, rejectionReason: rejectionReason)
+            AppLogger.viewModel.debug("🔴 Sending rejection reason: \(rejectionReason ?? "nil")")
             let updated: Feedback = try await AdminAPIClient.shared.patch(path: "feedbacks/\(id)", body: request)
+            AppLogger.viewModel.debug("🔴 Received feedback with rejectionReason: \(updated.rejectionReason ?? "nil")")
 
             // Update local state
             if let index = feedbacks.firstIndex(where: { $0.id == id }) {

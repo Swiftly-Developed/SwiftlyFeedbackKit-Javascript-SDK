@@ -101,6 +101,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(AddProjectAsanaIntegration())
     app.migrations.add(AddProjectBasecampIntegration())
     app.migrations.add(AddProjectEmailNotifyStatuses())
+    app.migrations.add(AddFeedbackRejectionReason())
 
     try await app.autoMigrate()
 
