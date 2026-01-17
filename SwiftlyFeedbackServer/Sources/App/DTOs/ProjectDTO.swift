@@ -812,3 +812,35 @@ struct AcceptInviteResponseDTO: Content {
     let projectName: String
     let role: ProjectRole
 }
+
+// MARK: - Ownership Transfer DTOs
+
+struct TransferOwnershipDTO: Content, Validatable {
+    let newOwnerId: UUID?
+    let newOwnerEmail: String?
+
+    static func validations(_ validations: inout Validations) {
+        validations.add("newOwnerId", as: UUID?.self, required: false)
+        validations.add("newOwnerEmail", as: String?.self, is: .nil || .email, required: false)
+    }
+
+    func validate() throws {
+        guard newOwnerId != nil || newOwnerEmail != nil else {
+            throw Abort(.badRequest, reason: "Either newOwnerId or newOwnerEmail is required")
+        }
+    }
+}
+
+struct TransferOwnershipResponseDTO: Content {
+    let projectId: UUID
+    let projectName: String
+    let newOwner: UserSummaryDTO
+    let previousOwner: UserSummaryDTO
+    let transferredAt: Date
+
+    struct UserSummaryDTO: Content {
+        let id: UUID
+        let email: String
+        let name: String
+    }
+}

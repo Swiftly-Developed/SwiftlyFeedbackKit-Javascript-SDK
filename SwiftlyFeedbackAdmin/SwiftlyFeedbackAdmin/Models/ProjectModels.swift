@@ -1259,3 +1259,36 @@ struct BasecampTodolist: Codable, Identifiable, Sendable, Hashable {
     let id: Int
     let name: String
 }
+
+// MARK: - Ownership Transfer
+
+nonisolated
+struct TransferOwnershipRequest: Encodable, Sendable {
+    let newOwnerId: UUID?
+    let newOwnerEmail: String?
+
+    init(newOwnerId: UUID) {
+        self.newOwnerId = newOwnerId
+        self.newOwnerEmail = nil
+    }
+
+    init(newOwnerEmail: String) {
+        self.newOwnerId = nil
+        self.newOwnerEmail = newOwnerEmail
+    }
+}
+
+nonisolated
+struct TransferOwnershipResponse: Decodable, Sendable {
+    let projectId: UUID
+    let projectName: String
+    let newOwner: UserSummary
+    let previousOwner: UserSummary
+    let transferredAt: Date
+
+    struct UserSummary: Decodable, Sendable {
+        let id: UUID
+        let email: String
+        let name: String
+    }
+}

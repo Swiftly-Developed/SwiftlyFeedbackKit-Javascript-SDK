@@ -216,7 +216,7 @@ xcodebuild test -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAd
 ## Authorization Model
 
 **Project Roles:**
-- **Owner**: Full access (delete, archive, manage members, regenerate API key)
+- **Owner**: Full access (delete, archive, manage members, regenerate API key, transfer ownership)
 - **Admin**: Manage settings/members, update/delete feedback
 - **Member**: View and respond to feedback
 - **Viewer**: Read-only
@@ -226,6 +226,44 @@ xcodebuild test -workspace Swiftlyfeedback.xcworkspace -scheme SwiftlyFeedbackAd
 - Voting blocked on `completed`/`rejected` status feedback
 - `FeedbackStatus.canVote` indicates votability
 - Feedback creators automatically get a vote (voteCount starts at 1)
+
+## Project Ownership Transfer
+
+Project owners can transfer ownership to another user (existing member or any registered user).
+
+**How it works:**
+1. Owner opens Project Details → Menu (⋯) → Transfer Ownership
+2. Select from existing members OR enter any registered user's email
+3. Confirm the transfer
+4. New owner receives notification email
+5. Previous owner is demoted to Admin member role
+
+**Tier Requirements:**
+- If the project has team members, the new owner must have Team subscription
+- Projects without members can be transferred to users with any subscription tier
+
+**What Changes:**
+- New owner gets full owner privileges (delete, archive, regenerate API key, transfer ownership)
+- Previous owner becomes an Admin member (can still manage feedback and settings)
+- If new owner was a member, their membership is removed (they're now owner)
+
+**Server Endpoint:**
+- `POST /projects/:id/transfer-ownership`
+  - Request body: `{ "newOwnerId": UUID }` or `{ "newOwnerEmail": "email@example.com" }`
+  - Authorization: Project owner only
+  - Returns: `TransferOwnershipResponseDTO` with project, new owner, and previous owner details
+
+**Error Cases:**
+- 400: Cannot transfer to yourself
+- 400: Must provide either newOwnerId or newOwnerEmail
+- 402: New owner needs Team subscription (when project has members)
+- 403: Only project owner can transfer ownership
+- 404: User not found
+
+**Email Notification:**
+- New owner receives "You're now the owner of [Project]" email
+- Includes list of new owner capabilities
+- Mentions that previous owner is now an Admin member
 
 ## Feedback Statuses
 
@@ -756,6 +794,106 @@ The Admin app supports the `feedbackkit://` URL scheme for deep linking.
 - `@Test` macro for tests
 - Models: `Codable`, `Sendable`, `Equatable`
 - Platform: `#if os(macOS)` / `#if os(iOS)`
+
+## Cross-Platform UI Guidelines (Admin App)
+
+The Admin app runs on iOS, iPadOS, and macOS. All new views MUST be optimized for all platforms.
+
+**Required Patterns for Sheet Views:**
+
+```swift
+NavigationStack {
+    Form {
+        // Content sections
+    }
+    .formStyle(.grouped)  // REQUIRED for proper macOS styling
+    .navigationTitle("Title")
+    #if os(iOS)
+    .navigationBarTitleDisplayMode(.inline)
+    #endif
+    .toolbar {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Save") { /* action */ }
+                .fontWeight(.semibold)
+                .disabled(!canSave)
+        }
+    }
+    .interactiveDismissDisabled(isLoading)  // Prevent dismiss during operations
+    .overlay {
+        if isLoading {
+            Color.black.opacity(0.1)
+                .ignoresSafeArea()
+            ProgressView()
+                .controlSize(.large)
+        }
+    }
+}
+// NO frame modifiers here - let the sheet size naturally
+```
+
+**Key Rules:**
+
+1. **Always use `.formStyle(.grouped)`** - This ensures proper inset styling on macOS
+2. **Never set explicit frame sizes on sheets** - Let SwiftUI handle sizing naturally
+3. **Use platform-specific modifiers only when necessary:**
+   - `.navigationBarTitleDisplayMode(.inline)` - iOS only
+   - `.keyboardType()` / `.textInputAutocapitalization()` - iOS only
+4. **Extract complex row views into private structs** - Improves readability and reusability
+5. **Use `Section` headers and footers** - Provide context for grouped content
+6. **Add loading overlay** - Disable interaction and show progress during async operations
+7. **Use standard toolbar placements:**
+   - `.cancellationAction` for Cancel/Done buttons
+   - `.confirmationAction` for Save/Submit buttons
+   - `.primaryAction` for primary actions (like Add)
+
+**Empty State Pattern:**
+```swift
+VStack(spacing: 12) {
+    Image(systemName: "icon.name")
+        .font(.largeTitle)
+        .foregroundStyle(.secondary)
+    Text("Title")
+        .font(.headline)
+    Text("Description text")
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
+}
+.frame(maxWidth: .infinity)
+.padding(.vertical, 20)
+```
+
+**Warning/Info Row Pattern:**
+```swift
+HStack(alignment: .top, spacing: 12) {
+    Image(systemName: "icon.name")
+        .foregroundStyle(.orange)
+        .font(.body)
+        .frame(width: 24)
+
+    VStack(alignment: .leading, spacing: 4) {
+        Text("Title")
+            .font(.subheadline)
+            .fontWeight(.medium)
+        Text("Description")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+.padding(.vertical, 4)
+```
+
+**Testing Checklist:**
+- [ ] Test on iPhone (compact width)
+- [ ] Test on iPad (regular width, split view)
+- [ ] Test on macOS (window resizing)
+- [ ] Verify form sections have proper insets
+- [ ] Verify buttons are tappable/clickable
+- [ ] Verify text is readable and not truncated
 
 ## Monetization
 

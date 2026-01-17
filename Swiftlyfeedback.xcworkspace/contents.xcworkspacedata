@@ -22,4 +22,10 @@
    <FileRef
       location = "group:docs/PROJECT_OWNERSHIP_TRANSFER_PLAN.md">
    </FileRef>
+   <FileRef
+      location = "group:docs/MULTI_ENVIRONMENT_API_KEYS_PLAN.md">
+   </FileRef>
+   <FileRef
+      location = "group:docs/LOGIN_ENVIRONMENT_PICKER_PLAN.md">
+   </FileRef>
 </Workspace>

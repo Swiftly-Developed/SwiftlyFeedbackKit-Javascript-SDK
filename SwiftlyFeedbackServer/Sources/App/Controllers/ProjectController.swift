@@ -21,6 +21,9 @@ struct ProjectController: RouteCollection {
         // Regenerate API key
         protected.post(":projectId", "regenerate-key", use: regenerateApiKey)
 
+        // Transfer ownership
+        protected.post(":projectId", "transfer-ownership", use: transferOwnership)
+
         // Member management
         protected.get(":projectId", "members", use: listMembers)
         protected.post(":projectId", "members", use: addMember)
@@ -335,6 +338,117 @@ struct ProjectController: RouteCollection {
             feedbackCount: project.feedbacks.count,
             memberCount: project.members.count + 1,  // +1 for owner
             ownerEmail: project.owner.email
+        )
+    }
+
+    // MARK: - Ownership Transfer
+
+    /// Transfer project ownership to another user
+    /// - Route: POST /projects/:projectId/transfer-ownership
+    /// - Authorization: Project owner only
+    @Sendable
+    func transferOwnership(req: Request) async throws -> TransferOwnershipResponseDTO {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectAsOwner(req: req, user: user)
+
+        // Decode and validate request
+        try TransferOwnershipDTO.validate(content: req)
+        let dto = try req.content.decode(TransferOwnershipDTO.self)
+        try dto.validate()
+
+        let currentOwnerId = try user.requireID()
+        let projectId = try project.requireID()
+
+        // Resolve new owner (by ID or email)
+        let newOwner: User
+        if let newOwnerId = dto.newOwnerId {
+            guard let foundUser = try await User.find(newOwnerId, on: req.db) else {
+                throw Abort(.notFound, reason: "User not found")
+            }
+            newOwner = foundUser
+        } else if let email = dto.newOwnerEmail {
+            guard let foundUser = try await User.query(on: req.db)
+                .filter(\.$email == email.lowercased())
+                .first() else {
+                throw Abort(.notFound, reason: "User not found")
+            }
+            newOwner = foundUser
+        } else {
+            throw Abort(.badRequest, reason: "Either newOwnerId or newOwnerEmail is required")
+        }
+
+        let newOwnerId = try newOwner.requireID()
+
+        // Validation 1: Cannot transfer to self
+        guard newOwnerId != currentOwnerId else {
+            throw Abort(.badRequest, reason: "Cannot transfer ownership to yourself")
+        }
+
+        // Validation 2: Check tier requirements if project has members
+        let memberCount = try await ProjectMember.query(on: req.db)
+            .filter(\.$project.$id == projectId)
+            .count()
+
+        if memberCount > 0 && !newOwner.subscriptionTier.meetsRequirement(.team) {
+            throw Abort(
+                .paymentRequired,
+                reason: "New owner needs Team subscription to own a project with members"
+            )
+        }
+
+        // Execute transfer in transaction
+        try await req.db.transaction { database in
+            // Check if new owner is currently a member
+            if let existingMembership = try await ProjectMember.query(on: database)
+                .filter(\.$project.$id == projectId)
+                .filter(\.$user.$id == newOwnerId)
+                .first() {
+                // Remove their membership (they're becoming owner)
+                try await existingMembership.delete(on: database)
+            }
+
+            // Update project owner
+            project.$owner.id = newOwnerId
+            try await project.save(on: database)
+
+            // Add previous owner as Admin member
+            let adminMember = ProjectMember(
+                projectId: projectId,
+                userId: currentOwnerId,
+                role: .admin
+            )
+            try await adminMember.save(on: database)
+        }
+
+        // Send notification email (outside transaction)
+        Task {
+            do {
+                try await req.emailService.sendOwnershipTransferNotification(
+                    to: newOwner.email,
+                    newOwnerName: newOwner.name,
+                    projectName: project.name,
+                    previousOwnerName: user.name
+                )
+            } catch {
+                req.logger.error("Failed to send ownership transfer email: \(error)")
+            }
+        }
+
+        // Build response
+        return TransferOwnershipResponseDTO(
+            projectId: projectId,
+            projectName: project.name,
+            newOwner: .init(
+                id: newOwnerId,
+                email: newOwner.email,
+                name: newOwner.name
+            ),
+            previousOwner: .init(
+                id: currentOwnerId,
+                email: user.email,
+                name: user.name
+            ),
+            transferredAt: Date()
         )
     }
 

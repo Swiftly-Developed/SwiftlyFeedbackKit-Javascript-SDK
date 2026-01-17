@@ -664,6 +664,50 @@ actor AdminAPIClient {
         }
     }
 
+    // MARK: - Project Ownership Transfer API
+
+    func transferProjectOwnership(
+        projectId: UUID,
+        newOwnerId: UUID
+    ) async throws -> TransferOwnershipResponse {
+        let path = "projects/\(projectId)/transfer-ownership"
+        let body = TransferOwnershipRequest(newOwnerId: newOwnerId)
+
+        AppLogger.api.info("🟢 POST \(path) (transfer ownership by ID)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(TransferOwnershipResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - ownership transferred successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func transferProjectOwnership(
+        projectId: UUID,
+        newOwnerEmail: String
+    ) async throws -> TransferOwnershipResponse {
+        let path = "projects/\(projectId)/transfer-ownership"
+        let body = TransferOwnershipRequest(newOwnerEmail: newOwnerEmail)
+
+        AppLogger.api.info("🟢 POST \(path) (transfer ownership by email)")
+        let (data, response) = try await makeRequest(path: path, method: "POST", body: body, requiresAuth: true)
+        try validateResponse(response, data: data, path: path)
+
+        do {
+            let decoded = try decoder.decode(TransferOwnershipResponse.self, from: data)
+            AppLogger.api.info("✅ POST \(path) - ownership transferred successfully")
+            return decoded
+        } catch {
+            AppLogger.api.error("❌ POST \(path) - decoding failed: \(error.localizedDescription)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Project Slack Settings API
 
     func updateProjectSlackSettings(

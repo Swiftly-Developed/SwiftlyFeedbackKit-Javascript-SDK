@@ -419,6 +419,73 @@ struct EmailService {
         try await sendEmail(request)
     }
 
+    // MARK: - Ownership Transfer Notification
+
+    /// Send notification to new owner after ownership transfer
+    func sendOwnershipTransferNotification(
+        to email: String,
+        newOwnerName: String,
+        projectName: String,
+        previousOwnerName: String
+    ) async throws {
+        let html = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+            \(emailHeader(title: "You're Now a Project Owner"))
+
+            <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 12px 12px;">
+                <p style="font-size: 16px; margin-bottom: 20px;">Hi \(newOwnerName.htmlEscaped),</p>
+
+                <p style="font-size: 16px; margin-bottom: 20px;">
+                    <strong>\(previousOwnerName.htmlEscaped)</strong> has transferred ownership of
+                    <strong>\(projectName.htmlEscaped)</strong> to you.
+                </p>
+
+                <div style="background: #FFF8E7; border-left: 4px solid \(primaryColor); border-radius: 0 8px 8px 0; padding: 20px; margin: 25px 0;">
+                    <p style="font-size: 14px; color: #333; margin: 0 0 10px 0; font-weight: 600;">
+                        As the new owner, you can:
+                    </p>
+                    <ul style="font-size: 14px; color: #555; margin: 0; padding-left: 20px;">
+                        <li>Manage team members and their roles</li>
+                        <li>Configure project settings and integrations</li>
+                        <li>Archive or delete the project</li>
+                        <li>Regenerate the API key</li>
+                        <li>Transfer ownership to another user</li>
+                    </ul>
+                </div>
+
+                <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
+                    \(previousOwnerName.htmlEscaped) has been added as an Admin member and retains access to manage feedback.
+                </p>
+
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="feedbackkit://project/open"
+                       style="display: inline-block; background: linear-gradient(135deg, \(gradientStart) 0%, \(primaryColor) 50%, \(gradientEnd) 100%); color: white; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                        Open Project
+                    </a>
+                </div>
+
+                \(emailFooter(message: "If you didn't expect this transfer, please contact \(previousOwnerName.htmlEscaped) directly."))
+            </div>
+        </body>
+        </html>
+        """
+
+        let request = ResendEmailRequest(
+            from: "Feedback Kit <noreply@swiftly-workspace.com>",
+            to: [email],
+            subject: "You're now the owner of \(projectName)",
+            html: html
+        )
+
+        try await sendEmail(request)
+    }
+
     private func sendEmail(_ request: ResendEmailRequest) async throws {
         let response = try await client.post(URI(string: "\(baseURL)/emails")) { req in
             req.headers.add(name: .authorization, value: "Bearer \(apiKey)")

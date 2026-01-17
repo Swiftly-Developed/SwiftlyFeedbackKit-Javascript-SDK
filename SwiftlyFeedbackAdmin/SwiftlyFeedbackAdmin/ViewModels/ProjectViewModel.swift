@@ -197,6 +197,85 @@ final class ProjectViewModel {
         }
     }
 
+    // MARK: - Ownership Transfer
+
+    enum TransferOwnershipResult {
+        case success(newOwnerName: String)
+        case paymentRequired
+        case notFound
+        case otherError(String)
+    }
+
+    func transferOwnership(projectId: UUID, toMemberId memberId: UUID) async -> TransferOwnershipResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.transferProjectOwnership(
+                projectId: projectId,
+                newOwnerId: memberId
+            )
+
+            // Reload project and members to reflect the changes
+            await loadProject(id: projectId)
+            await loadMembers(projectId: projectId)
+            await loadProjects()
+
+            isLoading = false
+            return .success(newOwnerName: response.newOwner.name)
+
+        } catch let error as APIError {
+            isLoading = false
+
+            if error.isPaymentRequired {
+                return .paymentRequired
+            } else if case .serverError(let statusCode, _) = error, statusCode == 404 {
+                return .notFound
+            } else {
+                return .otherError(error.localizedDescription)
+            }
+
+        } catch {
+            isLoading = false
+            return .otherError(error.localizedDescription)
+        }
+    }
+
+    func transferOwnership(projectId: UUID, toEmail email: String) async -> TransferOwnershipResult {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response = try await AdminAPIClient.shared.transferProjectOwnership(
+                projectId: projectId,
+                newOwnerEmail: email
+            )
+
+            // Reload project and members to reflect the changes
+            await loadProject(id: projectId)
+            await loadMembers(projectId: projectId)
+            await loadProjects()
+
+            isLoading = false
+            return .success(newOwnerName: response.newOwner.name)
+
+        } catch let error as APIError {
+            isLoading = false
+
+            if error.isPaymentRequired {
+                return .paymentRequired
+            } else if case .serverError(let statusCode, _) = error, statusCode == 404 {
+                return .notFound
+            } else {
+                return .otherError(error.localizedDescription)
+            }
+
+        } catch {
+            isLoading = false
+            return .otherError(error.localizedDescription)
+        }
+    }
+
     // MARK: - Members
 
     func loadMembers(projectId: UUID) async {

@@ -23,6 +23,7 @@ struct ProjectDetailView: View {
     @State private var showingAirtableSheet = false
     @State private var showingAsanaSheet = false
     @State private var showingBasecampSheet = false
+    @State private var showingTransferSheet = false
     @State private var copiedToClipboard = false
     @State private var showingPaywall = false
     @State private var paywallRequiredTier: SubscriptionTier = .pro
@@ -246,6 +247,12 @@ struct ProjectDetailView: View {
                             }
                         }
 
+                        Button {
+                            showingTransferSheet = true
+                        } label: {
+                            Label("Transfer Ownership", systemImage: "arrow.right.arrow.left.circle")
+                        }
+
                         Divider()
 
                         Button(role: .destructive) {
@@ -409,6 +416,14 @@ struct ProjectDetailView: View {
                 BasecampSettingsView(project: project, viewModel: viewModel)
                     #if os(macOS)
                     .frame(minWidth: 500, minHeight: 600)
+                    #endif
+            }
+        }
+        .sheet(isPresented: $showingTransferSheet) {
+            if let project = viewModel.selectedProject {
+                TransferOwnershipSheet(project: project, projectId: projectId, viewModel: viewModel)
+                    #if os(macOS)
+                    .frame(minWidth: 450, minHeight: 400)
                     #endif
             }
         }
