@@ -741,18 +741,24 @@ struct FeedbackListRowView: View {
 
             HStack(spacing: 12) {
                 if let email = feedback.userEmail {
-                    Label(email, systemImage: "person")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Image(systemName: "person")
+                        Text(email)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
                 }
 
                 Spacer()
 
                 if feedback.commentCount > 0 {
-                    Label("\(feedback.commentCount)", systemImage: "bubble.left")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 4) {
+                        Image(systemName: "bubble.left")
+                        Text("\(feedback.commentCount)")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
 
                 if let date = feedback.createdAt {
@@ -763,6 +769,7 @@ struct FeedbackListRowView: View {
             }
         }
         .padding(.vertical, 4)
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
     }
 }
 

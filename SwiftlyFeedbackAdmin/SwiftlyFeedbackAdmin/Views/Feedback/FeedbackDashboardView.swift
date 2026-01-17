@@ -37,6 +37,11 @@ struct FeedbackDashboardView: View {
     @State private var rejectionReason = ""
     @State private var feedbackToReject: Feedback?
 
+    // iOS search state (workaround for searchable gap issue)
+    #if os(iOS)
+    @State private var isSearching = false
+    #endif
+
     private var viewMode: DashboardViewMode {
         DashboardViewMode(rawValue: viewModeRaw) ?? .kanban
     }
@@ -128,9 +133,18 @@ struct FeedbackDashboardView: View {
                 #endif
                 .toolbar {
                     #if os(iOS)
-                    // Top bar - left side: view mode picker
+                    // Top bar - left side: search button
                     ToolbarItem(placement: .topBarLeading) {
-                        viewModePicker
+                        Button {
+                            withAnimation {
+                                isSearching.toggle()
+                                if !isSearching {
+                                    feedbackViewModel.searchText = ""
+                                }
+                            }
+                        } label: {
+                            Image(systemName: isSearching ? "xmark" : "magnifyingglass")
+                        }
                     }
 
                     // Top bar - center: project picker
@@ -138,14 +152,10 @@ struct FeedbackDashboardView: View {
                         projectPicker
                     }
 
-                    // Top bar - right side: filter menu
+                    // Top bar - right side: filter/options menu
                     ToolbarItem(placement: .topBarTrailing) {
                         filterMenu
                     }
-
-                    // Bottom bar - iOS 26 Liquid Glass search (compact button that expands)
-                    DefaultToolbarItem(kind: .search, placement: .bottomBar)
-                    ToolbarSpacer(.flexible, placement: .bottomBar)
                     #else
                     ToolbarItem(placement: .principal) {
                         projectPicker
@@ -164,11 +174,8 @@ struct FeedbackDashboardView: View {
                     }
                     #endif
                 }
-                #if os(iOS)
-                .searchable(text: $feedbackViewModel.searchText, placement: .automatic, prompt: "Search feedback...")
-                .searchToolbarBehavior(.minimize)
-                #else
-                .searchable(text: $feedbackViewModel.searchText, placement: .toolbar, prompt: "Search feedback...")
+                #if os(macOS)
+                .searchable(text: $feedbackViewModel.searchText, prompt: "Search feedback...")
                 #endif
                 .task(id: selectedProject?.id) {
                     // Auto-select first project if none selected
@@ -187,6 +194,35 @@ struct FeedbackDashboardView: View {
                 }
                 #endif
 
+            #if os(iOS)
+            // Bottom search bar (workaround for searchable modifier gap issue)
+            if isSearching {
+                VStack(spacing: 0) {
+                    Spacer()
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                        TextField("Search feedback...", text: $feedbackViewModel.searchText)
+                            .textFieldStyle(.plain)
+                        if !feedbackViewModel.searchText.isEmpty {
+                            Button {
+                                feedbackViewModel.searchText = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+            #endif
+
             // Selection action bar (shows when 2+ items selected)
             if feedbackViewModel.canMerge {
                 selectionActionBar
@@ -194,6 +230,9 @@ struct FeedbackDashboardView: View {
             }
         }
         .animation(.default, value: feedbackViewModel.canMerge)
+        #if os(iOS)
+        .animation(.default, value: isSearching)
+        #endif
         .alert("Error", isPresented: $feedbackViewModel.showError) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -545,20 +584,27 @@ struct FeedbackDashboardView: View {
 
     @ViewBuilder
     private var dashboardContent: some View {
-        if selectedProject == nil {
-            noProjectSelectedView
-        } else if feedbackViewModel.isLoading && feedbackViewModel.feedbacks.isEmpty {
-            ProgressView("Loading feedback...")
-        } else if feedbackViewModel.feedbacks.isEmpty {
-            emptyFeedbackView
-        } else if feedbackViewModel.filteredFeedbacks.isEmpty {
-            noResultsView
-        } else {
-            switch viewMode {
-            case .list:
+        Group {
+            if selectedProject == nil {
+                noProjectSelectedView
+            } else if feedbackViewModel.isLoading && feedbackViewModel.feedbacks.isEmpty {
+                ProgressView("Loading feedback...")
+            } else if feedbackViewModel.feedbacks.isEmpty {
+                emptyFeedbackView
+            } else if feedbackViewModel.filteredFeedbacks.isEmpty {
+                noResultsView
+            } else {
+                #if os(macOS)
+                switch viewMode {
+                case .list:
+                    listView
+                case .kanban:
+                    kanbanView
+                }
+                #else
+                // iOS/iPadOS: List view only (kanban has layout issues with iOS 26)
                 listView
-            case .kanban:
-                kanbanView
+                #endif
             }
         }
     }
