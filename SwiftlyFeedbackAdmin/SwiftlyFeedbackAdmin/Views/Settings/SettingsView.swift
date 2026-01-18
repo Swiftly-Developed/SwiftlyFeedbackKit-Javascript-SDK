@@ -6,7 +6,7 @@ struct SettingsView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @Environment(SubscriptionService.self) private var subscriptionService
-    @State private var appConfiguration = AppConfiguration.shared
+    @Environment(\.appConfiguration) private var appConfiguration
     @State private var showingLogoutConfirmation = false
     @State private var showingChangePassword = false
     @State private var showingDeleteAccount = false

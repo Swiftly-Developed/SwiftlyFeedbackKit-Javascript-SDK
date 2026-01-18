@@ -64,6 +64,14 @@ struct RootView: View {
 
             // Refresh onboarding state for new environment
             onboardingManager.refreshFromStorage()
+
+            // Update AdminAPIClient base URL to point to new environment
+            Task {
+                await AdminAPIClient.shared.updateBaseURL()
+            }
+
+            // Reconfigure SDK for new environment (different API key and base URL)
+            AppConfiguration.shared.configureSDK()
         }
     }
 }

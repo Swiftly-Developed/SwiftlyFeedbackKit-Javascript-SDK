@@ -25,19 +25,17 @@ actor AdminAPIClient {
     // Update base URL when server environment changes
     @MainActor
     func updateBaseURL() async {
-        if let apiURL = URL(string: AppConfiguration.apiV1URL) {
-            await self.setBaseURL(apiURL)
-            AppLogger.api.info("AdminAPIClient baseURL updated to: \(apiURL.absoluteString)")
-        }
+        let apiURL = URL(string: AppConfiguration.shared.apiV1URL)!
+        await self.setBaseURL(apiURL)
+        AppLogger.api.info("AdminAPIClient baseURL updated to: \(apiURL.absoluteString)")
     }
 
     // Initialize base URL from main actor context
     @MainActor
     func initializeBaseURL() async {
-        if let apiURL = URL(string: AppConfiguration.apiV1URL) {
-            await self.setBaseURL(apiURL)
-            AppLogger.api.info("AdminAPIClient initialized with baseURL: \(apiURL.absoluteString)")
-        }
+        let apiURL = URL(string: AppConfiguration.shared.apiV1URL)!
+        await self.setBaseURL(apiURL)
+        AppLogger.api.info("AdminAPIClient initialized with baseURL: \(apiURL.absoluteString)")
     }
 
     private func setBaseURL(_ url: URL) {

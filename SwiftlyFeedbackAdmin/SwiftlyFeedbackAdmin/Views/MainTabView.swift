@@ -5,7 +5,7 @@ import SwiftlyFeedbackKit
 
 /// A compact indicator showing the current environment for non-production builds
 struct EnvironmentIndicator: View {
-    @State private var appConfiguration = AppConfiguration.shared
+    @Environment(\.appConfiguration) private var appConfiguration
 
     var body: some View {
         if appConfiguration.environment != .production {

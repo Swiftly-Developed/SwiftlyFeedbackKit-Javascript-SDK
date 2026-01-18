@@ -159,8 +159,7 @@ struct SwiftlyFeedbackAdminApp: App {
         // Configure subscription service at app launch
         SubscriptionService.shared.configure()
 
-        // Configure SwiftlyFeedbackKit SDK for in-app feature requests
-        // Uses environment-specific API key from AppConfiguration
+        // Configure SDK at launch (uses AppConfiguration.shared)
         AppConfiguration.shared.configureSDK()
     }
 
@@ -172,6 +171,10 @@ struct SwiftlyFeedbackAdminApp: App {
                 .environment(deepLinkManager)
                 .onOpenURL { url in
                     deepLinkManager.handleURL(url)
+                }
+                .task {
+                    // Initialize API client with correct baseURL on app launch
+                    await AdminAPIClient.shared.initializeBaseURL()
                 }
                 #if os(macOS)
                 .onReceive(NotificationCenter.default.publisher(for: .reopenMainWindow)) { _ in

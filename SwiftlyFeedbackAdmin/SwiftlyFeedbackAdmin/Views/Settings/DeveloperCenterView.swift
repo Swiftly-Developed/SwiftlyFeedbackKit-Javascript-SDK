@@ -20,7 +20,7 @@ struct DeveloperCenterView: View {
     @State private var commentCount = 5
 
     // Server environment
-    @State private var appConfiguration = AppConfiguration.shared
+    @Environment(\.appConfiguration) private var appConfiguration
     @State private var pendingEnvironment: AppEnvironment?
     @State private var pendingEnvironmentName: String = ""  // Cached name for alert title
     @State private var showingEnvironmentChangeConfirmation = false

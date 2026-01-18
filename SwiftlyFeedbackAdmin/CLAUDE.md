@@ -101,14 +101,21 @@ Configured via `AppEnvironment` enum in `Configuration/AppConfiguration.swift`:
 | Environment | URL | Color | Available In |
 |-------------|-----|-------|--------------|
 | Localhost | `http://localhost:8080` | Purple | DEBUG only |
-| Development | `api.feedbackkit.dev...` | Blue | DEBUG only |
-| TestFlight | `api.feedbackkit.testflight...` | Orange | DEBUG, TestFlight |
-| Production | `api.feedbackkit.prod...` | Red | All builds |
+| Development | `api.feedbackkit.dev...` | Blue | DEBUG, TestFlight, Production |
+| TestFlight | `api.feedbackkit.testflight...` | Orange | DEBUG, TestFlight, Production |
+| Production | `api.feedbackkit.prod...` | Red | DEBUG, TestFlight, Production |
+
+**Summary by build type:**
+- **DEBUG:** All 4 environments (localhost, development, testflight, production)
+- **TESTFLIGHT:** 2 environments (development, testflight)
+- **PRODUCTION:** 3 environments (development, testflight, production)
 
 ```swift
-AppConfiguration.shared.environment      // Current
-AppConfiguration.shared.baseURL          // Server URL
-AppConfiguration.shared.switchTo(.development)  // Switch (logs out user)
+// Access via @Environment (preferred)
+@Environment(\.appConfiguration) private var appConfiguration
+appConfiguration.environment             // Current
+appConfiguration.baseURL                 // Server URL
+appConfiguration.switchTo(.development)  // Switch (logs out user)
 ```
 
 **Command line args (DEBUG):** `--localhost`, `--dev-mode`, `--testflight-mode`, `--prod-mode`
@@ -323,7 +330,7 @@ nonisolated(unsafe) private var _loggingEnabled = true
 
 Dog-fooding: Uses SwiftlyFeedbackKit for the Admin app's own feature requests.
 
-SDK configured at launch via `AppConfiguration.shared.configureSDK()` with environment-specific API key.
+SDK configured at launch via `appConfiguration.configureSDK()` with environment-specific API key.
 
 ## Logging
 

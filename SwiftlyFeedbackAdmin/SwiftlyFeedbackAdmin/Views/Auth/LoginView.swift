@@ -10,7 +10,7 @@ struct LoginView: View {
     }
 
     @FocusState private var focusedField: LoginField?
-    @State private var appConfiguration = AppConfiguration.shared
+    @Environment(\.appConfiguration) private var appConfiguration
     @State private var pendingEnvironment: AppEnvironment?
     @State private var showingEnvironmentConfirmation = false
 

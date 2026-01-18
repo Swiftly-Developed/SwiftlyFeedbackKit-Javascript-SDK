@@ -33,10 +33,13 @@ final class SecureStorageManager {
            let env = AppEnvironment(rawValue: envString) {
             self.currentEnvironment = env
         } else {
+            // Default to appropriate environment based on build type
+            // AppConfiguration validates against build type constraints
             #if DEBUG
             self.currentEnvironment = .development
             #else
-            self.currentEnvironment = BuildEnvironment.isTestFlight ? .testflight : .production
+            // Default to production - AppConfiguration will constrain to valid options
+            self.currentEnvironment = .production
             #endif
         }
     }

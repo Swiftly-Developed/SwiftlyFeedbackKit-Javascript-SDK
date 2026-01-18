@@ -43,15 +43,25 @@ enum AppEnvironment: String, Codable, CaseIterable {
     }
 
     /// Whether this environment is available for the current build type
+    /// - DEBUG: All environments (localhost, development, testflight, production)
+    /// - TESTFLIGHT: development, testflight
+    /// - PRODUCTION: development, testflight, production (no localhost)
     var isAvailable: Bool {
-        switch self {
-        case .localhost, .development:
-            return BuildEnvironment.isDebug
-        case .testflight:
-            return BuildEnvironment.isDebug || BuildEnvironment.isTestFlight
-        case .production:
+        if BuildEnvironment.isDebug {
+            // DEBUG: All environments available
             return true
+        } else if BuildEnvironment.isTestFlight {
+            // TestFlight: Only development and testflight
+            return self == .development || self == .testflight
+        } else {
+            // Production: development, testflight, production (no localhost)
+            return self != .localhost
         }
+    }
+
+    /// Environments available in Production builds (excludes localhost)
+    static var productionBuildEnvironments: [AppEnvironment] {
+        [.development, .testflight, .production]
     }
 
     /// Environments available for selection in current build
@@ -87,9 +97,9 @@ enum AppEnvironment: String, Codable, CaseIterable {
         allCases
     }
 
-    /// Environments available in TestFlight builds (testflight and production only)
+    /// Environments available in TestFlight builds (development and testflight)
     static var testFlightBuildEnvironments: [AppEnvironment] {
-        [.testflight, .production]
+        [.development, .testflight]
     }
 
     // MARK: - SwiftlyFeedbackKit SDK API Keys
@@ -115,10 +125,13 @@ enum AppEnvironment: String, Codable, CaseIterable {
 @MainActor
 @Observable
 final class AppConfiguration {
-    // MARK: - Properties
+    // MARK: - Shared Instance
 
-    /// Shared singleton instance
+    /// The single shared instance used throughout the app.
+    /// This same instance is also available via `@Environment(\.appConfiguration)`.
     static let shared = AppConfiguration()
+
+    // MARK: - Properties
 
     /// Current environment setting.
     /// Changes are automatically persisted to secure storage.
@@ -133,7 +146,7 @@ final class AppConfiguration {
             #else
             // In RELEASE mode (TestFlight or Production)
             if BuildEnvironment.isTestFlight {
-                // TestFlight: Allow testflight or production (for testing)
+                // TestFlight: Allow development and testflight only
                 if !AppEnvironment.testFlightBuildEnvironments.contains(environment) {
                     AppLogger.storage.warning("\(environment.displayName) not allowed in TestFlight - switching to TestFlight")
                     environment = .testflight
@@ -142,10 +155,13 @@ final class AppConfiguration {
                     AppLogger.storage.info("Environment changed: \(oldValue.rawValue) → \(environment.rawValue)")
                 }
             } else {
-                // Production (App Store): Lock to production only
-                if environment != .production {
-                    AppLogger.storage.warning("Production builds must use Production environment")
+                // Production (App Store): development, testflight, production (no localhost)
+                if !AppEnvironment.productionBuildEnvironments.contains(environment) {
+                    AppLogger.storage.warning("\(environment.displayName) not allowed in Production - switching to Production")
                     environment = .production
+                } else {
+                    SecureStorageManager.shared.setEnvironment(environment)
+                    AppLogger.storage.info("Environment changed: \(oldValue.rawValue) → \(environment.rawValue)")
                 }
             }
             #endif
@@ -190,14 +206,15 @@ final class AppConfiguration {
         if BuildEnvironment.isTestFlight {
             return AppEnvironment.testFlightBuildEnvironments
         } else {
-            return [.production]
+            // Production builds: development, testflight, production (no localhost)
+            return AppEnvironment.productionBuildEnvironments
         }
         #endif
     }
 
     // MARK: - Initialization
 
-    private init() {
+    init() {
         // Initialize from SecureStorageManager
         // The storage manager handles default environment logic
         let storedEnvironment = SecureStorageManager.shared.currentEnvironment
@@ -226,8 +243,12 @@ final class AppConfiguration {
                 self.environment = .testflight
             }
         } else {
-            // Production (App Store): Always use production
-            self.environment = .production
+            // Production (App Store): Use stored if valid, or default to production
+            if AppEnvironment.productionBuildEnvironments.contains(storedEnvironment) {
+                self.environment = storedEnvironment
+            } else {
+                self.environment = .production
+            }
         }
         #endif
 
@@ -249,39 +270,47 @@ final class AppConfiguration {
     }
 }
 
-// MARK: - Convenient Global Access
+// MARK: - Deprecated Static Accessors
+
 extension AppConfiguration {
     /// Quick access to base URL
+    @available(*, deprecated, message: "Access via @Environment(\\.appConfiguration).baseURL")
     static var baseURL: String {
         shared.baseURL
     }
 
     /// Quick access to API v1 URL
+    @available(*, deprecated, message: "Access via @Environment(\\.appConfiguration).apiV1URL")
     static var apiV1URL: String {
         shared.apiV1URL
     }
 
     /// Quick access to current environment
+    @available(*, deprecated, message: "Access via @Environment(\\.appConfiguration).environment")
     static var currentEnvironment: AppEnvironment {
         shared.environment
     }
 
     /// Quick access to development mode status
+    @available(*, deprecated, message: "Access via @Environment(\\.appConfiguration).isDevelopmentMode")
     static var isDevelopmentMode: Bool {
         shared.isDevelopmentMode
     }
 
     /// Quick access to testflight mode status
+    @available(*, deprecated, message: "Access via @Environment(\\.appConfiguration).isTestFlightMode")
     static var isTestFlightMode: Bool {
         shared.isTestFlightMode
     }
 
     /// Quick access to production mode status
+    @available(*, deprecated, message: "Access via @Environment(\\.appConfiguration).isProductionMode")
     static var isProductionMode: Bool {
         shared.isProductionMode
     }
 
     /// Quick access to SDK API key for current environment
+    @available(*, deprecated, message: "Access via @Environment(\\.appConfiguration).environment.sdkAPIKey")
     static var sdkAPIKey: String {
         shared.environment.sdkAPIKey
     }
@@ -339,7 +368,7 @@ extension AppConfiguration {
         AppLogger.storage.info("New Base URL: \(baseURL)")
         #else
         if BuildEnvironment.isTestFlight {
-            // TestFlight build: Allow testflight or production only
+            // TestFlight build: Allow development and testflight only
             if AppEnvironment.testFlightBuildEnvironments.contains(environment) {
                 self.environment = environment
                 AppLogger.storage.info("Switched to \(environment.displayName) environment")
@@ -349,9 +378,15 @@ extension AppConfiguration {
                 self.environment = .testflight
             }
         } else {
-            // Production: Always lock to production
-            AppLogger.storage.warning("Environment switching disabled in Production builds - locked to Production")
-            self.environment = .production
+            // Production: development, testflight, production (no localhost)
+            if AppEnvironment.productionBuildEnvironments.contains(environment) {
+                self.environment = environment
+                AppLogger.storage.info("Switched to \(environment.displayName) environment")
+                AppLogger.storage.info("New Base URL: \(baseURL)")
+            } else {
+                AppLogger.storage.warning("\(environment.displayName) not allowed in Production build - using Production")
+                self.environment = .production
+            }
         }
         #endif
 
