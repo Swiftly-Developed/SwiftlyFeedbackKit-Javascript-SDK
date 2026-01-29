@@ -2,17 +2,20 @@
 //  SubscriptionView.swift
 //  SwiftlyFeedbackAdmin
 //
-//  Created by Ben Van Aken on 04/01/2026.
+//  Subscription management view - uses web-based Stripe subscriptions.
 //
 
 import SwiftUI
 
 struct SubscriptionView: View {
     @Environment(SubscriptionService.self) private var subscriptionService
-    @State private var showRestoreAlert = false
-    @State private var restoreMessage = ""
+    @Environment(\.appConfiguration) private var appConfiguration
+    @Environment(\.openURL) private var openURL
     @State private var showPaywall = false
     @State private var paywallRequiredTier: SubscriptionTier = .pro
+    @State private var isLoadingPortal = false
+    @State private var showError = false
+    @State private var errorMessage = ""
 
     var body: some View {
         List {
@@ -32,24 +35,17 @@ struct SubscriptionView: View {
                 manageSubscriptionSection
             }
 
-            // Restore Purchases Section
-            restoreSection
+            // Refresh Subscription Section
+            refreshSection
         }
         .sheet(isPresented: $showPaywall) {
             PaywallView(requiredTier: paywallRequiredTier)
         }
         .navigationTitle("Subscription")
-        .alert("Restore Purchases", isPresented: $showRestoreAlert) {
+        .alert("Error", isPresented: $showError) {
             Button("OK") {}
         } message: {
-            Text(restoreMessage)
-        }
-        .alert("Error", isPresented: Bindable(subscriptionService).showError) {
-            Button("OK") {
-                subscriptionService.clearError()
-            }
-        } message: {
-            Text(subscriptionService.errorMessage ?? "An error occurred")
+            Text(errorMessage)
         }
     }
 
@@ -286,20 +282,12 @@ struct SubscriptionView: View {
 
     // MARK: - Manage Subscription Section
 
-    /// URL to open App Store subscriptions management
-    private var manageSubscriptionsURL: URL {
-        #if os(iOS)
-        URL(string: "https://apps.apple.com/account/subscriptions")!
-        #else
-        // macOS uses a different URL scheme for subscription management
-        URL(string: "macappstores://apps.apple.com/account/subscriptions")!
-        #endif
-    }
-
     @ViewBuilder
     private var manageSubscriptionSection: some View {
         Section {
-            Link(destination: manageSubscriptionsURL) {
+            Button {
+                openStripePortal()
+            } label: {
                 HStack {
                     Image(systemName: "creditcard.fill")
                         .font(.system(size: 14, weight: .semibold))
@@ -312,33 +300,39 @@ struct SubscriptionView: View {
                             .fontWeight(.medium)
                             .foregroundStyle(.primary)
 
-                        Text("Change plan or cancel in App Store")
+                        Text("Change plan, update payment, or cancel")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
                     Spacer()
 
-                    Image(systemName: "arrow.up.forward")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if isLoadingPortal {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.up.forward")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
+            .disabled(isLoadingPortal)
         } header: {
             Text("Subscription Management")
         } footer: {
-            Text("You can change your plan, update payment method, or cancel your subscription through the App Store.")
+            Text("You'll be redirected to Stripe to manage your subscription, update payment method, or cancel.")
         }
     }
 
-    // MARK: - Restore Section
+    // MARK: - Refresh Section
 
     @ViewBuilder
-    private var restoreSection: some View {
+    private var refreshSection: some View {
         Section {
             Button {
                 Task {
-                    await restorePurchases()
+                    await refreshSubscription()
                 }
             } label: {
                 HStack {
@@ -347,14 +341,14 @@ struct SubscriptionView: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Text("Restore Purchases")
+                        Text("Refresh Subscription Status")
                     }
                     Spacer()
                 }
             }
             .disabled(subscriptionService.isLoading)
         } footer: {
-            Text("Restore purchases if you've previously subscribed on another device.")
+            Text("Refresh to sync your subscription status with the server.")
         }
     }
 
@@ -391,24 +385,35 @@ struct SubscriptionView: View {
 
     // MARK: - Actions
 
-    private func restorePurchases() async {
-        do {
-            try await subscriptionService.restorePurchases()
-            switch subscriptionService.currentTier {
-            case .team:
-                restoreMessage = "Your Team subscription has been restored!"
-            case .pro:
-                restoreMessage = "Your Pro subscription has been restored!"
-            case .free:
-                restoreMessage = "No active subscriptions found."
-            }
-            showRestoreAlert = true
-        } catch SubscriptionError.notImplemented {
-            restoreMessage = SubscriptionError.notImplemented.localizedDescription
-            showRestoreAlert = true
-        } catch {
-            // Other errors are handled by the service
+    private func openStripePortal() {
+        // Get the auth token from secure storage
+        guard let token = SecureStorageManager.shared.authToken else {
+            errorMessage = "Please log in to manage your subscription"
+            showError = true
+            return
         }
+
+        // URL encode the token to handle special characters
+        // Note: .urlQueryAllowed doesn't encode +, /, = which are common in base64 tokens
+        var allowedCharacters = CharacterSet.alphanumerics
+        allowedCharacters.insert(charactersIn: "-._~")
+        guard let encodedToken = token.addingPercentEncoding(withAllowedCharacters: allowedCharacters) else {
+            errorMessage = "Invalid authentication token"
+            showError = true
+            return
+        }
+
+        // Build the portal URL with auth token
+        let baseURL = appConfiguration.baseURL.replacingOccurrences(of: "/api/v1", with: "")
+        let portalURL = "\(baseURL)/portal?token=\(encodedToken)"
+
+        if let url = URL(string: portalURL) {
+            openURL(url)
+        }
+    }
+
+    private func refreshSubscription() async {
+        await subscriptionService.syncWithServer()
     }
 }
 

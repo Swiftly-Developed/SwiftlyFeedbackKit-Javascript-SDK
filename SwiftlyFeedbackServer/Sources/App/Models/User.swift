@@ -55,6 +55,11 @@ enum SubscriptionStatus: String, Codable, CaseIterable, Sendable {
     }
 }
 
+enum SubscriptionSource: String, Codable, CaseIterable, Sendable {
+    case stripe
+    case appStore = "app_store"
+}
+
 // MARK: - User Model
 
 final class User: Model, Content, @unchecked Sendable {
@@ -113,8 +118,20 @@ final class User: Model, Content, @unchecked Sendable {
     @OptionalField(key: "subscription_expires_at")
     var subscriptionExpiresAt: Date?
 
-    @OptionalField(key: "revenuecat_app_user_id")
-    var revenueCatAppUserId: String?
+    // Stripe fields
+    @OptionalField(key: "stripe_customer_id")
+    var stripeCustomerId: String?
+
+    @OptionalField(key: "stripe_subscription_id")
+    var stripeSubscriptionId: String?
+
+    // Apple StoreKit 2 field
+    @OptionalField(key: "apple_original_transaction_id")
+    var appleOriginalTransactionId: String?
+
+    // Track where the subscription came from
+    @OptionalField(key: "subscription_source")
+    var subscriptionSource: SubscriptionSource?
 
     @OptionalField(key: "subscription_updated_at")
     var subscriptionUpdatedAt: Date?

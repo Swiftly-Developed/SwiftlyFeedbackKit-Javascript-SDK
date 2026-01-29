@@ -65,7 +65,7 @@ enum AppLogger {
     /// Keychain logging - secure storage operations
     static let keychain = LoggerWrapper(category: "Keychain")
 
-    /// Subscription logging - RevenueCat, purchases, entitlements
+    /// Subscription logging - StoreKit, purchases, entitlements
     static let subscription = LoggerWrapper(category: "Subscription")
 
     /// Storage logging - SecureStorageManager and migration operations
