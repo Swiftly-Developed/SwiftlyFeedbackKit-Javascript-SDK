@@ -7,13 +7,9 @@ struct SubscriptionInfoDTO: Content {
     let status: SubscriptionStatus?
     let productId: String?
     let expiresAt: Date?
+    let source: SubscriptionSource?
     let limits: SubscriptionLimitsDTO
-
-    enum CodingKeys: String, CodingKey {
-        case tier, status, limits
-        case productId = "product_id"
-        case expiresAt = "expires_at"
-    }
+    // Note: No CodingKeys needed - global encoder/decoder uses snake_case conversion
 }
 
 struct SubscriptionLimitsDTO: Content {
@@ -21,13 +17,7 @@ struct SubscriptionLimitsDTO: Content {
     let maxFeedbackPerProject: Int?
     let currentProjectCount: Int
     let canCreateProject: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case maxProjects = "max_projects"
-        case maxFeedbackPerProject = "max_feedback_per_project"
-        case currentProjectCount = "current_project_count"
-        case canCreateProject = "can_create_project"
-    }
+    // Note: No CodingKeys needed - global encoder/decoder uses snake_case conversion
 }
 
 // MARK: - Payment Required Error Response
@@ -38,22 +28,43 @@ struct PaymentRequiredDTO: Content {
     let requiredTier: SubscriptionTier
     let limit: Int?
     let current: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case reason, limit, current
-        case currentTier = "current_tier"
-        case requiredTier = "required_tier"
-    }
+    // Note: No CodingKeys needed - global encoder/decoder uses snake_case conversion
 }
 
-// MARK: - Sync Request
+// MARK: - Apple Transaction Sync Request
 
-struct SyncSubscriptionDTO: Content {
-    let revenueCatAppUserId: String?
+struct SyncAppleTransactionDTO: Content {
+    /// Original transaction ID from StoreKit 2
+    let originalTransactionId: String
+    /// Product ID of the purchased subscription
+    let productId: String
+    // Note: No CodingKeys needed - global decoder uses convertFromSnakeCase
+}
 
-    enum CodingKeys: String, CodingKey {
-        case revenueCatAppUserId = "revenuecat_app_user_id"
-    }
+// MARK: - Stripe Checkout Request/Response
+
+struct CreateCheckoutSessionDTO: Content {
+    let priceId: String
+    let successUrl: String?
+    let cancelUrl: String?
+    // Note: No CodingKeys needed - global decoder uses convertFromSnakeCase
+}
+
+struct CheckoutSessionResponseDTO: Content {
+    let checkoutUrl: String
+    // Note: No CodingKeys needed - global encoder uses convertToSnakeCase
+}
+
+// MARK: - Stripe Portal Request/Response
+
+struct CreatePortalSessionDTO: Content {
+    let returnUrl: String?
+    // Note: No CodingKeys needed - global decoder uses convertFromSnakeCase
+}
+
+struct PortalSessionResponseDTO: Content {
+    let portalUrl: String
+    // Note: No CodingKeys needed - global encoder uses convertToSnakeCase
 }
 
 // MARK: - Override Tier Request (Dev/Testing only)
@@ -62,46 +73,36 @@ struct OverrideSubscriptionTierDTO: Content {
     let tier: SubscriptionTier
 }
 
-// MARK: - RevenueCat Webhook Payload
+// MARK: - App Store Server Notification Payload
 
-struct RevenueCatWebhookPayload: Content {
-    let event: RevenueCatEvent
-
-    struct RevenueCatEvent: Content {
-        let type: String
-        let appUserId: String
-        let productId: String?
-        let expirationAtMs: Int64?
-        let purchasedAtMs: Int64?
-
-        enum CodingKeys: String, CodingKey {
-            case type
-            case appUserId = "app_user_id"
-            case productId = "product_id"
-            case expirationAtMs = "expiration_at_ms"
-            case purchasedAtMs = "purchased_at_ms"
-        }
-    }
+struct AppStoreNotificationPayload: Content {
+    let signedPayload: String
+    // Note: Apple uses camelCase, but signedPayload matches so no issue
 }
 
-// MARK: - RevenueCat API Response
+// MARK: - Decoded App Store Transaction (from JWS)
+// Note: Apple's JWS payloads use camelCase, which matches Swift naming
 
-struct RevenueCatSubscriberResponse: Content {
-    let subscriber: Subscriber
+struct DecodedAppStoreTransaction: Content, Sendable {
+    let originalTransactionId: String
+    let productId: String
+    let expiresDate: Date?
+    let purchaseDate: Date?
+}
 
-    struct Subscriber: Content {
-        let entitlements: [String: Entitlement]
+// MARK: - App Store Server Notification (decoded)
+// Note: Apple's notification payloads use camelCase
 
-        struct Entitlement: Content {
-            let productIdentifier: String
-            let expiresDate: String?
-            let purchaseDate: String?
+struct DecodedAppStoreNotification: Content, Sendable {
+    let notificationType: String
+    let subtype: String?
+    let notificationUUID: String
+    let data: AppStoreNotificationData
 
-            enum CodingKeys: String, CodingKey {
-                case productIdentifier = "product_identifier"
-                case expiresDate = "expires_date"
-                case purchaseDate = "purchase_date"
-            }
-        }
+    struct AppStoreNotificationData: Content, Sendable {
+        let bundleId: String
+        let environment: String
+        let signedTransactionInfo: String?
+        let signedRenewalInfo: String?
     }
 }

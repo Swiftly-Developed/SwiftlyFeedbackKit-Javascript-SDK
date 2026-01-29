@@ -106,6 +106,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(CreateProjectMemberPreference())
     app.migrations.add(CreatePushNotificationLog())
     app.migrations.add(AddUserPushNotificationSettings())
+    app.migrations.add(AddStripeSubscriptionFields())
 
     try await app.autoMigrate()
 

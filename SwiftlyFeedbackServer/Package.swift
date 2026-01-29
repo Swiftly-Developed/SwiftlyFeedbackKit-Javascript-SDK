@@ -12,6 +12,7 @@ let package = Package(
         .package(url: "https://github.com/vapor/fluent-postgres-driver.git", from: "2.8.0"),
         .package(url: "https://github.com/vapor/jwt.git", from: "4.2.0"),
         .package(url: "https://github.com/swift-server-community/APNSwift.git", from: "5.0.0"),
+        .package(url: "https://github.com/vapor-community/stripe-kit.git", from: "25.0.0"),
     ],
     targets: [
         .executableTarget(
@@ -22,6 +23,7 @@ let package = Package(
                 .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
                 .product(name: "JWT", package: "jwt"),
                 .product(name: "APNS", package: "APNSwift"),
+                .product(name: "StripeKit", package: "stripe-kit"),
             ],
             path: "Sources/App"
         ),

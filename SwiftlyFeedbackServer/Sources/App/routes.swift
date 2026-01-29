@@ -9,6 +9,9 @@ func routes(_ app: Application) throws {
         ["status": "ok"]
     }
 
+    // Web pages (subscription, etc.) - no prefix
+    try app.register(collection: WebController())
+
     // API v1 routes
     let api = app.grouped("api", "v1")
 
@@ -32,8 +35,12 @@ func routes(_ app: Application) throws {
     // Dashboard routes (home KPIs)
     try api.register(collection: DashboardController())
 
-    // Webhook routes (RevenueCat subscription events)
-    try api.register(collection: RevenueCatWebhookController())
+    // Subscription management routes (checkout, portal, sync)
+    try api.register(collection: SubscriptionController())
+
+    // Webhook routes (Stripe, App Store)
+    try api.register(collection: StripeWebhookController())
+    try api.register(collection: AppStoreWebhookController())
 
     // Device management routes (push notifications)
     try api.register(collection: DeviceController())
