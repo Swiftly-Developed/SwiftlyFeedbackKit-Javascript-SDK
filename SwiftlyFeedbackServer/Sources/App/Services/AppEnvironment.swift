@@ -27,7 +27,7 @@ final class AppEnvironment: Sendable {
                 self.serverURL = "https://api.feedbackkit.testflight.swiftly-developed.com"
             case "production":
                 self.type = .production
-                self.serverURL = "https://api.feedbackkit.prod.swiftly-developed.com"
+                self.serverURL = "https://feedbackkit.swiftly-workspace.com"
             default:
                 self.type = .local
                 self.serverURL = "http://localhost:8080"
