@@ -1,0 +1,90 @@
+#extend("layouts/dashboard"):
+    #export("extraHead"):
+    <style>
+        .kanban-scroll {
+            overflow-x: auto;
+            padding-bottom: 1rem;
+        }
+        .kanban-board {
+            display: flex;
+            gap: 1rem;
+            min-width: max-content;
+        }
+        .kanban-column {
+            width: 280px;
+            flex-shrink: 0;
+        }
+    </style>
+    #endexport
+
+    #export("main"):
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-4">
+            <h2 class="text-2xl font-bold text-gray-900">Kanban Board</h2>
+            <a href="/admin/feedback#if(selectedProjectId):?project_id=#(selectedProjectId)#endif"
+               class="text-sm text-primary-600 hover:text-primary-500">
+                ← Back to List
+            </a>
+        </div>
+
+        <!-- Project filter -->
+        <form method="GET" action="/admin/feedback/kanban">
+            <select name="project_id"
+                    onchange="this.form.submit()"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <option value="">All Projects</option>
+                #for(project in projects):
+                <option value="#(project.id)" #if(selectedProjectId == project.id):selected#endif>
+                    #(project.name)
+                </option>
+                #endfor
+            </select>
+        </form>
+    </div>
+
+    <div class="kanban-scroll">
+        <div class="kanban-board">
+            #for(column in columns):
+            <div class="kanban-column">
+                <div class="bg-gray-100 rounded-xl p-4">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full #(column.colorClass)"></span>
+                            <h3 class="font-semibold text-gray-900">#(column.name)</h3>
+                        </div>
+                        <span class="text-sm text-gray-500">#(count(column.feedbacks))</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        #for(card in column.feedbacks):
+                        <a href="/admin/feedback/#(card.id)"
+                           class="block bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                            <h4 class="font-medium text-gray-900 mb-2 line-clamp-2">#(card.title)</h4>
+                            <div class="flex items-center justify-between text-xs text-gray-500">
+                                <span>#(card.category)</span>
+                                <div class="flex items-center gap-1">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                                    </svg>
+                                    <span>#(card.voteCount)</span>
+                                </div>
+                            </div>
+                            #if(card.projectName):
+                            <p class="text-xs text-gray-400 mt-2 truncate">#(card.projectName)</p>
+                            #endif
+                        </a>
+                        #endfor
+
+                        #if(count(column.feedbacks) == 0):
+                        <div class="text-center py-8 text-gray-400 text-sm">
+                            No feedback
+                        </div>
+                        #endif
+                    </div>
+                </div>
+            </div>
+            #endfor
+        </div>
+    </div>
+    #endexport
+#endextend

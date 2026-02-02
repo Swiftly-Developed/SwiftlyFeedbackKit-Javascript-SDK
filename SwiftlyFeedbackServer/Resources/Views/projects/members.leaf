@@ -1,0 +1,213 @@
+#extend("layouts/dashboard"):
+    #export("extraHead"):
+    #endexport
+
+    #export("main"):
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <a href="/admin/projects" class="hover:text-gray-700">Projects</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)" class="hover:text-gray-700">#(project.name)</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-gray-900">Members</span>
+    </nav>
+
+    #if(success):
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-green-800">
+            #if(success == "member_added"):Member added successfully#endif
+            #if(success == "member_updated"):Member role updated#endif
+            #if(success == "member_removed"):Member removed#endif
+        </p>
+    </div>
+    #endif
+
+    #if(error):
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-red-800">
+            #if(error == "team_required"):Team plan required to add members#endif
+            #if(error == "user_not_found"):No user found with that email#endif
+            #if(error == "already_member"):User is already a member#endif
+            #if(error == "is_owner"):User is the project owner#endif
+        </p>
+    </div>
+    #endif
+
+    <div class="max-w-3xl">
+        <!-- Team members require Team tier -->
+        #if(!isTeamTier):
+        <div class="bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl p-6 text-white mb-6">
+            <h3 class="text-lg font-semibold mb-2">Upgrade to Team</h3>
+            <p class="opacity-90 mb-4">Add team members to collaborate on projects with the Team plan.</p>
+            <a href="/admin/settings/subscription"
+               class="inline-block px-4 py-2 bg-white text-purple-600 rounded-lg font-medium hover:bg-opacity-90 transition-colors">
+                View Plans
+            </a>
+        </div>
+        #endif
+
+        <!-- Owner -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Owner</h3>
+            #if(owner):
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-medium">
+                        #(owner.initials)
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-900">#(owner.name)</p>
+                        <p class="text-sm text-gray-500">#(owner.email)</p>
+                    </div>
+                </div>
+                <span class="px-3 py-1 text-xs font-medium bg-primary-100 text-primary-700 rounded-full">Owner</span>
+            </div>
+            #endif
+        </div>
+
+        <!-- Members List -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Team Members</h3>
+                #if(canManageMembers && isTeamTier):
+                <button onclick="document.getElementById('add-member-modal').classList.remove('hidden')"
+                        class="text-sm text-primary-600 hover:text-primary-500 font-medium">
+                    + Add Member
+                </button>
+                #endif
+            </div>
+
+            #if(count(members) > 0):
+            <div class="divide-y divide-gray-200">
+                #for(member in members):
+                <div class="py-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center text-white font-medium">
+                            #(member.initials)
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-900">#(member.name)</p>
+                            <p class="text-sm text-gray-500">#(member.email)</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        #if(canManageMembers):
+                        <form action="/admin/projects/#(project.id)/members/#(member.id)/update" method="POST" class="inline">
+                            <select name="role"
+                                    onchange="this.form.submit()"
+                                    class="text-sm border border-gray-300 rounded-lg px-3 py-1 focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                                <option value="admin" #if(member.role == "admin"):selected#endif>Admin</option>
+                                <option value="member" #if(member.role == "member"):selected#endif>Member</option>
+                                <option value="viewer" #if(member.role == "viewer"):selected#endif>Viewer</option>
+                            </select>
+                        </form>
+                        <form action="/admin/projects/#(project.id)/members/#(member.id)/remove" method="POST"
+                              onsubmit="return confirm('Remove this member from the project?')">
+                            <button type="submit" class="text-red-600 hover:text-red-700">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </form>
+                        #else:
+                        <span class="text-sm text-gray-500">#(member.roleDisplay)</span>
+                        #endif
+                    </div>
+                </div>
+                #endfor
+            </div>
+            #else:
+            <div class="text-center py-8">
+                <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+                <p class="text-gray-500">No team members yet</p>
+                #if(canManageMembers && isTeamTier):
+                <button onclick="document.getElementById('add-member-modal').classList.remove('hidden')"
+                        class="text-primary-600 hover:text-primary-500 text-sm font-medium mt-2">
+                    Add your first member
+                </button>
+                #endif
+            </div>
+            #endif
+        </div>
+
+        <!-- Role Descriptions -->
+        <div class="bg-gray-50 rounded-xl p-6">
+            <h4 class="font-medium text-gray-900 mb-3">Role Permissions</h4>
+            <div class="space-y-2 text-sm">
+                <div class="flex items-start gap-3">
+                    <span class="font-medium text-gray-700 w-20">Admin</span>
+                    <span class="text-gray-600">Can manage project settings, members, and all feedback</span>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-medium text-gray-700 w-20">Member</span>
+                    <span class="text-gray-600">Can view and respond to feedback</span>
+                </div>
+                <div class="flex items-start gap-3">
+                    <span class="font-medium text-gray-700 w-20">Viewer</span>
+                    <span class="text-gray-600">Can only view feedback (read-only)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Member Modal -->
+    <div id="add-member-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-gray-500 bg-opacity-75" onclick="document.getElementById('add-member-modal').classList.add('hidden')"></div>
+
+            <div class="relative bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold text-gray-900">Add Team Member</h3>
+                    <button onclick="document.getElementById('add-member-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+
+                <form action="/admin/projects/#(project.id)/members" method="POST" class="space-y-4">
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                        <input type="email"
+                               id="email"
+                               name="email"
+                               required
+                               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                               placeholder="teammate@example.com">
+                        <p class="text-xs text-gray-500 mt-1">User must have a Feedback Kit account</p>
+                    </div>
+
+                    <div>
+                        <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                        <select id="role"
+                                name="role"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="member">Member</option>
+                            <option value="admin">Admin</option>
+                            <option value="viewer">Viewer</option>
+                        </select>
+                    </div>
+
+                    <div class="flex gap-3 pt-4">
+                        <button type="button"
+                                onclick="document.getElementById('add-member-modal').classList.add('hidden')"
+                                class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="flex-1 px-4 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors">
+                            Add Member
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    #endexport
+#endextend
