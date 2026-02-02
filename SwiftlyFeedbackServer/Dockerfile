@@ -18,9 +18,10 @@ COPY Package.swift ./
 # Resolve dependencies (generates Package.resolved)
 RUN swift package resolve
 
-# Copy source code and tests (Package.swift references Tests/)
+# Copy source code, tests, and resources
 COPY Sources ./Sources
 COPY Tests ./Tests
+COPY Resources ./Resources
 
 # Build the application in release mode
 RUN swift build -c release --static-swift-stdlib
@@ -44,6 +45,9 @@ WORKDIR /app
 
 # Copy built executable from build stage
 COPY --from=build --chown=vapor:vapor /build/.build/release/SwiftlyFeedbackServer /app/SwiftlyFeedbackServer
+
+# Copy Resources (Leaf templates, etc.)
+COPY --from=build --chown=vapor:vapor /build/Resources /app/Resources
 
 # Copy startup script
 COPY --chown=vapor:vapor start.sh /app/start.sh
