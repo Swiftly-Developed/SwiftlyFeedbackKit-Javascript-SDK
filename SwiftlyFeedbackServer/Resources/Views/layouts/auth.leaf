@@ -7,15 +7,12 @@
         <!-- Left side - Branding -->
         <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-amber-400 via-primary-500 to-orange-600 items-center justify-center p-12">
             <div class="max-w-md text-white">
-                <div class="flex items-center gap-3 mb-8">
-                    <svg class="w-12 h-12" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                        <circle cx="12" cy="10" r="1.5"/>
-                        <circle cx="8" cy="10" r="1.5"/>
-                        <circle cx="16" cy="10" r="1.5"/>
-                    </svg>
-                    <span class="text-3xl font-bold">Feedback Kit</span>
-                </div>
+                <!-- Logo -->
+                <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/f35f5f49-7d3c-4a8a-89b4-35bb1629de83/Swiftly+FeedbackKit+%281024+x+1024+px%29+%282%29.jpeg"
+                     alt="Feedback Kit"
+                     class="mb-8"
+                     style="width: 420px; height: auto; border-radius: 20px;">
+
                 <h1 class="text-4xl font-bold mb-4">Collect and manage user feedback</h1>
                 <p class="text-lg opacity-90">
                     The complete feedback platform for iOS, macOS, and visionOS apps.
@@ -48,14 +45,12 @@
         <div class="flex-1 flex items-center justify-center p-8">
             <div class="w-full max-w-md">
                 <!-- Mobile logo -->
-                <div class="lg:hidden flex items-center justify-center gap-2 mb-8">
-                    <svg class="w-10 h-10 text-primary-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                        <circle cx="12" cy="10" r="1.5"/>
-                        <circle cx="8" cy="10" r="1.5"/>
-                        <circle cx="16" cy="10" r="1.5"/>
-                    </svg>
-                    <span class="text-2xl font-bold text-gray-900">Feedback Kit</span>
+                <div class="lg:hidden flex items-center justify-center mb-8">
+                    <div class="overflow-hidden" style="border-radius: 16px; width: 160px; height: 160px;">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/f35f5f49-7d3c-4a8a-89b4-35bb1629de83/Swiftly+FeedbackKit+%281024+x+1024+px%29+%282%29.jpeg"
+                             alt="Feedback Kit"
+                             class="w-full h-full object-contain">
+                    </div>
                 </div>
 
                 #import("form")
