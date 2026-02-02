@@ -1,0 +1,66 @@
+#extend("layouts/base"):
+    #export("head"):
+    #endexport
+
+    #export("content"):
+    <div class="min-h-full flex">
+        <!-- Left side - Branding -->
+        <div class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-amber-400 via-primary-500 to-orange-600 items-center justify-center p-12">
+            <div class="max-w-md text-white">
+                <div class="flex items-center gap-3 mb-8">
+                    <svg class="w-12 h-12" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                        <circle cx="12" cy="10" r="1.5"/>
+                        <circle cx="8" cy="10" r="1.5"/>
+                        <circle cx="16" cy="10" r="1.5"/>
+                    </svg>
+                    <span class="text-3xl font-bold">Feedback Kit</span>
+                </div>
+                <h1 class="text-4xl font-bold mb-4">Collect and manage user feedback</h1>
+                <p class="text-lg opacity-90">
+                    The complete feedback platform for iOS, macOS, and visionOS apps.
+                    Understand what your users want and build better products.
+                </p>
+                <div class="mt-12 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Easy SDK integration</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>10+ integrations (Slack, GitHub, Linear...)</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        <span>Real-time analytics</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right side - Form -->
+        <div class="flex-1 flex items-center justify-center p-8">
+            <div class="w-full max-w-md">
+                <!-- Mobile logo -->
+                <div class="lg:hidden flex items-center justify-center gap-2 mb-8">
+                    <svg class="w-10 h-10 text-primary-500" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+                        <circle cx="12" cy="10" r="1.5"/>
+                        <circle cx="8" cy="10" r="1.5"/>
+                        <circle cx="16" cy="10" r="1.5"/>
+                    </svg>
+                    <span class="text-2xl font-bold text-gray-900">Feedback Kit</span>
+                </div>
+
+                #import("form")
+            </div>
+        </div>
+    </div>
+    #endexport
+#endextend

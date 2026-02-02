@@ -403,6 +403,7 @@ struct AuthController: RouteCollection {
             status: user.subscriptionStatus,
             productId: user.subscriptionProductId,
             expiresAt: user.subscriptionExpiresAt,
+            source: user.subscriptionSource,
             limits: SubscriptionLimitsDTO(
                 maxProjects: tier.maxProjects,
                 maxFeedbackPerProject: tier.maxFeedbackPerProject,
@@ -412,39 +413,13 @@ struct AuthController: RouteCollection {
         )
     }
 
-    /// Sync subscription status with RevenueCat
+    /// Refresh subscription status from server
     /// POST /auth/subscription/sync
+    /// Note: Actual subscription sync with payment providers happens via /api/v1/subscriptions endpoints
     @Sendable
     func syncSubscription(req: Request) async throws -> SubscriptionInfoDTO {
-        let user = try req.auth.require(User.self)
-
-        // Optionally update the RevenueCat app user ID
-        if let dto = try? req.content.decode(SyncSubscriptionDTO.self),
-           let appUserId = dto.revenueCatAppUserId {
-            user.revenueCatAppUserId = appUserId
-        }
-
-        // If user has a RevenueCat app user ID, fetch latest subscription info
-        if let appUserId = user.revenueCatAppUserId {
-            do {
-                let subscriber = try await req.revenueCatService.getSubscriber(appUserId: appUserId)
-                let entitlements = subscriber.subscriber.entitlements
-
-                // Update user subscription fields
-                user.subscriptionTier = req.revenueCatService.mapEntitlementsToTier(entitlements: entitlements)
-                user.subscriptionStatus = req.revenueCatService.getSubscriptionStatus(entitlements: entitlements)
-                user.subscriptionExpiresAt = req.revenueCatService.getExpirationDate(entitlements: entitlements)
-                user.subscriptionProductId = req.revenueCatService.getProductId(entitlements: entitlements)
-                user.subscriptionUpdatedAt = Date()
-            } catch {
-                req.logger.error("Failed to sync subscription with RevenueCat: \(error)")
-                // Don't fail the request, just return current subscription info
-            }
-        }
-
-        try await user.save(on: req.db)
-
-        // Return updated subscription info
+        // This endpoint now just returns the current subscription info
+        // Actual syncing with Stripe/App Store happens via the SubscriptionController
         return try await getSubscription(req: req)
     }
 

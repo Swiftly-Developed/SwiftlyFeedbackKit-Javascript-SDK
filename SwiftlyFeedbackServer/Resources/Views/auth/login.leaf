@@ -1,0 +1,71 @@
+#extend("layouts/auth"):
+    #export("form"):
+    <div>
+        #if(showEnvironmentBadge):
+        <!-- Environment Badge -->
+        <div class="flex justify-center mb-4">
+            <span class="px-3 py-1 text-xs font-medium text-white rounded-full #(environmentColor)">
+                #(environment)
+            </span>
+        </div>
+        #endif
+
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome back</h2>
+        <p class="text-gray-600 mb-8">Sign in to your account to continue</p>
+
+        <form action="/admin/login" method="POST" class="space-y-6">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email"
+                       id="email"
+                       name="email"
+                       required
+                       autocomplete="email"
+                       value="#(formData.email)"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-colors"
+                       placeholder="you@example.com">
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                    <a href="/admin/forgot-password" class="text-sm text-primary-600 hover:text-primary-500">
+                        Forgot password?
+                    </a>
+                </div>
+                <input type="password"
+                       id="password"
+                       name="password"
+                       required
+                       autocomplete="current-password"
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-colors"
+                       placeholder="Enter your password">
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox"
+                       id="remember"
+                       name="remember"
+                       class="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500">
+                <label for="remember" class="ml-2 text-sm text-gray-600">Keep me signed in</label>
+            </div>
+
+            #if(error):
+            <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p class="text-sm text-red-600">#(error)</p>
+            </div>
+            #endif
+
+            <button type="submit"
+                    class="w-full bg-primary-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-primary-600 focus:ring-4 focus:ring-primary-200 transition-colors">
+                Sign in
+            </button>
+        </form>
+
+        <p class="mt-8 text-center text-gray-600">
+            Don't have an account?
+            <a href="/admin/signup" class="text-primary-600 font-medium hover:text-primary-500">Create one</a>
+        </p>
+    </div>
+    #endexport
+#endextend

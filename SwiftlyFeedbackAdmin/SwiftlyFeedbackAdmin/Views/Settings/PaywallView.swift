@@ -2,45 +2,26 @@
 //  PaywallView.swift
 //  SwiftlyFeedbackAdmin
 //
-//  Created for Feedback Kit subscription system.
+//  Subscription paywall - opens web browser for Stripe checkout.
 //
 
 import SwiftUI
-import RevenueCat
 
 struct PaywallView: View {
     /// The minimum tier required for the feature that triggered the paywall
     let requiredTier: SubscriptionTier
 
-    @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(\.appConfiguration) private var appConfiguration
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var selectedTier: SubscriptionTier = .pro
     @State private var isYearly = true
     @State private var showError = false
     @State private var errorMessage = ""
-    @Environment(\.dismiss) private var dismiss
 
     /// Initialize with a required tier (defaults to .pro for backwards compatibility)
     init(requiredTier: SubscriptionTier = .pro) {
         self.requiredTier = requiredTier
-    }
-
-    /// Get the package for a specific tier and billing period
-    private func package(for tier: SubscriptionTier, yearly: Bool, from offering: Offering) -> Package? {
-        let productId: String
-        switch tier {
-        case .pro:
-            productId = yearly ? SubscriptionService.ProductID.proYearly.rawValue : SubscriptionService.ProductID.proMonthly.rawValue
-        case .team:
-            productId = yearly ? SubscriptionService.ProductID.teamYearly.rawValue : SubscriptionService.ProductID.teamMonthly.rawValue
-        case .free:
-            return nil
-        }
-        return offering.availablePackages.first { $0.storeProduct.productIdentifier == productId }
-    }
-
-    /// The currently selected package based on tier and billing period
-    private func selectedPackage(from offering: Offering) -> Package? {
-        package(for: selectedTier, yearly: isYearly, from: offering)
     }
 
     /// Available tiers to show based on requiredTier
@@ -66,7 +47,6 @@ struct PaywallView: View {
                 }
             }
             .task {
-                await subscriptionService.fetchOfferings()
                 // Pre-select required tier if it's Team
                 if requiredTier == .team {
                     selectedTier = .team
@@ -96,22 +76,12 @@ struct PaywallView: View {
                 featureComparisonTable
 
                 // Tier selection cards (with pricing)
-                if let offerings = subscriptionService.offerings,
-                   let current = offerings.current {
-                    tierSelectionSection(offering: current)
+                tierSelectionSection
 
-                    // Subscribe button
-                    subscribeButton(offering: current)
-                } else if subscriptionService.isLoading {
-                    ProgressView()
-                        .padding()
-                } else {
-                    Text("Unable to load subscription options")
-                        .foregroundStyle(.secondary)
-                        .padding()
-                }
+                // Subscribe button (opens web)
+                subscribeButton
 
-                // Restore & Terms
+                // Footer
                 footerSection
             }
             .padding()
@@ -308,12 +278,12 @@ struct PaywallView: View {
     // MARK: - Tier Selection Section
 
     @ViewBuilder
-    private func tierSelectionSection(offering: Offering) -> some View {
+    private var tierSelectionSection: some View {
         HStack(spacing: 12) {
             ForEach(availableTiers, id: \.self) { tier in
-                TierSelectionCard(
+                WebTierSelectionCard(
                     tier: tier,
-                    package: package(for: tier, yearly: isYearly, from: offering),
+                    isYearly: isYearly,
                     isSelected: selectedTier == tier,
                     isRecommended: tier == .pro && availableTiers.count > 1
                 ) {
@@ -328,32 +298,23 @@ struct PaywallView: View {
     // MARK: - Subscribe Button
 
     @ViewBuilder
-    private func subscribeButton(offering: Offering) -> some View {
-        let currentPackage = selectedPackage(from: offering)
+    private var subscribeButton: some View {
         let tierColor: Color = selectedTier == .team ? .blue : .purple
 
         Button {
-            Task {
-                await purchasePackage(currentPackage)
-            }
+            openWebSubscription()
         } label: {
-            HStack {
-                if subscriptionService.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(.white)
-                } else {
-                    Text("Subscribe to \(selectedTier.displayName)")
-                        .fontWeight(.semibold)
-                }
+            HStack(spacing: 8) {
+                Image(systemName: "globe")
+                Text("Subscribe to \(selectedTier.displayName)")
+                    .fontWeight(.semibold)
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(currentPackage == nil ? Color.gray : tierColor)
+            .background(tierColor)
             .foregroundStyle(.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .disabled(currentPackage == nil || subscriptionService.isLoading)
     }
 
     // MARK: - Footer Section
@@ -361,15 +322,7 @@ struct PaywallView: View {
     @ViewBuilder
     private var footerSection: some View {
         VStack(spacing: 12) {
-            Button("Restore Purchases") {
-                Task {
-                    await restorePurchases()
-                }
-            }
-            .font(.subheadline)
-            .disabled(subscriptionService.isLoading)
-
-            Text("Payment will be charged to your Apple ID. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period.")
+            Text("You'll be redirected to our secure checkout page powered by Stripe.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -383,35 +336,118 @@ struct PaywallView: View {
         .padding(.top, 8)
     }
 
-    // MARK: - Actions
+    // MARK: - Web Subscription
 
-    private func purchasePackage(_ package: Package?) async {
-        guard let package else { return }
-
-        do {
-            try await subscriptionService.purchase(package: package)
-            dismiss()
-        } catch SubscriptionError.purchaseCancelled {
-            // User cancelled - do nothing
-        } catch {
-            errorMessage = error.localizedDescription
+    private func openWebSubscription() {
+        // Get the auth token from secure storage
+        guard let token = SecureStorageManager.shared.authToken else {
+            errorMessage = "Please log in to subscribe"
             showError = true
+            return
+        }
+
+        // URL encode the token to handle special characters
+        // Note: .urlQueryAllowed doesn't encode +, /, = which are common in base64 tokens
+        var allowedCharacters = CharacterSet.alphanumerics
+        allowedCharacters.insert(charactersIn: "-._~")
+        guard let encodedToken = token.addingPercentEncoding(withAllowedCharacters: allowedCharacters) else {
+            errorMessage = "Invalid authentication token"
+            showError = true
+            return
+        }
+
+        // Build the subscribe URL with auth token
+        let baseURL = appConfiguration.baseURL.replacingOccurrences(of: "/api/v1", with: "")
+        let subscribeURL = "\(baseURL)/subscribe?token=\(encodedToken)"
+
+        if let url = URL(string: subscribeURL) {
+            openURL(url)
+            dismiss()
+        }
+    }
+}
+
+// MARK: - Web Tier Selection Card
+
+struct WebTierSelectionCard: View {
+    let tier: SubscriptionTier
+    let isYearly: Bool
+    let isSelected: Bool
+    let isRecommended: Bool
+    let onTap: () -> Void
+
+    private var tierColor: Color {
+        tier == .team ? .blue : .purple
+    }
+
+    private var tierIcon: String {
+        tier == .team ? "person.3.fill" : "crown.fill"
+    }
+
+    private var priceText: String {
+        switch (tier, isYearly) {
+        case (.pro, false): return "$4.99/month"
+        case (.pro, true): return "$49.99/year"
+        case (.team, false): return "$9.99/month"
+        case (.team, true): return "$99.99/year"
+        default: return ""
         }
     }
 
-    private func restorePurchases() async {
-        do {
-            try await subscriptionService.restorePurchases()
-            if subscriptionService.isProSubscriber {
-                dismiss()
-            } else {
-                errorMessage = "No previous purchases found"
-                showError = true
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 8) {
+                // Recommended badge or spacer
+                if isRecommended {
+                    Text("Popular")
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(tierColor.opacity(0.2))
+                        .foregroundStyle(tierColor)
+                        .clipShape(Capsule())
+                } else {
+                    Text(" ")
+                        .font(.caption2)
+                        .padding(.vertical, 3)
+                }
+
+                Image(systemName: tierIcon)
+                    .font(.title)
+                    .foregroundStyle(tierColor)
+
+                Text(tier.displayName)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+
+                Text(priceText)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 0)
+
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundStyle(isSelected ? tierColor : .secondary.opacity(0.4))
             }
-        } catch {
-            errorMessage = error.localizedDescription
-            showError = true
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 160)
+            .padding(.vertical, 16)
+            .padding(.horizontal, 12)
+            #if os(iOS)
+            .background(isSelected ? tierColor.opacity(0.12) : Color(UIColor.secondarySystemBackground))
+            #else
+            .background(isSelected ? tierColor.opacity(0.12) : Color(NSColor.controlBackgroundColor))
+            #endif
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? tierColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2.5 : 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12))
         }
+        .buttonStyle(TierCardButtonStyle())
     }
 }
 
@@ -478,104 +514,6 @@ struct FeatureComparisonRow: View {
     }
 }
 
-// MARK: - Tier Selection Card
-
-struct TierSelectionCard: View {
-    let tier: SubscriptionTier
-    let package: Package?
-    let isSelected: Bool
-    let isRecommended: Bool
-    let onTap: () -> Void
-
-    private var tierColor: Color {
-        tier == .team ? .blue : .purple
-    }
-
-    private var tierIcon: String {
-        tier == .team ? "person.3.fill" : "crown.fill"
-    }
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 8) {
-                // Recommended badge or spacer
-                if isRecommended {
-                    Text("Popular")
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(tierColor.opacity(0.2))
-                        .foregroundStyle(tierColor)
-                        .clipShape(Capsule())
-                } else {
-                    Text(" ")
-                        .font(.caption2)
-                        .padding(.vertical, 3)
-                }
-
-                Image(systemName: tierIcon)
-                    .font(.title)
-                    .foregroundStyle(tierColor)
-
-                Text(tier.displayName)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-
-                if let package {
-                    Text(priceText(for: package))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
-
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
-                    .foregroundStyle(isSelected ? tierColor : .secondary.opacity(0.4))
-            }
-            .frame(maxWidth: .infinity)
-            .frame(minHeight: 160)
-            .padding(.vertical, 16)
-            .padding(.horizontal, 12)
-            #if os(iOS)
-            .background(isSelected ? tierColor.opacity(0.12) : Color(UIColor.secondarySystemBackground))
-            #else
-            .background(isSelected ? tierColor.opacity(0.12) : Color(NSColor.controlBackgroundColor))
-            #endif
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? tierColor : Color.secondary.opacity(0.2), lineWidth: isSelected ? 2.5 : 1)
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(TierCardButtonStyle())
-    }
-
-    private func priceText(for package: Package) -> String {
-        let price = package.storeProduct.localizedPriceString
-        let productId = package.storeProduct.productIdentifier
-
-        // Check product ID for billing period since packageType may not be set correctly for all packages
-        if productId.contains(".monthly") {
-            return "\(price)/month"
-        } else if productId.contains(".yearly") {
-            return "\(price)/year"
-        }
-
-        // Fallback to packageType
-        switch package.packageType {
-        case .monthly:
-            return "\(price)/month"
-        case .annual:
-            return "\(price)/year"
-        default:
-            return price
-        }
-    }
-}
-
 // MARK: - Tier Card Button Style
 
 struct TierCardButtonStyle: ButtonStyle {
@@ -594,21 +532,6 @@ struct BillingToggleButtonStyle: ButtonStyle {
         configuration.label
             .opacity(configuration.isPressed ? 0.7 : 1.0)
             .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
-// MARK: - Feature Check Row
-
-struct FeatureCheckRow: View {
-    let text: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-            Text(text)
-                .font(.subheadline)
-        }
     }
 }
 

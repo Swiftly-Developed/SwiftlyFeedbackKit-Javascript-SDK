@@ -1,5 +1,4 @@
 import SwiftUI
-import RevenueCat
 
 // MARK: - Developer Center View
 
@@ -855,9 +854,9 @@ struct DeveloperCenterView: View {
             Label("Subscription Testing", systemImage: "star.fill")
         } footer: {
             if appConfiguration.environment == .production {
-                Text("Server tier override is disabled in Production. Reset Purchases clears local RevenueCat cache to simulate a fresh user.")
+                Text("Server tier override is disabled in Production. Reset Purchases clears local state to simulate a fresh user.")
             } else {
-                Text("Override tier on server for testing. Reset Purchases clears RevenueCat cache and simulated tier to test as a free user.")
+                Text("Override tier on server for testing. Reset Purchases clears local state and simulated tier to test as a free user.")
             }
         }
     }
@@ -873,9 +872,6 @@ struct DeveloperCenterView: View {
         // Clear cached server tier so we fall back to free
         subscriptionService.clearServerTier()
 
-        // Invalidate RevenueCat customer info cache
-        Purchases.shared.invalidateCustomerInfoCache()
-
         // For non-production environments, also reset tier on server to free
         if appConfiguration.environment != .production {
             do {
@@ -886,14 +882,14 @@ struct DeveloperCenterView: View {
             }
         }
 
-        // Refresh subscription status to get fresh data from RevenueCat
-        await subscriptionService.fetchCustomerInfo()
+        // Refresh subscription status from server
+        await subscriptionService.syncWithServer()
 
         generationResult = GenerationResult(
             success: true,
             message: "Purchases reset successfully",
             details: [
-                "RevenueCat cache invalidated",
+                "Local state cleared",
                 "Simulated tier cleared",
                 "Server tier reset to Free",
                 "Current tier: \(subscriptionService.currentTier.displayName)"
