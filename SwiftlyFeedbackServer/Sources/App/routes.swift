@@ -1,8 +1,9 @@
 import Vapor
 
 func routes(_ app: Application) throws {
-    app.get { req in
-        "Feedback Kit API Server"
+    // Redirect root to admin login
+    app.get { req -> Response in
+        req.redirect(to: "/admin/login")
     }
 
     app.get("health") { req in
