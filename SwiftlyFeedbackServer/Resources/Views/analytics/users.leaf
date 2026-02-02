@@ -1,0 +1,78 @@
+#extend("layouts/dashboard"):
+    #export("extraHead"):
+    #endexport
+
+    #export("main"):
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">SDK Users</h2>
+
+        <!-- Project filter -->
+        <form method="GET" action="/admin/analytics/users">
+            <select name="project_id"
+                    onchange="this.form.submit()"
+                    class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                <option value="">All Projects</option>
+                #for(project in projects):
+                <option value="#(project.id)" #if(selectedProjectId == project.id):selected#endif>
+                    #(project.name)
+                </option>
+                #endfor
+            </select>
+        </form>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-500">Total Users</p>
+            <p class="text-3xl font-bold text-gray-900 mt-1">#(totalUsers)</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <p class="text-sm font-medium text-gray-500">Total MRR</p>
+            <p class="text-3xl font-bold text-gray-900 mt-1">$#(totalMRR)</p>
+        </div>
+    </div>
+
+    <!-- Users List -->
+    #if(count(users) > 0):
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">MRR</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">First Seen</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                #for(sdkUser in users):
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-medium text-gray-900">#(sdkUser.userId)</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-600">#(sdkUser.projectName)</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-900">$#(sdkUser.mrr)</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm text-gray-500">#(sdkUser.createdAt)</span>
+                    </td>
+                </tr>
+                #endfor
+            </tbody>
+        </table>
+    </div>
+    #else:
+    <div class="text-center py-12 bg-white rounded-xl border border-gray-200">
+        <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No users yet</h3>
+        <p class="text-gray-500">SDK users will appear here once your app starts tracking them</p>
+    </div>
+    #endif
+    #endexport
+#endextend

@@ -2,6 +2,8 @@ import Vapor
 import Fluent
 import FluentPostgresDriver
 import NIOSSL
+import Leaf
+import LeafKit
 
 func configure(_ app: Application) async throws {
     // Configure JSON encoding/decoding to use snake_case
@@ -69,6 +71,24 @@ func configure(_ app: Application) async throws {
     app.logger.info("Environment detected: \(appEnv.type.name)")
     app.logger.info("Server URL: \(appEnv.serverURL)")
 
+    // Configure Leaf templating engine
+    app.views.use(.leaf)
+
+    // Use VIEWS_PATH env var if set, otherwise use default
+    // Default works on deployed servers; VIEWS_PATH can be set for local Xcode development
+    if let customPath = Environment.get("VIEWS_PATH") {
+        app.leaf.sources = LeafSources.singleSource(
+            NIOLeafFiles(fileio: app.fileio,
+                         limits: .default,
+                         sandboxDirectory: customPath,
+                         viewDirectory: customPath)
+        )
+        app.logger.info("Using custom views directory: \(customPath)")
+    }
+
+    // Serve static files from Public directory
+    app.middleware.use(FileMiddleware(publicDirectory: app.directory.publicDirectory))
+
     // Migrations - order matters!
     app.migrations.add(CreateUser())
     app.migrations.add(CreateUserToken())
@@ -107,6 +127,7 @@ func configure(_ app: Application) async throws {
     app.migrations.add(CreatePushNotificationLog())
     app.migrations.add(AddUserPushNotificationSettings())
     app.migrations.add(AddStripeSubscriptionFields())
+    app.migrations.add(CreateWebSession())
 
     try await app.autoMigrate()
 

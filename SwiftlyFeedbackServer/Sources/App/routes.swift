@@ -12,6 +12,20 @@ func routes(_ app: Application) throws {
     // Web pages (subscription, etc.) - no prefix
     try app.register(collection: WebController())
 
+    // Web Admin routes
+    let admin = app.grouped("admin")
+
+    // Public auth routes (login, signup, forgot password)
+    try admin.register(collection: WebAuthController())
+
+    // Protected admin routes (require session authentication)
+    let protectedAdmin = admin.grouped(WebSessionAuthMiddleware())
+    try protectedAdmin.register(collection: WebDashboardController())
+    try protectedAdmin.register(collection: WebProjectController())
+    try protectedAdmin.register(collection: WebFeedbackController())
+    try protectedAdmin.register(collection: WebSettingsController())
+    try protectedAdmin.register(collection: WebAnalyticsController())
+
     // API v1 routes
     let api = app.grouped("api", "v1")
 
