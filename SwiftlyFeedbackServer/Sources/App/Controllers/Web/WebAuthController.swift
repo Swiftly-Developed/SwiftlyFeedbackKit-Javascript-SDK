@@ -41,7 +41,8 @@ struct WebAuthController: RouteCollection {
             error: nil,
             formData: LoginFormData(),
             environment: envName,
-            environmentColor: envColor
+            environmentColor: envColor,
+            showEnvironmentBadge: !AppEnvironment.shared.isProduction
         ))
     }
 
@@ -108,7 +109,8 @@ struct WebAuthController: RouteCollection {
             error: error,
             formData: LoginFormData(email: email),
             environment: envName,
-            environmentColor: envColor
+            environmentColor: envColor,
+            showEnvironmentBadge: !AppEnvironment.shared.isProduction
         ))
         var response = try await view.encodeResponse(for: req).get()
         response.status = .unauthorized
@@ -489,6 +491,7 @@ struct LoginContext: Encodable {
     let formData: LoginFormData
     let environment: String
     let environmentColor: String
+    let showEnvironmentBadge: Bool
 }
 
 struct LoginFormData: Encodable {
