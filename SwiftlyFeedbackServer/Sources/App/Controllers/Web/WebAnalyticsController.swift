@@ -206,9 +206,25 @@ struct WebAnalyticsController: RouteCollection {
 
     private func formatRelativeDate(_ date: Date?) -> String {
         guard let date = date else { return "Unknown" }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        let now = Date()
+        let diff = now.timeIntervalSince(date)
+
+        if diff < 60 {
+            return "just now"
+        } else if diff < 3600 {
+            let mins = Int(diff / 60)
+            return "\(mins)m ago"
+        } else if diff < 86400 {
+            let hours = Int(diff / 3600)
+            return "\(hours)h ago"
+        } else if diff < 604800 {
+            let days = Int(diff / 86400)
+            return "\(days)d ago"
+        } else {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateStyle = .short
+            return dateFormatter.string(from: date)
+        }
     }
 }
 
