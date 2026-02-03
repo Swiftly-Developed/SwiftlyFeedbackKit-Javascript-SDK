@@ -266,7 +266,9 @@ SubmitFeedbackView()</code></pre>
 
         async function loadEmailSettings() {
             try {
-                const response = await fetch(`/admin/projects/${projectId}/email-settings`);
+                const response = await fetch(`/admin/projects/${projectId}/email-settings`, {
+                    credentials: 'same-origin'
+                });
                 if (response.ok) {
                     const data = await response.json();
                     currentSettings = data.emailNotifyStatuses || [];
@@ -324,6 +326,7 @@ SubmitFeedbackView()</code></pre>
                 const statuses = getSelectedStatuses();
                 const response = await fetch(`/admin/projects/${projectId}/email-settings`, {
                     method: 'POST',
+                    credentials: 'same-origin',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -333,6 +336,8 @@ SubmitFeedbackView()</code></pre>
                 if (response.ok) {
                     closeEmailModal();
                 } else {
+                    const errorText = await response.text();
+                    console.error('Save failed:', response.status, errorText);
                     alert('Failed to save settings. Please try again.');
                 }
             } catch (error) {
