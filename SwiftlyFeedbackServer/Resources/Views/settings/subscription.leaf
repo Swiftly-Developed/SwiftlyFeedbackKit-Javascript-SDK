@@ -1,209 +1,244 @@
 #extend("layouts/dashboard"):
     #export("extraHead"):
+    <style>
+        .plan-card {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            background: rgba(30, 30, 40, 0.8);
+        }
+        .plan-card-popular {
+            border: 2px solid #F59E0B;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 56px;
+            height: 28px;
+            background: #4B5563;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle-switch.active {
+            background: #F59E0B;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s;
+        }
+        .toggle-switch.active::after {
+            transform: translateX(28px);
+        }
+    </style>
     #endexport
 
     #export("main"):
-    <!-- Breadcrumb -->
-    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
-        <a href="/admin/settings" class="hover:text-gray-700">Settings</a>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-        </svg>
-        <span class="text-gray-900">Subscription</span>
-    </nav>
-
-    <div class="max-w-4xl">
-        <!-- Current Plan -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <div class="flex items-start justify-between mb-6">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Current Plan</h2>
-                    <div class="flex items-center gap-3 mt-2">
-                        <span class="text-3xl font-bold text-gray-900">#(subscription.tierDisplay)</span>
-                        #if(subscription.status):
-                        <span class="px-2 py-1 text-xs font-medium rounded
-                            #if(subscription.status == "active"):bg-green-100 text-green-700
-                            #elseif(subscription.status == "grace_period"):bg-yellow-100 text-yellow-700
-                            #else:bg-gray-100 text-gray-700#endif">
-                            #(subscription.statusDisplay)
-                        </span>
-                        #endif
-                    </div>
-                    #if(subscription.expiresAt):
-                    <p class="text-sm text-gray-500 mt-1">
-                        #if(subscription.status == "active"):Renews#else:Expires#endif #(subscription.expiresAt)
-                    </p>
-                    #endif
-                </div>
-
-                #if(portalUrl):
-                <a href="#(portalUrl)"
-                   target="_blank"
-                   class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                    Manage Billing
-                </a>
-                #endif
-            </div>
-
-            <!-- Usage -->
-            <div class="border-t border-gray-200 pt-6">
-                <h3 class="font-medium text-gray-900 mb-4">Usage</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="p-4 bg-gray-50 rounded-lg">
-                        <p class="text-sm text-gray-500">Projects</p>
-                        <p class="text-2xl font-bold text-gray-900 mt-1">
-                            #(usage.projectCount)
-                            #if(usage.maxProjects):
-                            <span class="text-sm font-normal text-gray-500">/ #(usage.maxProjects)</span>
-                            #else:
-                            <span class="text-sm font-normal text-gray-500">/ Unlimited</span>
-                            #endif
-                        </p>
-                    </div>
-                    <div class="p-4 bg-gray-50 rounded-lg">
-                        <p class="text-sm text-gray-500">Feedback per Project</p>
-                        <p class="text-2xl font-bold text-gray-900 mt-1">
-                            #if(usage.maxFeedbackPerProject):
-                            #(usage.maxFeedbackPerProject)
-                            #else:
-                            Unlimited
-                            #endif
-                        </p>
-                    </div>
+    <div class="min-h-screen bg-gray-900 -m-6 p-6">
+        <!-- Orange Gradient Header -->
+        <div class="bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 rounded-t-2xl p-8 text-center">
+            <div class="inline-flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-lg">
+                <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/068d64d8-b429-4b0f-a8e3-83d6dca23c71/Swiftly+FeedbackKit-iOS-Default-1024x1024%401x.png?format=300w"
+                     alt="FeedbackKit"
+                     class="w-12 h-12 rounded-xl">
+                <div class="text-left">
+                    <span class="text-2xl font-bold text-gray-900">FeedbackKit</span>
+                    <p class="text-xs text-gray-500">by Swiftly Developed</p>
                 </div>
             </div>
         </div>
 
-        <!-- Plans Comparison -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-6">Compare Plans</h2>
+        <!-- Main Content -->
+        <div class="bg-gray-800 rounded-b-2xl p-8">
+            #if(!isLoggedIn):
+            <!-- Not logged in message -->
+            <div class="border-2 border-dashed border-gray-600 rounded-xl p-4 mb-8">
+                <p class="text-gray-300">Please log in to subscribe</p>
+            </div>
+            #endif
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- Free -->
-                <div class="border border-gray-200 rounded-xl p-6 #if(subscription.tier == "free"):ring-2 ring-primary-500#endif">
-                    <h3 class="font-semibold text-gray-900">Free</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">$0<span class="text-sm font-normal text-gray-500">/mo</span></p>
-                    <ul class="mt-6 space-y-3 text-sm">
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Choose your plan -->
+            <h2 class="text-2xl font-bold text-white text-center mb-6">Choose your plan</h2>
+
+            <!-- Monthly/Yearly Toggle -->
+            <div class="flex items-center justify-center gap-4 mb-10">
+                <span class="text-gray-300 font-medium" id="monthly-label">Monthly</span>
+                <div class="toggle-switch" id="billing-toggle" onclick="toggleBilling()"></div>
+                <span class="text-gray-300 font-medium">
+                    Yearly
+                    <span class="text-green-400 ml-1">(Save 17%)</span>
+                </span>
+            </div>
+
+            <!-- Plans Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                <!-- Free Plan -->
+                <div class="plan-card rounded-2xl p-6 #if(subscription.tier == "free"):ring-2 ring-primary-500#endif">
+                    <h3 class="text-xl font-bold text-white">Free</h3>
+                    <p class="text-gray-400 text-sm mt-1">For trying out FeedbackKit</p>
+                    <p class="mt-4">
+                        <span class="text-4xl font-bold text-white">$0</span>
+                        <span class="text-gray-400">/month</span>
+                    </p>
+
+                    <ul class="mt-6 space-y-3">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            1 project
+                            1 Project
                         </li>
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            10 feedback/project
+                            10 Feedback items
                         </li>
-                        <li class="flex items-center gap-2 text-gray-400">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <li class="flex items-center gap-3 text-gray-500">
+                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                             No integrations
                         </li>
-                        <li class="flex items-center gap-2 text-gray-400">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                            No team members
-                        </li>
                     </ul>
+
                     #if(subscription.tier == "free"):
-                    <div class="mt-6 px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-center text-sm font-medium">
+                    <div class="mt-6 px-4 py-3 bg-gray-700 text-gray-300 rounded-xl text-center font-medium">
                         Current Plan
                     </div>
                     #endif
                 </div>
 
-                <!-- Pro -->
-                <div class="border border-gray-200 rounded-xl p-6 #if(subscription.tier == "pro"):ring-2 ring-primary-500#endif relative">
-                    <span class="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-primary-500 text-white text-xs font-medium rounded-full">
+                <!-- Pro Plan (Popular) -->
+                <div class="plan-card plan-card-popular rounded-2xl p-6 relative #if(subscription.tier == "pro"):ring-2 ring-primary-500#endif">
+                    <span class="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-orange-500 text-white text-sm font-semibold rounded-full">
                         Popular
                     </span>
-                    <h3 class="font-semibold text-gray-900">Pro</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">$9<span class="text-sm font-normal text-gray-500">/mo</span></p>
-                    <ul class="mt-6 space-y-3 text-sm">
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <h3 class="text-xl font-bold text-white">Pro</h3>
+                    <p class="text-gray-400 text-sm mt-1">For indie developers</p>
+                    <p class="mt-4">
+                        <span class="text-4xl font-bold text-white" id="pro-price">$4.99</span>
+                        <span class="text-gray-400">/month</span>
+                    </p>
+
+                    <ul class="mt-6 space-y-3">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            2 projects
+                            2 Projects
                         </li>
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            Unlimited feedback
+                            Unlimited Feedback
                         </li>
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            All integrations
-                        </li>
-                        <li class="flex items-center gap-2 text-gray-400">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                            No team members
+                            All Integrations
                         </li>
                     </ul>
+
                     #if(subscription.tier == "pro"):
-                    <div class="mt-6 px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-center text-sm font-medium">
+                    <div class="mt-6 px-4 py-3 bg-gray-700 text-gray-300 rounded-xl text-center font-medium">
                         Current Plan
                     </div>
                     #elseif(subscription.tier == "free"):
-                    <a href="#(checkoutUrl)"
-                       class="block mt-6 px-4 py-2 bg-primary-500 text-white rounded-lg text-center text-sm font-medium hover:bg-primary-600 transition-colors">
-                        Upgrade
+                    <a href="#(checkoutUrl)?plan=pro"
+                       class="block mt-6 px-4 py-3 bg-orange-500 text-white rounded-xl text-center font-semibold hover:bg-orange-600 transition-colors">
+                        Subscribe to Pro
                     </a>
                     #endif
                 </div>
 
-                <!-- Team -->
-                <div class="border border-gray-200 rounded-xl p-6 #if(subscription.tier == "team"):ring-2 ring-primary-500#endif">
-                    <h3 class="font-semibold text-gray-900">Team</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">$29<span class="text-sm font-normal text-gray-500">/mo</span></p>
-                    <ul class="mt-6 space-y-3 text-sm">
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <!-- Team Plan -->
+                <div class="plan-card rounded-2xl p-6 #if(subscription.tier == "team"):ring-2 ring-primary-500#endif">
+                    <h3 class="text-xl font-bold text-white">Team</h3>
+                    <p class="text-gray-400 text-sm mt-1">For teams & agencies</p>
+                    <p class="mt-4">
+                        <span class="text-4xl font-bold text-white" id="team-price">$9.99</span>
+                        <span class="text-gray-400">/month</span>
+                    </p>
+
+                    <ul class="mt-6 space-y-3">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            Unlimited projects
+                            Unlimited Projects
                         </li>
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            Unlimited feedback
+                            Unlimited Feedback
                         </li>
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            All integrations
+                            Team Members
                         </li>
-                        <li class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <li class="flex items-center gap-3 text-gray-300">
+                            <svg class="w-5 h-5 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                             </svg>
-                            Team members
+                            All Integrations
                         </li>
                     </ul>
+
                     #if(subscription.tier == "team"):
-                    <div class="mt-6 px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-center text-sm font-medium">
+                    <div class="mt-6 px-4 py-3 bg-gray-700 text-gray-300 rounded-xl text-center font-medium">
                         Current Plan
                     </div>
                     #elseif(subscription.tier != "team"):
-                    <a href="#(checkoutUrl)"
-                       class="block mt-6 px-4 py-2 bg-primary-500 text-white rounded-lg text-center text-sm font-medium hover:bg-primary-600 transition-colors">
-                        Upgrade
+                    <a href="#(checkoutUrl)?plan=team"
+                       class="block mt-6 px-4 py-3 bg-gray-600 text-white rounded-xl text-center font-semibold hover:bg-gray-500 transition-colors">
+                        Subscribe to Team
                     </a>
                     #endif
                 </div>
             </div>
+
+            #if(portalUrl):
+            <!-- Manage Billing -->
+            <div class="text-center mt-8">
+                <a href="#(portalUrl)"
+                   target="_blank"
+                   class="text-orange-400 hover:text-orange-300 font-medium">
+                    Manage Billing →
+                </a>
+            </div>
+            #endif
         </div>
     </div>
+
+    <script>
+        let isYearly = false;
+
+        function toggleBilling() {
+            isYearly = !isYearly;
+            const toggle = document.getElementById('billing-toggle');
+            const proPrice = document.getElementById('pro-price');
+            const teamPrice = document.getElementById('team-price');
+
+            if (isYearly) {
+                toggle.classList.add('active');
+                proPrice.textContent = '$49.99';
+                teamPrice.textContent = '$99.99';
+            } else {
+                toggle.classList.remove('active');
+                proPrice.textContent = '$4.99';
+                teamPrice.textContent = '$9.99';
+            }
+        }
+    </script>
     #endexport
 #endextend
