@@ -40,6 +40,20 @@
                    class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                     Members
                 </a>
+                <button type="button" onclick="openEmailModal()"
+                   class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                    Email Notifications
+                </button>
+                <button type="button" onclick="openStatusModal()"
+                   class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                    Status Settings
+                </button>
                 <a href="/admin/projects/#(project.id)/settings"
                    class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                     Settings
@@ -130,5 +144,470 @@ SubmitFeedbackView()</code></pre>
             See the <a href="https://github.com/Swiftly-Developed/SwiftlyFeedbackKit" target="_blank" class="text-primary-600 hover:underline">documentation</a> for more details.
         </p>
     </div>
+
+    <!-- Email Notifications Modal -->
+    <div id="email-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-black/60 transition-opacity" onclick="closeEmailModal()"></div>
+
+            <!-- Modal -->
+            <div class="relative bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
+                <h2 class="text-xl font-bold text-white mb-4">Email Notifications</h2>
+
+                <!-- Description -->
+                <div class="bg-gray-700/50 rounded-lg p-4 mb-6">
+                    <p class="text-gray-300 text-sm">Choose which status changes trigger email notifications to feedback submitters and voters who opted in.</p>
+                </div>
+
+                <!-- Status Toggles -->
+                <div class="mb-6">
+                    <h3 class="text-white font-semibold mb-4">Notify when status changes to</h3>
+                    <div class="space-y-3">
+                        <!-- Approved -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">Approved</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-approved" class="sr-only peer" data-status="approved">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- In Progress -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">In Progress</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-in_progress" class="sr-only peer" data-status="in_progress">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- Completed -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">Completed</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-completed" class="sr-only peer" data-status="completed">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- Rejected -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">Rejected</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="toggle-rejected" class="sr-only peer" data-status="rejected">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="space-y-2 mb-4">
+                    <button type="button" onclick="enableAll()" class="w-full px-4 py-2 text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-left">
+                        Enable All
+                    </button>
+                    <button type="button" onclick="disableAll()" class="w-full px-4 py-2 text-white bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-left">
+                        Disable All
+                    </button>
+                    <button type="button" onclick="finalStatesOnly()" class="w-full px-4 py-2 text-white bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-left">
+                        Final States Only
+                    </button>
+                </div>
+
+                <p class="text-gray-500 text-sm mb-6">Final states: Completed and Rejected</p>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-700">
+                    <button type="button" onclick="closeEmailModal()" class="px-4 py-2 text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="saveEmailSettings()" id="save-btn" class="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Settings Modal -->
+    <div id="status-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <!-- Backdrop -->
+            <div class="fixed inset-0 bg-black/60 transition-opacity" onclick="closeStatusModal()"></div>
+
+            <!-- Modal -->
+            <div class="relative bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
+                <h2 class="text-xl font-bold text-white mb-4">Status Settings</h2>
+
+                <!-- Description -->
+                <div class="bg-gray-700/50 rounded-lg p-4 mb-6">
+                    <p class="text-gray-300 text-sm">Choose which statuses are available for feedback in this project. Disabled statuses won't appear in status menus or the Kanban board.</p>
+                </div>
+
+                <!-- Required Status -->
+                <div class="mb-6">
+                    <h3 class="text-white font-semibold mb-3">Required</h3>
+                    <div class="flex items-center justify-between py-2 opacity-60">
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 rounded-full bg-gray-500/20 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                            </div>
+                            <span class="text-white">Pending</span>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Optional Statuses -->
+                <div class="mb-6">
+                    <h3 class="text-white font-semibold mb-3">Optional Statuses</h3>
+                    <div class="space-y-3">
+                        <!-- Approved -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">Approved</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="status-toggle-approved" class="sr-only peer" data-status-setting="approved">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- In Progress -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">In Progress</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="status-toggle-in_progress" class="sr-only peer" data-status-setting="in_progress">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- TestFlight -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">TestFlight</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="status-toggle-testflight" class="sr-only peer" data-status-setting="testflight">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- Completed -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">Completed</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="status-toggle-completed" class="sr-only peer" data-status-setting="completed">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                            </label>
+                        </div>
+
+                        <!-- Rejected -->
+                        <div class="flex items-center justify-between py-2">
+                            <div class="flex items-center gap-3">
+                                <div class="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center">
+                                    <svg class="w-4 h-4 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                    </svg>
+                                </div>
+                                <span class="text-white">Rejected</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="status-toggle-rejected" class="sr-only peer" data-status-setting="rejected">
+                                <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="mb-4">
+                    <button type="button" onclick="resetStatusToDefault()" class="w-full px-4 py-2 text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors text-left">
+                        Reset to Default
+                    </button>
+                </div>
+
+                <p class="text-gray-500 text-sm mb-6">Default statuses: Pending, Approved, In Progress, Completed, Rejected</p>
+
+                <!-- Actions -->
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-gray-700">
+                    <button type="button" onclick="closeStatusModal()" class="px-4 py-2 text-gray-300 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="button" onclick="saveStatusSettings()" id="status-save-btn" class="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const projectId = '#(project.id)';
+        let currentSettings = [];
+        let currentStatusSettings = [];
+
+        function openEmailModal() {
+            document.getElementById('email-modal').classList.remove('hidden');
+            loadEmailSettings();
+        }
+
+        function closeEmailModal() {
+            document.getElementById('email-modal').classList.add('hidden');
+        }
+
+        async function loadEmailSettings() {
+            try {
+                console.log('Loading settings for project:', projectId);
+                const response = await fetch(`/admin/projects/${projectId}/email-settings`, {
+                    credentials: 'same-origin'
+                });
+                console.log('Load response status:', response.status);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Loaded settings:', data);
+                    currentSettings = data.email_notify_statuses || data.emailNotifyStatuses || [];
+                    updateToggles();
+                } else {
+                    const errorText = await response.text();
+                    console.error('Load failed:', response.status, errorText);
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        function updateToggles() {
+            const statuses = ['approved', 'in_progress', 'completed', 'rejected'];
+            statuses.forEach(status => {
+                const toggle = document.getElementById(`toggle-${status}`);
+                if (toggle) {
+                    toggle.checked = currentSettings.includes(status);
+                }
+            });
+        }
+
+        function getSelectedStatuses() {
+            const statuses = [];
+            const toggles = document.querySelectorAll('[data-status]');
+            toggles.forEach(toggle => {
+                if (toggle.checked) {
+                    statuses.push(toggle.dataset.status);
+                }
+            });
+            return statuses;
+        }
+
+        function enableAll() {
+            const toggles = document.querySelectorAll('[data-status]');
+            toggles.forEach(toggle => toggle.checked = true);
+        }
+
+        function disableAll() {
+            const toggles = document.querySelectorAll('[data-status]');
+            toggles.forEach(toggle => toggle.checked = false);
+        }
+
+        function finalStatesOnly() {
+            const toggles = document.querySelectorAll('[data-status]');
+            toggles.forEach(toggle => {
+                toggle.checked = (toggle.dataset.status === 'completed' || toggle.dataset.status === 'rejected');
+            });
+        }
+
+        async function saveEmailSettings() {
+            const saveBtn = document.getElementById('save-btn');
+            saveBtn.textContent = 'Saving...';
+            saveBtn.disabled = true;
+
+            try {
+                const statuses = getSelectedStatuses();
+                console.log('Saving statuses:', statuses);
+                console.log('Project ID:', projectId);
+
+                const response = await fetch(`/admin/projects/${projectId}/email-settings`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ statuses: statuses })
+                });
+
+                console.log('Response status:', response.status);
+
+                if (response.ok) {
+                    console.log('Save successful!');
+                    closeEmailModal();
+                    // Show success feedback
+                    alert('Settings saved successfully!');
+                } else {
+                    const errorText = await response.text();
+                    console.error('Save failed:', response.status, errorText);
+                    alert('Failed to save: ' + errorText);
+                }
+            } catch (error) {
+                console.error('Failed to save settings:', error);
+                alert('Failed to save settings: ' + error.message);
+            } finally {
+                saveBtn.textContent = 'Save';
+                saveBtn.disabled = false;
+            }
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeEmailModal();
+                closeStatusModal();
+            }
+        });
+
+        // ========== Status Settings Functions ==========
+
+        function openStatusModal() {
+            document.getElementById('status-modal').classList.remove('hidden');
+            loadStatusSettings();
+        }
+
+        function closeStatusModal() {
+            document.getElementById('status-modal').classList.add('hidden');
+        }
+
+        async function loadStatusSettings() {
+            try {
+                const response = await fetch(`/admin/projects/${projectId}/status-settings`, {
+                    credentials: 'same-origin'
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    currentStatusSettings = data.allowed_statuses || data.allowedStatuses || [];
+                    updateStatusToggles();
+                }
+            } catch (error) {
+                console.error('Failed to load status settings:', error);
+            }
+        }
+
+        function updateStatusToggles() {
+            const statuses = ['approved', 'in_progress', 'testflight', 'completed', 'rejected'];
+            statuses.forEach(status => {
+                const toggle = document.getElementById(`status-toggle-${status}`);
+                if (toggle) {
+                    toggle.checked = currentStatusSettings.includes(status);
+                }
+            });
+        }
+
+        function getSelectedStatusSettings() {
+            const statuses = ['pending']; // Always include pending
+            const toggles = document.querySelectorAll('[data-status-setting]');
+            toggles.forEach(toggle => {
+                if (toggle.checked) {
+                    statuses.push(toggle.dataset.statusSetting);
+                }
+            });
+            return statuses;
+        }
+
+        function resetStatusToDefault() {
+            const defaults = ['approved', 'in_progress', 'completed', 'rejected'];
+            const toggles = document.querySelectorAll('[data-status-setting]');
+            toggles.forEach(toggle => {
+                toggle.checked = defaults.includes(toggle.dataset.statusSetting);
+            });
+        }
+
+        async function saveStatusSettings() {
+            const saveBtn = document.getElementById('status-save-btn');
+            saveBtn.textContent = 'Saving...';
+            saveBtn.disabled = true;
+
+            try {
+                const statuses = getSelectedStatusSettings();
+                const response = await fetch(`/admin/projects/${projectId}/status-settings`, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ statuses: statuses })
+                });
+
+                if (response.ok) {
+                    closeStatusModal();
+                    alert('Status settings saved successfully!');
+                    // Reload page to update status display
+                    window.location.reload();
+                } else {
+                    const errorText = await response.text();
+                    alert('Failed to save: ' + errorText);
+                }
+            } catch (error) {
+                console.error('Failed to save status settings:', error);
+                alert('Failed to save settings: ' + error.message);
+            } finally {
+                saveBtn.textContent = 'Save';
+                saveBtn.disabled = false;
+            }
+        }
+    </script>
     #endexport
 #endextend
