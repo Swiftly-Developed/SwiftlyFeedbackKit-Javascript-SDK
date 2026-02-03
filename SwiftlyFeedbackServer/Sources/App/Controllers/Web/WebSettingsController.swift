@@ -131,6 +131,12 @@ struct WebSettingsController: RouteCollection {
             portalUrl = "\(baseUrl)/portal?token=\(stripeCustomerId)"
         }
 
+        // Get Stripe price IDs from environment
+        let priceProMonthly = Environment.get("STRIPE_PRICE_PRO_MONTHLY") ?? ""
+        let priceProYearly = Environment.get("STRIPE_PRICE_PRO_YEARLY") ?? ""
+        let priceTeamMonthly = Environment.get("STRIPE_PRICE_TEAM_MONTHLY") ?? ""
+        let priceTeamYearly = Environment.get("STRIPE_PRICE_TEAM_YEARLY") ?? ""
+
         return try await req.view.render("settings/subscription", SubscriptionContext(
             title: "Subscription",
             pageTitle: "Subscription",
@@ -150,7 +156,11 @@ struct WebSettingsController: RouteCollection {
                 maxFeedbackPerProject: user.subscriptionTier.maxFeedbackPerProject
             ),
             portalUrl: portalUrl,
-            checkoutUrl: "\(AppEnvironment.shared.serverURL)/subscribe"
+            checkoutUrl: "\(AppEnvironment.shared.serverURL)/subscribe",
+            priceProMonthly: priceProMonthly,
+            priceProYearly: priceProYearly,
+            priceTeamMonthly: priceTeamMonthly,
+            priceTeamYearly: priceTeamYearly
         ))
     }
 
@@ -309,6 +319,10 @@ struct SubscriptionContext: Encodable {
     let usage: UsageInfo
     let portalUrl: String?
     let checkoutUrl: String
+    let priceProMonthly: String
+    let priceProYearly: String
+    let priceTeamMonthly: String
+    let priceTeamYearly: String
 }
 
 struct SubscriptionInfo: Encodable {
