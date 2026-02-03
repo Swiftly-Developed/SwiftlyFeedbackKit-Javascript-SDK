@@ -13,8 +13,8 @@
     </nav>
 
     <!-- Project Header -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div class="flex items-start justify-between">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 overflow-visible">
+        <div class="flex items-start justify-between overflow-visible">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl #(project.colorClass) flex items-center justify-center">
                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,7 +35,7 @@
             </div>
 
             #if(project.isAdmin):
-            <div class="relative flex items-center gap-2">
+            <div class="relative flex items-center gap-2 overflow-visible">
                 <span class="text-sm font-medium text-gray-500">Manage Project:</span>
                 <!-- Dropdown Trigger Button -->
                 <button type="button" onclick="toggleProjectMenu()" id="project-menu-btn"
@@ -49,7 +49,7 @@
                 </button>
 
                 <!-- Dropdown Menu -->
-                <div id="project-menu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                <div id="project-menu" class="hidden absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
                     <!-- Edit Project -->
                     <a href="/admin/projects/#(project.id)/settings"
                        class="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors">
