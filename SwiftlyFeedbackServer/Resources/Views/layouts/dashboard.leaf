@@ -8,12 +8,7 @@
         <!-- Mobile Header -->
         <div class="lg:hidden bg-gray-900 px-4 py-3 flex items-center justify-between">
             <a href="/admin/dashboard" class="flex items-center gap-2">
-                <svg class="w-8 h-8 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                    <circle cx="12" cy="10" r="1.5"/>
-                    <circle cx="8" cy="10" r="1.5"/>
-                    <circle cx="16" cy="10" r="1.5"/>
-                </svg>
+                <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/068d64d8-b429-4b0f-a8e3-83d6dca23c71/Swiftly+FeedbackKit-iOS-Default-1024x1024%401x.png?format=300w" alt="Feedback Kit" class="w-8 h-8 rounded-lg">
                 <span class="text-lg font-semibold text-white">Feedback Kit</span>
             </a>
             <button type="button" onclick="document.getElementById('mobile-sidebar').classList.toggle('-translate-x-full')" class="text-gray-300 hover:text-white p-2">
@@ -29,12 +24,7 @@
             <div class="relative w-64 h-full bg-gray-900 shadow-xl">
                 <div class="p-4 border-b border-gray-800">
                     <a href="/admin/dashboard" class="flex items-center gap-2">
-                        <svg class="w-8 h-8 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                            <circle cx="12" cy="10" r="1.5"/>
-                            <circle cx="8" cy="10" r="1.5"/>
-                            <circle cx="16" cy="10" r="1.5"/>
-                        </svg>
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/068d64d8-b429-4b0f-a8e3-83d6dca23c71/Swiftly+FeedbackKit-iOS-Default-1024x1024%401x.png?format=300w" alt="Feedback Kit" class="w-8 h-8 rounded-lg">
                         <span class="text-lg font-semibold text-white">Feedback Kit</span>
                     </a>
                 </div>
@@ -84,12 +74,7 @@
             <!-- Logo -->
             <div class="p-6 border-b border-gray-800">
                 <a href="/admin/dashboard" class="flex items-center gap-3">
-                    <svg class="w-9 h-9 text-amber-500" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-                        <circle cx="12" cy="10" r="1.5"/>
-                        <circle cx="8" cy="10" r="1.5"/>
-                        <circle cx="16" cy="10" r="1.5"/>
-                    </svg>
+                    <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/068d64d8-b429-4b0f-a8e3-83d6dca23c71/Swiftly+FeedbackKit-iOS-Default-1024x1024%401x.png?format=300w" alt="Feedback Kit" class="w-9 h-9 rounded-lg">
                     <span class="text-xl font-semibold text-white">Feedback Kit</span>
                 </a>
             </div>
