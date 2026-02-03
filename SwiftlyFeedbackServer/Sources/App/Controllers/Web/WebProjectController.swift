@@ -462,12 +462,7 @@ struct WebProjectController: RouteCollection {
     @Sendable
     func getEmailSettings(req: Request) async throws -> Response {
         let user = try req.auth.require(User.self)
-        guard let projectIdString = req.parameters.get("projectId"),
-              let projectId = UUID(uuidString: projectIdString) else {
-            throw Abort(.badRequest, reason: "Invalid project ID")
-        }
-
-        let project = try await getProjectWithAccess(req: req, projectId: projectId, user: user, requireAdmin: false)
+        let project = try await getProjectWithAccess(req: req, user: user)
 
         let response = EmailSettingsResponse(emailNotifyStatuses: project.emailNotifyStatuses)
         return try await response.encodeResponse(for: req)
@@ -476,12 +471,7 @@ struct WebProjectController: RouteCollection {
     @Sendable
     func updateEmailSettings(req: Request) async throws -> Response {
         let user = try req.auth.require(User.self)
-        guard let projectIdString = req.parameters.get("projectId"),
-              let projectId = UUID(uuidString: projectIdString) else {
-            throw Abort(.badRequest, reason: "Invalid project ID")
-        }
-
-        let project = try await getProjectWithAccess(req: req, projectId: projectId, user: user, requireAdmin: true)
+        let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
 
         let form = try req.content.decode(UpdateEmailSettingsForm.self)
 
@@ -497,36 +487,6 @@ struct WebProjectController: RouteCollection {
         try await project.save(on: req.db)
 
         return Response(status: .ok)
-    }
-
-    private func getProjectWithAccess(req: Request, projectId: UUID, user: User, requireAdmin: Bool) async throws -> Project {
-        let userId = try user.requireID()
-
-        guard let project = try await Project.find(projectId, on: req.db) else {
-            throw Abort(.notFound, reason: "Project not found")
-        }
-
-        let isOwner = project.$owner.id == userId
-
-        if isOwner {
-            return project
-        }
-
-        // Check if user is a member
-        let membership = try await ProjectMember.query(on: req.db)
-            .filter(\.$project.$id == projectId)
-            .filter(\.$user.$id == userId)
-            .first()
-
-        guard let member = membership else {
-            throw Abort(.forbidden, reason: "You don't have access to this project")
-        }
-
-        if requireAdmin && member.role != .admin {
-            throw Abort(.forbidden, reason: "You need admin access to perform this action")
-        }
-
-        return project
     }
 }
 
