@@ -1,9 +1,27 @@
 import Vapor
 
+// MARK: - Landing Page Context
+
+struct IndexContext: Encodable {
+    let loginURL: String
+    let signupURL: String
+    let environment: String
+    let environmentBadge: String?
+    let isProduction: Bool
+}
+
 func routes(_ app: Application) throws {
-    // Redirect root to admin login
-    app.get { req -> Response in
-        req.redirect(to: "/admin/login")
+    // Landing page
+    app.get { req async throws -> View in
+        let env = AppEnvironment.shared
+        let context = IndexContext(
+            loginURL: "/admin/login",
+            signupURL: "/admin/signup",
+            environment: env.type.rawValue,
+            environmentBadge: env.environmentBadge,
+            isProduction: env.isProduction
+        )
+        return try await req.view.render("index", context)
     }
 
     app.get("health") { req in
@@ -26,6 +44,8 @@ func routes(_ app: Application) throws {
     try protectedAdmin.register(collection: WebFeedbackController())
     try protectedAdmin.register(collection: WebSettingsController())
     try protectedAdmin.register(collection: WebAnalyticsController())
+    try protectedAdmin.register(collection: WebIntegrationsController())
+    try protectedAdmin.register(collection: WebFeatureRequestsController())
 
     // API v1 routes
     let api = app.grouped("api", "v1")
