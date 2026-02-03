@@ -54,6 +54,7 @@ struct WebFeatureRequestsController: RouteCollection {
            let body = response.body {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
             do {
                 let feedbackDTOs = try decoder.decode([FeedbackResponseDTO].self, from: body)
                 feedbacks = feedbackDTOs.map { FeatureRequestItem(from: $0) }
@@ -111,6 +112,7 @@ struct WebFeatureRequestsController: RouteCollection {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
         let feedbackDTO = try decoder.decode(FeedbackResponseDTO.self, from: feedbackBody)
 
         // Fetch comments
