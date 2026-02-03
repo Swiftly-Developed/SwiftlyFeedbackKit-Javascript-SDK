@@ -38,18 +38,37 @@ struct WebFeatureRequestsController: RouteCollection {
         }
 
         // Fetch feedbacks from API
+        req.logger.info("🔍 Feature Requests: Fetching from \(apiURL)")
+        req.logger.info("🔑 Feature Requests: Using API key \(env.feedbackKitAPIKey.prefix(20))...")
+
         let response = try await req.client.get(URI(string: apiURL), headers: [
             "X-API-Key": env.feedbackKitAPIKey
         ])
 
+        req.logger.info("📡 Feature Requests: Response status \(response.status)")
+
         var feedbacks: [FeatureRequestItem] = []
+        var apiError: String?
+
         if response.status == .ok,
            let body = response.body {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
-            if let feedbackDTOs = try? decoder.decode([FeedbackResponseDTO].self, from: body) {
+            do {
+                let feedbackDTOs = try decoder.decode([FeedbackResponseDTO].self, from: body)
                 feedbacks = feedbackDTOs.map { FeatureRequestItem(from: $0) }
+                req.logger.info("✅ Feature Requests: Found \(feedbacks.count) items")
+            } catch {
+                req.logger.error("❌ Feature Requests: Decode error: \(error)")
+                apiError = "Failed to decode response"
             }
+        } else if let body = response.body {
+            let bodyString = String(buffer: body)
+            req.logger.error("❌ Feature Requests: API error - Status: \(response.status), Body: \(bodyString)")
+            apiError = "API returned \(response.status): \(bodyString)"
+        } else {
+            req.logger.error("❌ Feature Requests: No response body, status: \(response.status)")
+            apiError = "API returned \(response.status) with no body"
         }
 
         return try await req.view.render("feature-requests/index", FeatureRequestsListContext(
@@ -63,7 +82,7 @@ struct WebFeatureRequestsController: RouteCollection {
             statuses: FeedbackStatus.allCases.map { FeatureRequestStatusOption(value: $0.rawValue, label: $0.displayName) },
             categories: featureRequestCategoryOptions,
             message: req.query[String.self, at: "message"],
-            error: req.query[String.self, at: "error"]
+            error: req.query[String.self, at: "error"] ?? apiError
         ))
     }
 
