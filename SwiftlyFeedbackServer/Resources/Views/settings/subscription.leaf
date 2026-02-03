@@ -232,16 +232,14 @@
             document.getElementById('loading').classList.remove('hidden');
 
             try {
-                const response = await fetch('/api/v1/subscriptions/checkout', {
+                const response = await fetch('/admin/settings/subscription/checkout', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     credentials: 'same-origin',
                     body: JSON.stringify({
-                        price_id: priceId,
-                        success_url: window.location.origin + '/admin/settings/subscription?success=subscribed',
-                        cancel_url: window.location.origin + '/admin/settings/subscription?cancelled=true'
+                        priceId: priceId
                     })
                 });
 

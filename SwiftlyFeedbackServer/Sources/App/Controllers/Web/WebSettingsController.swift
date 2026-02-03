@@ -11,6 +11,7 @@ struct WebSettingsController: RouteCollection {
         settings.post("password", use: changePassword)
         settings.post("notifications", use: updateNotifications)
         settings.get("subscription", use: subscription)
+        settings.post("subscription", "checkout", use: webCheckout)
         settings.post("delete-account", use: deleteAccount)
     }
 
@@ -162,6 +163,45 @@ struct WebSettingsController: RouteCollection {
             priceTeamMonthly: priceTeamMonthly,
             priceTeamYearly: priceTeamYearly
         ))
+    }
+
+    // MARK: - Web Checkout
+
+    struct WebCheckoutForm: Content {
+        let priceId: String
+    }
+
+    @Sendable
+    func webCheckout(req: Request) async throws -> Response {
+        let user = try req.auth.require(User.self)
+        let userId = try user.requireID()
+        let form = try req.content.decode(WebCheckoutForm.self)
+
+        let stripeService = req.stripeService
+
+        // Get or create Stripe customer
+        let customerId = try await stripeService.getOrCreateCustomer(for: user, on: req.db)
+
+        // Build URLs
+        let baseUrl = AppEnvironment.shared.serverURL
+        let successUrl = "\(baseUrl)/admin/settings/subscription?success=subscribed"
+        let cancelUrl = "\(baseUrl)/admin/settings/subscription?cancelled=true"
+
+        // Create checkout session
+        let checkoutUrl = try await stripeService.createCheckoutSession(
+            customerId: customerId,
+            priceId: form.priceId,
+            userId: userId,
+            successUrl: successUrl,
+            cancelUrl: cancelUrl
+        )
+
+        // Return JSON response with checkout URL
+        return Response(
+            status: .ok,
+            headers: ["Content-Type": "application/json"],
+            body: .init(string: "{\"checkout_url\": \"\(checkoutUrl)\"}")
+        )
     }
 
     // MARK: - Delete Account
