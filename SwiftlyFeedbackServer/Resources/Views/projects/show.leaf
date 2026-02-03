@@ -13,8 +13,8 @@
     </nav>
 
     <!-- Project Header -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div class="flex items-start justify-between">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 overflow-visible">
+        <div class="flex items-start justify-between overflow-visible">
             <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl #(project.colorClass) flex items-center justify-center">
                     <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,32 +34,118 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
-                #if(project.isAdmin):
-                <a href="/admin/projects/#(project.id)/members"
-                   class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-                    Members
-                </a>
-                <button type="button" onclick="openEmailModal()"
-                   class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+            #if(project.isAdmin):
+            <div class="relative flex items-center gap-2 overflow-visible">
+                <span class="text-sm font-medium text-gray-500">Manage Project:</span>
+                <!-- Dropdown Trigger Button -->
+                <button type="button" onclick="toggleProjectMenu()" id="project-menu-btn"
+                   class="inline-flex items-center gap-1 px-3 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/>
                     </svg>
-                    Email Notifications
-                </button>
-                <button type="button" onclick="openStatusModal()"
-                   class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                     </svg>
-                    Status Settings
                 </button>
-                <a href="/admin/projects/#(project.id)/settings"
-                   class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
-                    Settings
-                </a>
-                #endif
+
+                <!-- Dropdown Menu -->
+                <div id="project-menu" class="hidden absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                    <!-- Edit Project -->
+                    <a href="/admin/projects/#(project.id)/settings"
+                       class="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                        </svg>
+                        Edit Project
+                    </a>
+
+                    <!-- Manage Members -->
+                    <a href="/admin/projects/#(project.id)/members"
+                       class="flex items-center gap-3 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                        Manage Members
+                    </a>
+
+                    <!-- Status Settings -->
+                    <button type="button" onclick="openStatusModal(); toggleProjectMenu();"
+                       class="flex items-center gap-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
+                        Status Settings
+                    </button>
+
+                    <!-- Email Notifications -->
+                    <button type="button" onclick="openEmailModal(); toggleProjectMenu();"
+                       class="flex items-center gap-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        Email Notifications
+                    </button>
+
+                    <!-- Integrations -->
+                    <a href="/admin/projects/#(project.id)/integrations"
+                       class="flex items-center justify-between px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors">
+                        <span class="flex items-center gap-3">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/>
+                            </svg>
+                            Integrations
+                        </span>
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+
+                    <!-- Divider -->
+                    <div class="border-t border-gray-100 my-2"></div>
+
+                    <!-- Archive/Unarchive Project -->
+                    #if(project.isArchived):
+                    <form action="/admin/projects/#(project.id)/unarchive" method="POST" class="block">
+                        <button type="submit"
+                           class="flex items-center gap-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                            </svg>
+                            Unarchive Project
+                        </button>
+                    </form>
+                    #else:
+                    <button type="button" onclick="confirmArchive()"
+                       class="flex items-center gap-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+                        </svg>
+                        Archive Project
+                    </button>
+                    #endif
+
+                    #if(project.isOwner):
+                    <!-- Transfer Ownership -->
+                    <button type="button" onclick="openTransferModal()"
+                       class="flex items-center gap-3 w-full px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors text-left">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        Transfer Ownership
+                    </button>
+
+                    <!-- Delete Project -->
+                    <button type="button" onclick="confirmDelete()"
+                       class="flex items-center gap-3 w-full px-4 py-2 text-red-600 hover:bg-red-50 transition-colors text-left">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Project
+                    </button>
+                    #endif
+                </div>
             </div>
+            #endif
         </div>
     </div>
 
@@ -399,10 +485,83 @@ SubmitFeedbackView()</code></pre>
         </div>
     </div>
 
+    <!-- Transfer Ownership Modal -->
+    <div id="transfer-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen px-4">
+            <div class="fixed inset-0 bg-black/60 transition-opacity" onclick="closeTransferModal()"></div>
+            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                <h2 class="text-xl font-bold text-gray-900 mb-4">Transfer Ownership</h2>
+                <p class="text-gray-600 mb-4">Enter the email address of the new owner. They must already have an account.</p>
+                <form id="transfer-form" action="/admin/projects/#(project.id)/transfer" method="POST">
+                    <input type="email" name="email" required placeholder="new-owner@example.com"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 mb-4">
+                    <div class="flex items-center justify-end gap-3">
+                        <button type="button" onclick="closeTransferModal()" class="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-4 py-2 text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
+                            Transfer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         const projectId = '#(project.id)';
         let currentSettings = [];
         let currentStatusSettings = [];
+
+        // ========== Project Menu Dropdown ==========
+        function toggleProjectMenu() {
+            const menu = document.getElementById('project-menu');
+            menu.classList.toggle('hidden');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const menu = document.getElementById('project-menu');
+            const btn = document.getElementById('project-menu-btn');
+            if (menu && btn && !menu.contains(event.target) && !btn.contains(event.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // ========== Archive/Delete Actions ==========
+        function confirmArchive() {
+            if (confirm('Are you sure you want to archive this project? Archived projects cannot receive new feedback.')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/admin/projects/${projectId}/archive`;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function confirmDelete() {
+            const projectName = '#(project.name)';
+            const input = prompt(`This will permanently delete this project and all its feedback. Type "${projectName}" to confirm:`);
+            if (input === projectName) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/admin/projects/${projectId}/delete`;
+                document.body.appendChild(form);
+                form.submit();
+            } else if (input !== null) {
+                alert('Project name did not match. Deletion cancelled.');
+            }
+        }
+
+        // ========== Transfer Ownership Modal ==========
+        function openTransferModal() {
+            toggleProjectMenu();
+            document.getElementById('transfer-modal').classList.remove('hidden');
+        }
+
+        function closeTransferModal() {
+            document.getElementById('transfer-modal').classList.add('hidden');
+        }
 
         function openEmailModal() {
             document.getElementById('email-modal').classList.remove('hidden');
@@ -517,6 +676,8 @@ SubmitFeedbackView()</code></pre>
             if (e.key === 'Escape') {
                 closeEmailModal();
                 closeStatusModal();
+                closeTransferModal();
+                document.getElementById('project-menu')?.classList.add('hidden');
             }
         });
 

@@ -11,6 +11,7 @@ struct WebSettingsController: RouteCollection {
         settings.post("password", use: changePassword)
         settings.post("notifications", use: updateNotifications)
         settings.get("subscription", use: subscription)
+        settings.post("subscription", "checkout", use: webCheckout)
         settings.post("delete-account", use: deleteAccount)
     }
 
@@ -131,6 +132,12 @@ struct WebSettingsController: RouteCollection {
             portalUrl = "\(baseUrl)/portal?token=\(stripeCustomerId)"
         }
 
+        // Get Stripe price IDs from environment
+        let priceProMonthly = Environment.get("STRIPE_PRICE_PRO_MONTHLY") ?? ""
+        let priceProYearly = Environment.get("STRIPE_PRICE_PRO_YEARLY") ?? ""
+        let priceTeamMonthly = Environment.get("STRIPE_PRICE_TEAM_MONTHLY") ?? ""
+        let priceTeamYearly = Environment.get("STRIPE_PRICE_TEAM_YEARLY") ?? ""
+
         return try await req.view.render("settings/subscription", SubscriptionContext(
             title: "Subscription",
             pageTitle: "Subscription",
@@ -150,8 +157,51 @@ struct WebSettingsController: RouteCollection {
                 maxFeedbackPerProject: user.subscriptionTier.maxFeedbackPerProject
             ),
             portalUrl: portalUrl,
-            checkoutUrl: "\(AppEnvironment.shared.serverURL)/subscribe"
+            checkoutUrl: "\(AppEnvironment.shared.serverURL)/subscribe",
+            priceProMonthly: priceProMonthly,
+            priceProYearly: priceProYearly,
+            priceTeamMonthly: priceTeamMonthly,
+            priceTeamYearly: priceTeamYearly
         ))
+    }
+
+    // MARK: - Web Checkout
+
+    struct WebCheckoutForm: Content {
+        let priceId: String
+    }
+
+    @Sendable
+    func webCheckout(req: Request) async throws -> Response {
+        let user = try req.auth.require(User.self)
+        let userId = try user.requireID()
+        let form = try req.content.decode(WebCheckoutForm.self)
+
+        let stripeService = req.stripeService
+
+        // Get or create Stripe customer
+        let customerId = try await stripeService.getOrCreateCustomer(for: user, on: req.db)
+
+        // Build URLs
+        let baseUrl = AppEnvironment.shared.serverURL
+        let successUrl = "\(baseUrl)/admin/settings/subscription?success=subscribed"
+        let cancelUrl = "\(baseUrl)/admin/settings/subscription?cancelled=true"
+
+        // Create checkout session
+        let checkoutUrl = try await stripeService.createCheckoutSession(
+            customerId: customerId,
+            priceId: form.priceId,
+            userId: userId,
+            successUrl: successUrl,
+            cancelUrl: cancelUrl
+        )
+
+        // Return JSON response with checkout URL
+        return Response(
+            status: .ok,
+            headers: ["Content-Type": "application/json"],
+            body: .init(string: "{\"checkout_url\": \"\(checkoutUrl)\"}")
+        )
     }
 
     // MARK: - Delete Account
@@ -309,6 +359,10 @@ struct SubscriptionContext: Encodable {
     let usage: UsageInfo
     let portalUrl: String?
     let checkoutUrl: String
+    let priceProMonthly: String
+    let priceProYearly: String
+    let priceTeamMonthly: String
+    let priceTeamYearly: String
 }
 
 struct SubscriptionInfo: Encodable {

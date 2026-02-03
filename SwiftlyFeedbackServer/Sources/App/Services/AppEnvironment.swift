@@ -55,7 +55,13 @@ final class AppEnvironment: Sendable {
     }
 
     /// FeedbackKit API key for the dog-fooding project (collecting feedback about FeedbackKit itself)
+    /// Can be overridden via FEEDBACKKIT_API_KEY environment variable
     var feedbackKitAPIKey: String {
+        // Check for environment variable first
+        if let envKey = Environment.get("FEEDBACKKIT_API_KEY"), !envKey.isEmpty {
+            return envKey
+        }
+        // Fallback to hardcoded defaults
         switch type {
         case .local:
             return "sf_8iJjRNZof9tRrrybkxViu1ZF8Jgxs7Ad"
