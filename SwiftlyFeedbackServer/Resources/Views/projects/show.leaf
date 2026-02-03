@@ -274,7 +274,7 @@ SubmitFeedbackView()</code></pre>
                 if (response.ok) {
                     const data = await response.json();
                     console.log('Loaded settings:', data);
-                    currentSettings = data.emailNotifyStatuses || [];
+                    currentSettings = data.email_notify_statuses || data.emailNotifyStatuses || [];
                     updateToggles();
                 } else {
                     const errorText = await response.text();
