@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FeedbackKit - Collect and Manage User Feedback</title>
+    <meta name="description" content="The complete feedback platform for iOS, macOS, and visionOS apps. Understand what your users want and build better products.">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#FFFBEB',
+                            100: '#FEF3C7',
+                            200: '#FDE68A',
+                            300: '#FCD34D',
+                            400: '#FBBF24',
+                            500: '#F59E0B',
+                            600: '#D97706',
+                            700: '#B45309',
+                            800: '#92400E',
+                            900: '#78350F',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="font-sans antialiased bg-white text-gray-900">
+
+    <!-- Navbar -->
+    <nav class="navbar fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo -->
+                <div class="flex items-center gap-2">
+                    <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/068d64d8-b429-4b0f-a8e3-83d6dca23c71/Swiftly+FeedbackKit-iOS-Default-1024x1024%401x.png?format=300w"
+                         alt="FeedbackKit"
+                         class="w-9 h-9 rounded-xl">
+                    <span class="text-xl font-bold text-gray-900">FeedbackKit</span>
+                </div>
+
+                <!-- Nav Links -->
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="#features" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Features</a>
+                    <a href="#integrations" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">Integrations</a>
+                    <a href="#sdk" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">SDK</a>
+                </div>
+
+                <!-- CTA Buttons -->
+                <div class="flex items-center gap-3">
+                    <a href="#(loginURL)" class="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                        Sign in
+                    </a>
+                    <a href="#(signupURL)" class="bg-gray-900 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-gray-800 transition-all hover:scale-105">
+                        Get Started
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-gradient relative pt-32 pb-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-4xl mx-auto">
+                <!-- Headline -->
+                <h1 class="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-gray-900 animate-fade-in-up">
+                    Collect and manage
+                    <span class="gradient-text block sm:inline"> user feedback</span>
+                </h1>
+
+                <!-- Subheadline -->
+                <p class="mt-6 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-100">
+                    The complete feedback platform for iOS, macOS, and visionOS apps. Understand what your users want and build better products.
+                </p>
+
+                <!-- CTAs -->
+                <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in-up delay-200">
+                    <a href="#(signupURL)" class="btn-primary w-full sm:w-auto bg-gray-900 text-white px-8 py-4 rounded-full text-base font-semibold shadow-lg hover:bg-gray-800 transition-all">
+                        Get Started Free
+                    </a>
+                    <a href="#(loginURL)" class="w-full sm:w-auto bg-white text-gray-900 px-8 py-4 rounded-full text-base font-semibold ring-1 ring-gray-200 hover:ring-gray-300 hover:bg-gray-50 transition-all">
+                        Sign In
+                    </a>
+                </div>
+
+                <!-- Feature Pills -->
+                <div class="mt-12 flex flex-wrap items-center justify-center gap-3 animate-fade-in-up delay-300">
+                    <div class="flex items-center gap-2 rounded-full bg-gray-50 px-4 py-2.5 border border-gray-100">
+                        <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700">Easy SDK integration</span>
+                    </div>
+                    <div class="flex items-center gap-2 rounded-full bg-gray-50 px-4 py-2.5 border border-gray-100">
+                        <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700">10+ integrations</span>
+                    </div>
+                    <div class="flex items-center gap-2 rounded-full bg-gray-50 px-4 py-2.5 border border-gray-100">
+                        <svg class="h-5 w-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-sm font-medium text-gray-700">Real-time analytics</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Manage Feedback Anywhere Section -->
+    <section class="py-8 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-3xl shadow-xl p-8 lg:p-12">
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <!-- Left: Content -->
+                    <div class="text-gray-900" data-animate>
+                        <h2 class="text-4xl sm:text-5xl font-bold leading-tight">
+                            Manage Feedback<br>
+                            Anywhere, On Any Device
+                        </h2>
+
+                        <p class="mt-6 text-lg text-gray-600 leading-relaxed">
+                            FeedbackKit gives you the complete toolkit on iPhone, iPad, and Mac—so you can manage user feedback wherever you are. Review new submissions during your commute, respond to comments from your iPad on the couch, or dive into detailed configurations at your desk. Your entire feedback system adapts seamlessly to however you work.
+                        </p>
+
+                        <h3 class="mt-8 text-xl font-bold text-gray-900">Full-Featured on Every Platform</h3>
+
+                        <p class="mt-4 text-gray-600 leading-relaxed">
+                            This isn't just a viewer app—it's your complete feedback management suite. Review and triage incoming tickets, reply to user comments, edit ticket details, and update statuses with just a few taps or clicks. Configure your integrations, customize available statuses, and adjust settings across all your projects. Whether you're on a 6.1" iPhone screen or a 32" Mac display, you have complete control over your feedback workflow.
+                        </p>
+
+                        <p class="mt-4 text-gray-600 leading-relaxed">
+                            Native SwiftUI design means FeedbackKit feels right at home on each platform, with interfaces optimized for touch on iOS and precision on macOS. One app, one experience, infinite flexibility.
+                        </p>
+                    </div>
+
+                <!-- Right: Device Mockups -->
+                <div class="relative" data-animate>
+                    <!-- Device Stack - Compact cluster -->
+                    <div class="relative h-[400px] lg:h-[480px]">
+                        <!-- Mac (Center/Back) -->
+                        <div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-[85%] drop-shadow-2xl z-0">
+                            <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/4586f126-4179-41da-943e-b1679187292e/Client+macOS.png?format=1500w"
+                                 alt="FeedbackKit on macOS"
+                                 class="w-full h-auto">
+                        </div>
+
+                        <!-- iPad (Bottom-Center-Left) -->
+                        <div class="absolute bottom-8 left-[5%] w-[50%] z-10 drop-shadow-2xl">
+                            <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/b5a501ad-7dd0-4bac-9bfd-602b68cda485/Admin+iPadOS.png"
+                                 alt="FeedbackKit on iPad"
+                                 class="w-full h-auto">
+                        </div>
+
+                        <!-- iPhone (Bottom-Right, next to iPad) -->
+                        <div class="absolute bottom-6 right-[5%] w-[18%] z-20 drop-shadow-2xl">
+                            <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/74bafab5-92f4-4fe2-838d-c63584e8f0ae/Admin+iOS.png?format=300w"
+                                 alt="FeedbackKit on iPhone"
+                                 class="w-full h-auto">
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-24 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-animate>
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Everything you need to manage feedback</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Powerful features to collect, organize, and act on user feedback.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="card-hover bg-white rounded-2xl p-8 shadow-sm border border-gray-100" data-animate>
+                    <div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-3">Multi-Platform Support</h3>
+                    <p class="text-gray-600 leading-relaxed">Native apps for iPhone, iPad, and macOS. Collect feedback from your users on any Apple platform with SwiftUI.</p>
+                </div>
+
+                <!-- Feature 2 -->
+                <div class="card-hover bg-white rounded-2xl p-8 shadow-sm border border-gray-100" data-animate>
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-3">Ticket Management</h3>
+                    <p class="text-gray-600 leading-relaxed">Review and triage incoming tickets, reply to user comments, edit details, and update statuses efficiently.</p>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="card-hover bg-white rounded-2xl p-8 shadow-sm border border-gray-100" data-animate>
+                    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-3">Smart Notifications</h3>
+                    <p class="text-gray-600 leading-relaxed">Automatic email notifications for new tickets and comments. Keep your users in the loop with status updates.</p>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="card-hover bg-white rounded-2xl p-8 shadow-sm border border-gray-100" data-animate>
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-3">Real-time Analytics</h3>
+                    <p class="text-gray-600 leading-relaxed">Track feedback trends, user engagement, and MRR analytics with comprehensive dashboards.</p>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="card-hover bg-white rounded-2xl p-8 shadow-sm border border-gray-100" data-animate>
+                    <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-3">User Communication</h3>
+                    <p class="text-gray-600 leading-relaxed">Bi-directional conversations with users. Reply to comments and build trust through transparency.</p>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="card-hover bg-white rounded-2xl p-8 shadow-sm border border-gray-100" data-animate>
+                    <div class="w-12 h-12 bg-indigo-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-3">Merge Duplicates</h3>
+                    <p class="text-gray-600 leading-relaxed">Combine duplicate feedback items to consolidate votes and keep your feedback organized.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Keep Your Users in the Loop Section -->
+    <section class="py-20 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-3xl shadow-xl p-8 lg:p-12">
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <!-- Left: Content -->
+                    <div class="text-gray-900" data-animate>
+                        <h2 class="text-4xl sm:text-5xl font-bold leading-tight">
+                            Keep Your Users<br>in the Loop
+                        </h2>
+
+                        <p class="mt-6 text-lg text-gray-600 leading-relaxed">
+                            Your users invested time to share their feedback—show them it matters. FeedbackKit automatically notifies users when you update the status of their tickets, whether you're marking something as "In Progress," "Planned," or "Completed." They'll also receive instant notifications when you or your team leave comments, turning one-way feedback into genuine two-way conversations.
+                        </p>
+
+                        <h3 class="mt-8 text-xl font-bold text-gray-900">Build Trust Through Transparency</h3>
+
+                        <p class="mt-4 text-gray-600 leading-relaxed">
+                            Nothing builds user confidence like seeing their suggestions move forward. When users get real-time updates about their feedback, they know they're being heard. Status changes show progress, your comments provide context and updates, and the entire experience reinforces that their voice shapes your product's direction.
+                        </p>
+
+                        <p class="mt-4 text-gray-600 leading-relaxed">
+                            Every notification strengthens the connection between you and your community, transforming casual users into invested advocates who feel like true partners in your app's evolution.
+                        </p>
+                    </div>
+
+                    <!-- Right: Email Screenshots Grid -->
+                    <div class="relative" data-animate>
+                        <div class="grid grid-cols-2 gap-4">
+                            <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/46a822ea-c1ac-4d64-bd27-daf2f848a4f8/Switch+1.png?format=1500w"
+                                 alt="Status Update - Approved"
+                                 class="w-full h-auto rounded-xl shadow-lg">
+                            <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/f01ccf9b-58aa-4e0c-b740-9ef2e6b853eb/Switch+2.png?format=2500w"
+                                 alt="Status Update - In Progress"
+                                 class="w-full h-auto rounded-xl shadow-lg">
+                            <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/43185620-711f-4577-883b-d125c4c7813d/Switch+3.png?format=2500w"
+                                 alt="Status Update - Completed"
+                                 class="w-full h-auto rounded-xl shadow-lg">
+                            <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/cb783f2b-9cc6-4b68-ba63-d34077f57b8b/Switch+4.png?format=2500w"
+                                 alt="Status Update - Rejected"
+                                 class="w-full h-auto rounded-xl shadow-lg">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Integrations Section -->
+    <section id="integrations" class="py-24 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16" data-animate>
+                <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Connect with your favorite tools</h2>
+                <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Seamlessly integrate with 10+ popular project management and communication tools.</p>
+            </div>
+        </div>
+
+        <!-- Scrolling Marquee -->
+        <div class="relative">
+            <!-- Gradient Fades -->
+            <div class="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+            <div class="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
+
+            <div class="overflow-hidden">
+                <div class="animate-marquee flex gap-8 py-4">
+                    <!-- First set of integrations -->
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/49f147f0-73f6-4e90-939f-bc319da0a9d6/8-4.png?format=750w" alt="Linear" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Linear</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/c5437898-612a-40d2-a1f6-58a45886b623/9.png?format=750w" alt="Monday" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Monday</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/b807447d-52c7-4b74-9115-02e9b14291d6/11.png?format=750w" alt="Trello" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Trello</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/7e53a700-badc-4fb2-88a5-2586d44477d5/12.png?format=750w" alt="Airtable" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Airtable</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/c293615e-b979-48d1-8604-aa8e60a73d45/14.png?format=750w" alt="Asana" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Asana</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/e23bc27e-e9e7-4f73-b29b-fbe7a5e5cded/15.png?format=750w" alt="Basecamp" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Basecamp</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/a681bc9e-c492-4626-bee6-5cb436df0134/5-4.png?format=750w" alt="Slack" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Slack</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/7cf6c318-d055-4c1d-9d28-98c95574d437/10.png?format=750w" alt="Notion" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Notion</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/e0b7583d-8662-4058-826b-298e253967d2/13.png?format=750w" alt="Teamwork" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Teamwork</span>
+                    </div>
+                    <!-- Duplicate set for seamless loop -->
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/49f147f0-73f6-4e90-939f-bc319da0a9d6/8-4.png?format=750w" alt="Linear" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Linear</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/c5437898-612a-40d2-a1f6-58a45886b623/9.png?format=750w" alt="Monday" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Monday</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/b807447d-52c7-4b74-9115-02e9b14291d6/11.png?format=750w" alt="Trello" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Trello</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/7e53a700-badc-4fb2-88a5-2586d44477d5/12.png?format=750w" alt="Airtable" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Airtable</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/c293615e-b979-48d1-8604-aa8e60a73d45/14.png?format=750w" alt="Asana" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Asana</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/e23bc27e-e9e7-4f73-b29b-fbe7a5e5cded/15.png?format=750w" alt="Basecamp" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Basecamp</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/a681bc9e-c492-4626-bee6-5cb436df0134/5-4.png?format=750w" alt="Slack" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Slack</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/7cf6c318-d055-4c1d-9d28-98c95574d437/10.png?format=750w" alt="Notion" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Notion</span>
+                    </div>
+                    <div class="flex items-center gap-4 bg-gray-50 rounded-full px-6 py-4 border border-gray-100 shrink-0">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/e0b7583d-8662-4058-826b-298e253967d2/13.png?format=750w" alt="Teamwork" class="w-12 h-12 rounded-xl">
+                        <span class="font-semibold text-gray-900 text-lg">Teamwork</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <p class="text-center text-gray-500 mt-12 text-sm">More integrations coming soon...</p>
+    </section>
+
+    <!-- SDK Section -->
+    <section id="sdk" class="py-24 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div data-animate>
+                    <h2 class="text-3xl sm:text-4xl font-bold text-gray-900">Simple SDK Integration</h2>
+                    <p class="mt-4 text-lg text-gray-600 leading-relaxed">
+                        Add FeedbackKit to your app in minutes. Our Swift SDK makes it easy to collect feedback from your users with just a few lines of code.
+                    </p>
+
+                    <div class="mt-8 space-y-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <span class="text-gray-700">Swift Package Manager support</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <span class="text-gray-700">iOS 15+, macOS 12+, visionOS 1+</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <span class="text-gray-700">SwiftUI-native components</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex items-center gap-4 text-sm">
+                        <span class="px-3 py-1 bg-brand-100 text-brand-700 rounded-full font-medium">Swift</span>
+                        <span class="px-3 py-1 bg-gray-100 text-gray-500 rounded-full">Flutter (coming soon)</span>
+                        <span class="px-3 py-1 bg-gray-100 text-gray-500 rounded-full">Kotlin (coming soon)</span>
+                    </div>
+                </div>
+
+                <!-- Code Block -->
+                <div class="code-container" data-animate>
+                    <div class="code-block rounded-2xl p-6 shadow-xl overflow-hidden">
+                        <div class="flex items-center gap-2 mb-4">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                            <span class="ml-2 text-gray-400 text-sm">App.swift</span>
+                        </div>
+                        <pre class="text-sm leading-relaxed overflow-x-auto"><code class="text-gray-300"><span class="text-pink-400">import</span> <span class="text-blue-400">SwiftUI</span>
+<span class="text-pink-400">import</span> <span class="text-blue-400">FeedbackKit</span>
+
+<span class="text-pink-400">@main</span>
+<span class="text-pink-400">struct</span> <span class="text-green-400">MyApp</span>: <span class="text-blue-400">App</span> {
+    <span class="text-pink-400">init</span>() {
+        <span class="text-purple-400">FeedbackKit</span>.<span class="text-yellow-400">configure</span>(
+            apiKey: <span class="text-orange-300">"your-api-key"</span>
+        )
+    }
+
+    <span class="text-pink-400">var</span> body: <span class="text-pink-400">some</span> <span class="text-blue-400">Scene</span> {
+        <span class="text-blue-400">WindowGroup</span> {
+            <span class="text-green-400">ContentView</span>()
+        }
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Built by a Developer Who Ships Section -->
+    <section class="py-20 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="bg-white rounded-3xl shadow-xl p-8 lg:p-12">
+                <div class="grid lg:grid-cols-12 gap-12 items-start">
+                    <!-- Left: Photo -->
+                    <div class="lg:col-span-4" data-animate>
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/cbb0ad6f-e552-48ed-8710-0d98623b432d/1699309516818.webp?format=2500w"
+                             alt="Ben Van Aken"
+                             class="w-full max-w-sm mx-auto rounded-2xl shadow-lg">
+                    </div>
+
+                    <!-- Right: Content -->
+                    <div class="lg:col-span-8 text-gray-900" data-animate>
+                        <h2 class="text-4xl sm:text-5xl font-bold leading-tight text-brand-500">
+                            Built by a Developer Who Ships
+                        </h2>
+
+                        <p class="mt-6 text-lg text-gray-600 leading-relaxed">
+                            FeedbackKit was created by <span class="font-semibold text-brand-600">Ben Van Aken</span>, a founder and consultant with 15+ years transforming how European businesses operate through technology. With a background spanning ERP implementations, M&A integrations, and hands-on product development, Ben brings a unique perspective: he understands both the operational complexity of running a business <em>and</em> the technical craftsmanship required to build software that lasts.
+                        </p>
+
+                        <h3 class="mt-8 text-xl font-bold text-brand-500">Why FeedbackKit Exists</h3>
+
+                        <p class="mt-4 text-gray-600 leading-relaxed">
+                            FeedbackKit was born from real need. Ben saw the potential in WishKit's vision—a thoughtful approach to user feedback—but recognized it had become a side project with limited cross-platform ambitions. Rather than wait, he built FeedbackKit from the ground up: truly multi-platform (Apple, Android, Windows, and beyond), actively maintained, and designed for developers who take their products as seriously as he does.
+                        </p>
+
+                        <p class="mt-4 text-gray-600 leading-relaxed">
+                            As co-founder of <span class="font-semibold">Swiftly Workspace</span> and <span class="font-semibold">Swiftly Developed</span>, Ben isn't building FeedbackKit in his spare time—this is core work backed by operational depth and a commitment to evolving the product alongside the community that uses it.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-24 bg-gradient-to-br from-brand-500 to-brand-600 relative overflow-hidden">
+        <!-- Decorative elements -->
+        <div class="absolute inset-0 opacity-10">
+            <div class="absolute top-0 left-0 w-72 h-72 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+            <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+        </div>
+
+        <div class="max-w-4xl mx-auto text-center px-4 relative">
+            <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-white" data-animate>
+                Ready to collect better feedback?
+            </h2>
+            <p class="mt-6 text-lg text-brand-100 max-w-xl mx-auto" data-animate>
+                Start free, upgrade when you're ready. No credit card required.
+            </p>
+            <div class="mt-10" data-animate>
+                <a href="#(signupURL)" class="inline-block bg-white text-brand-600 px-8 py-4 rounded-full text-base font-semibold shadow-lg hover:bg-brand-50 transition-all hover:scale-105">
+                    Start Free Trial
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-8">
+                <!-- Brand -->
+                <div class="md:col-span-1">
+                    <div class="flex items-center gap-2 mb-4">
+                        <img src="https://images.squarespace-cdn.com/content/v1/63f9f1a6a9df014beaf6bdf3/068d64d8-b429-4b0f-a8e3-83d6dca23c71/Swiftly+FeedbackKit-iOS-Default-1024x1024%401x.png?format=300w"
+                             alt="FeedbackKit"
+                             class="w-9 h-9 rounded-xl">
+                        <span class="text-xl font-bold text-white">FeedbackKit</span>
+                    </div>
+                    <p class="text-sm text-gray-500">by Swiftly Developed</p>
+                    <p class="mt-4 text-sm">The complete feedback platform for Apple apps.</p>
+                </div>
+
+                <!-- Product -->
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Product</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li><a href="#features" class="hover:text-white transition-colors">Features</a></li>
+                        <li><a href="#integrations" class="hover:text-white transition-colors">Integrations</a></li>
+                        <li><a href="#sdk" class="hover:text-white transition-colors">SDK</a></li>
+                    </ul>
+                </div>
+
+                <!-- Resources -->
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Resources</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li><a href="#" class="hover:text-white transition-colors">Documentation</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">API Reference</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Support</a></li>
+                    </ul>
+                </div>
+
+                <!-- Legal -->
+                <div>
+                    <h4 class="text-white font-semibold mb-4">Legal</h4>
+                    <ul class="space-y-3 text-sm">
+                        <li><a href="/privacy" class="hover:text-white transition-colors">Privacy Policy</a></li>
+                        <li><a href="/terms" class="hover:text-white transition-colors">Terms of Service</a></li>
+                        <li><a href="mailto:info@swiftly-workspace.com" class="hover:text-white transition-colors">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mt-12 pt-8 border-t border-gray-800 text-center text-sm">
+                <p>&copy; 2024 Swiftly Developed. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="/js/main.js"></script>
+</body>
+</html>
