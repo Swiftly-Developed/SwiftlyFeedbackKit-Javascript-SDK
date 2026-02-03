@@ -43,4 +43,28 @@ final class AppEnvironment: Sendable {
     var isStaging: Bool { type == .staging }
     var isProduction: Bool { type == .production }
     var isLocal: Bool { type == .local }
+
+    /// Environment badge text for non-production
+    var environmentBadge: String? {
+        switch type {
+        case .local: return "Local"
+        case .development: return "Development"
+        case .staging: return "TestFlight"
+        case .production: return nil
+        }
+    }
+
+    /// FeedbackKit API key for the dog-fooding project (collecting feedback about FeedbackKit itself)
+    var feedbackKitAPIKey: String {
+        switch type {
+        case .local:
+            return "sf_8iJjRNZof9tRrrybkxViu1ZF8Jgxs7Ad"
+        case .development:
+            return "sf_67xRwr4qxTwaIQOFyXq9uyuSOrtS2uvy"
+        case .staging:
+            return "sf_Gw8ZKcjCEtxHUNCKjpusOkFvlNbQ2Pxf"
+        case .production:
+            return "sf_Tt5Oc4SFNhNgGUb9Ga7Y7AMwF9cGj571"
+        }
+    }
 }

@@ -14,6 +14,10 @@ struct WebController: RouteCollection {
 
         // Customer portal (manage subscription via Stripe)
         routes.get("portal", use: portalRedirect)
+
+        // Legal pages
+        routes.get("privacy", use: privacyPage)
+        routes.get("terms", use: termsPage)
     }
 
     // MARK: - Subscribe Page
@@ -449,5 +453,19 @@ struct WebController: RouteCollection {
 
         // Redirect to Stripe portal
         return req.redirect(to: portalUrl)
+    }
+
+    // MARK: - Legal Pages
+
+    /// GET /privacy
+    @Sendable
+    func privacyPage(req: Request) async throws -> View {
+        return try await req.view.render("privacy")
+    }
+
+    /// GET /terms
+    @Sendable
+    func termsPage(req: Request) async throws -> View {
+        return try await req.view.render("terms")
     }
 }
