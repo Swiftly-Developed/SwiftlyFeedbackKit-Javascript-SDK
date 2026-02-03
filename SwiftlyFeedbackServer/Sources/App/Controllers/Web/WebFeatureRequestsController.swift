@@ -405,11 +405,32 @@ struct FeatureRequestItem: Encodable {
         self.voteCount = dto.voteCount
         self.commentCount = dto.commentCount
         if let date = dto.createdAt {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .abbreviated
-            self.createdAt = formatter.localizedString(for: date, relativeTo: Date())
+            self.createdAt = Self.formatRelativeDate(date)
         } else {
             self.createdAt = ""
+        }
+    }
+
+    private static func formatRelativeDate(_ date: Date) -> String {
+        let now = Date()
+        let interval = now.timeIntervalSince(date)
+
+        if interval < 60 {
+            return "just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
+        } else if interval < 604800 {
+            let days = Int(interval / 86400)
+            return "\(days)d ago"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            return formatter.string(from: date)
         }
     }
 }
@@ -460,11 +481,32 @@ struct FeatureRequestComment: Encodable {
         self.content = dto.content
         self.isAdmin = dto.isAdmin
         if let date = dto.createdAt {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .abbreviated
-            self.createdAt = formatter.localizedString(for: date, relativeTo: Date())
+            self.createdAt = Self.formatRelativeDate(date)
         } else {
             self.createdAt = ""
+        }
+    }
+
+    private static func formatRelativeDate(_ date: Date) -> String {
+        let now = Date()
+        let interval = now.timeIntervalSince(date)
+
+        if interval < 60 {
+            return "just now"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)m ago"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)h ago"
+        } else if interval < 604800 {
+            let days = Int(interval / 86400)
+            return "\(days)d ago"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .none
+            return formatter.string(from: date)
         }
     }
 }

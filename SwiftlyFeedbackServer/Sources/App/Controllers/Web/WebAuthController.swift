@@ -87,7 +87,7 @@ struct WebAuthController: RouteCollection {
         try await session.save(on: req.db)
 
         // Set session cookie
-        var response = req.redirect(to: user.isEmailVerified ? "/admin/dashboard" : "/admin/verify-email")
+        let response = req.redirect(to: user.isEmailVerified ? "/admin/dashboard" : "/admin/verify-email")
         response.cookies["feedbackkit_session"] = HTTPCookies.Value(
             string: session.sessionToken,
             expires: session.expiresAt,
@@ -112,7 +112,7 @@ struct WebAuthController: RouteCollection {
             environmentColor: envColor,
             showEnvironmentBadge: !AppEnvironment.shared.isProduction
         ))
-        var response = try await view.encodeResponse(for: req).get()
+        let response = try await view.encodeResponse(for: req).get()
         response.status = .unauthorized
         return response
     }
@@ -183,7 +183,7 @@ struct WebAuthController: RouteCollection {
         try await session.save(on: req.db)
 
         // Set session cookie and redirect to verify email
-        var response = req.redirect(to: "/admin/verify-email")
+        let response = req.redirect(to: "/admin/verify-email")
         response.cookies["feedbackkit_session"] = HTTPCookies.Value(
             string: session.sessionToken,
             expires: session.expiresAt,
@@ -202,7 +202,7 @@ struct WebAuthController: RouteCollection {
             error: error,
             formData: SignupFormData(name: form.name, email: form.email)
         ))
-        var response = try await view.encodeResponse(for: req).get()
+        let response = try await view.encodeResponse(for: req).get()
         response.status = .badRequest
         return response
     }
@@ -239,7 +239,7 @@ struct WebAuthController: RouteCollection {
                 email: user.email,
                 error: "Invalid verification code"
             ))
-            var response = try await view.encodeResponse(for: req).get()
+            let response = try await view.encodeResponse(for: req).get()
             response.status = .badRequest
             return response
         }
@@ -251,7 +251,7 @@ struct WebAuthController: RouteCollection {
                 email: user.email,
                 error: "Verification code has expired. Please request a new one."
             ))
-            var response = try await view.encodeResponse(for: req).get()
+            let response = try await view.encodeResponse(for: req).get()
             response.status = .badRequest
             return response
         }
@@ -417,7 +417,7 @@ struct WebAuthController: RouteCollection {
             error: error,
             formData: ResetPasswordFormData(email: form.email, code: form.code)
         ))
-        var response = try await view.encodeResponse(for: req).get()
+        let response = try await view.encodeResponse(for: req).get()
         response.status = .badRequest
         return response
     }
@@ -434,7 +434,7 @@ struct WebAuthController: RouteCollection {
         }
 
         // Clear cookie
-        var response = req.redirect(to: "/admin/login")
+        let response = req.redirect(to: "/admin/login")
         response.cookies["feedbackkit_session"] = .expired
 
         return response
