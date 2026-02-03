@@ -1,0 +1,352 @@
+#extend("layouts/dashboard"):
+    #export("extraHead"):
+    <script src="/js/integrations.js"></script>
+    #endexport
+
+    #export("main"):
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <a href="/admin/projects" class="hover:text-gray-700">Projects</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)" class="hover:text-gray-700">#(project.name)</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)/integrations" class="hover:text-gray-700">Integrations</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-gray-900">Monday.com</span>
+    </nav>
+
+    #if(success):
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-green-800">Settings updated successfully</p>
+    </div>
+    #endif
+
+    #if(error):
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-red-800">
+            #if(error == "pro_required"):Pro subscription required for integrations#endif
+        </p>
+    </div>
+    #endif
+
+    #if(!isProTier):
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <p class="font-medium text-amber-800">Pro subscription required</p>
+                <p class="text-sm text-amber-700 mt-1">Upgrade to Pro to enable the Monday.com integration.</p>
+            </div>
+        </div>
+    </div>
+    #endif
+
+    <div class="max-w-2xl">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-red-100 to-yellow-100 flex items-center justify-center">
+                <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none">
+                    <circle cx="6" cy="12" r="4" fill="#FF3D57"/>
+                    <circle cx="18" cy="12" r="4" fill="#00D647"/>
+                    <circle cx="12" cy="12" r="4" fill="#FFCB00"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">Monday.com Integration</h2>
+                <p class="text-gray-600">Create Monday.com items from feedback.</p>
+            </div>
+        </div>
+
+        <form action="/admin/projects/#(project.id)/integrations/monday" method="POST">
+            #if(isConfigured):
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div>
+                        <p class="font-medium text-gray-900">Integration Active</p>
+                        <p class="text-sm text-gray-500">When disabled, you won't be able to create Monday.com items from feedback.</p>
+                    </div>
+                    <input type="checkbox" name="mondayIsActive" #if(mondayIsActive):checked#endif
+                           class="w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                </label>
+            </div>
+            #endif
+
+            <!-- Authentication -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Authentication</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Get your API token from Monday.com Developer section.
+                    <a href="https://monday.com/developers/v2/my-apps" target="_blank" class="text-primary-600 hover:text-primary-700">Get your token</a>
+                </p>
+
+                <div>
+                    <label for="monday-token" class="block text-sm font-medium text-gray-700 mb-1">API Token</label>
+                    <input type="password"
+                           id="monday-token"
+                           name="mondayToken"
+                           value="#(mondayToken)"
+                           placeholder="Enter your Monday.com API token"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+
+            <!-- Hidden fields -->
+            <input type="hidden" id="monday-board-hidden" name="mondayBoardId" value="#(mondayBoardId)">
+            <input type="hidden" id="monday-board-name-hidden" name="mondayBoardName" value="#(mondayBoardName)">
+            <input type="hidden" id="monday-group-hidden" name="mondayGroupId" value="#(mondayGroupId)">
+            <input type="hidden" id="monday-group-name-hidden" name="mondayGroupName" value="#(mondayGroupName)">
+            <input type="hidden" id="monday-board-saved" value="#(mondayBoardId)">
+            <input type="hidden" id="monday-group-saved" value="#(mondayGroupId)">
+            <input type="hidden" id="monday-status-saved" value="#(mondayStatusColumnId)">
+            <input type="hidden" id="monday-votes-saved" value="#(mondayVotesColumnId)">
+
+            <!-- Board & Group Selection -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Target Board</h3>
+                <p class="text-sm text-gray-600 mb-4">Select the board and group where items will be created.</p>
+
+                <div class="space-y-4">
+                    <div id="monday-board-container">
+                        <label for="monday-board" class="block text-sm font-medium text-gray-700 mb-1">Board</label>
+                        <select id="monday-board"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Select Board</option>
+                        </select>
+                    </div>
+
+                    <div id="monday-group-container" class="hidden">
+                        <label for="monday-group" class="block text-sm font-medium text-gray-700 mb-1">Group</label>
+                        <select id="monday-group"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Select Group</option>
+                        </select>
+                    </div>
+                </div>
+
+                #if(isConfigured):
+                <p class="text-sm text-gray-500 mt-4">
+                    Currently selected: <span class="font-medium">#(mondayBoardName)</span> / <span class="font-medium">#(mondayGroupName)</span>
+                </p>
+                #endif
+            </div>
+
+            <!-- Column Mapping -->
+            <div id="monday-columns-container" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 #if(!isConfigured):hidden#endif">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Column Mapping</h3>
+                <p class="text-sm text-gray-600 mb-4">Map feedback fields to Monday columns (optional).</p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="monday-status-column" class="block text-sm font-medium text-gray-700 mb-1">Status Column</label>
+                        <select id="monday-status-column"
+                                name="mondayStatusColumnId"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">None</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Status type column for feedback status sync</p>
+                    </div>
+
+                    <div>
+                        <label for="monday-votes-column" class="block text-sm font-medium text-gray-700 mb-1">Votes Column</label>
+                        <select id="monday-votes-column"
+                                name="mondayVotesColumnId"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">None</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Numbers type column for vote count sync</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Options -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Sync Options</h3>
+
+                <div class="space-y-3">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="mondaySyncStatus" #if(mondaySyncStatus):checked#endif
+                               class="rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                        <span class="ml-3 text-sm text-gray-700">Sync status changes</span>
+                    </label>
+
+                    <label class="flex items-center">
+                        <input type="checkbox" name="mondaySyncComments" #if(mondaySyncComments):checked#endif
+                               class="rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                        <span class="ml-3 text-sm text-gray-700">Sync comments as updates</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <a href="/admin/projects/#(project.id)/integrations" class="text-gray-600 hover:text-gray-800">
+                    Cancel
+                </a>
+                <button type="submit"
+                        #if(!isProTier):disabled#endif
+                        class="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+
+        #if(isConfigured):
+        <div class="bg-white rounded-xl shadow-sm border border-red-200 p-6 mt-6">
+            <h3 class="text-lg font-semibold text-red-600 mb-2">Remove Integration</h3>
+            <p class="text-sm text-gray-600 mb-4">This will remove the Monday.com configuration.</p>
+            <form action="/admin/projects/#(project.id)/integrations/monday" method="POST"
+                  onsubmit="return confirm('Are you sure you want to remove the Monday.com integration?')">
+                <input type="hidden" name="mondayToken" value="">
+                <input type="hidden" name="mondayBoardId" value="">
+                <button type="submit"
+                        class="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                    Remove Monday.com Integration
+                </button>
+            </form>
+        </div>
+        #endif
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const projectId = '#(project.id)';
+            const tokenField = document.getElementById('monday-token');
+            const boardSelect = document.getElementById('monday-board');
+            const groupSelect = document.getElementById('monday-group');
+            let currentBoardId = null;
+
+            let debounceTimer;
+            tokenField.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (this.value.trim().length > 10) {
+                        loadBoards();
+                    }
+                }, 500);
+            });
+
+            tokenField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    loadBoards();
+                }
+            });
+
+            if (tokenField.value.trim()) {
+                loadBoards();
+            }
+
+            async function loadBoards() {
+                boardSelect.disabled = true;
+                boardSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/monday/boards`);
+                    const boards = await response.json();
+
+                    const savedBoard = document.getElementById('monday-board-saved').value;
+                    let options = '<option value="">Select Board</option>';
+                    boards.forEach(board => {
+                        const selected = board.id === savedBoard ? 'selected' : '';
+                        options += `<option value="${board.id}" ${selected}>${board.name}</option>`;
+                    });
+                    boardSelect.innerHTML = options;
+                    boardSelect.disabled = false;
+
+                    if (savedBoard) {
+                        currentBoardId = savedBoard;
+                        loadGroups(savedBoard);
+                        loadColumns(savedBoard);
+                    }
+                } catch (error) {
+                    console.error('Error loading boards:', error);
+                    boardSelect.innerHTML = '<option value="">Error loading boards</option>';
+                }
+            }
+
+            boardSelect.addEventListener('change', function() {
+                const boardId = this.value;
+                const boardName = this.options[this.selectedIndex].text;
+
+                document.getElementById('monday-board-hidden').value = boardId;
+                document.getElementById('monday-board-name-hidden').value = boardName;
+                currentBoardId = boardId;
+
+                if (boardId) {
+                    loadGroups(boardId);
+                    loadColumns(boardId);
+                }
+            });
+
+            async function loadGroups(boardId) {
+                const groupContainer = document.getElementById('monday-group-container');
+                groupContainer.classList.remove('hidden');
+                groupSelect.disabled = true;
+                groupSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/monday/boards/${boardId}/groups`);
+                    const groups = await response.json();
+
+                    const savedGroup = document.getElementById('monday-group-saved').value;
+                    let options = '<option value="">Select Group</option>';
+                    groups.forEach(group => {
+                        const selected = group.id === savedGroup ? 'selected' : '';
+                        options += `<option value="${group.id}" ${selected}>${group.title}</option>`;
+                    });
+                    groupSelect.innerHTML = options;
+                    groupSelect.disabled = false;
+                } catch (error) {
+                    console.error('Error loading groups:', error);
+                }
+            }
+
+            groupSelect.addEventListener('change', function() {
+                const groupId = this.value;
+                const groupName = this.options[this.selectedIndex].text;
+                document.getElementById('monday-group-hidden').value = groupId;
+                document.getElementById('monday-group-name-hidden').value = groupName;
+            });
+
+            async function loadColumns(boardId) {
+                const container = document.getElementById('monday-columns-container');
+                const statusSelect = document.getElementById('monday-status-column');
+                const votesSelect = document.getElementById('monday-votes-column');
+
+                container.classList.remove('hidden');
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/monday/boards/${boardId}/columns`);
+                    const columns = await response.json();
+
+                    const savedStatus = document.getElementById('monday-status-saved').value;
+                    const savedVotes = document.getElementById('monday-votes-saved').value;
+
+                    // Status columns (status type)
+                    let statusOptions = '<option value="">None</option>';
+                    columns.filter(c => c.type === 'status' || c.type === 'color').forEach(col => {
+                        const selected = col.id === savedStatus ? 'selected' : '';
+                        statusOptions += `<option value="${col.id}" ${selected}>${col.title}</option>`;
+                    });
+                    statusSelect.innerHTML = statusOptions;
+
+                    // Votes columns (numbers type)
+                    let votesOptions = '<option value="">None</option>';
+                    columns.filter(c => c.type === 'numbers' || c.type === 'numeric').forEach(col => {
+                        const selected = col.id === savedVotes ? 'selected' : '';
+                        votesOptions += `<option value="${col.id}" ${selected}>${col.title}</option>`;
+                    });
+                    votesSelect.innerHTML = votesOptions;
+                } catch (error) {
+                    console.error('Error loading columns:', error);
+                }
+            }
+        });
+    </script>
+    #endexport
+#endextend

@@ -44,6 +44,7 @@ func routes(_ app: Application) throws {
     try protectedAdmin.register(collection: WebFeedbackController())
     try protectedAdmin.register(collection: WebSettingsController())
     try protectedAdmin.register(collection: WebAnalyticsController())
+    try protectedAdmin.register(collection: WebIntegrationsController())
     try protectedAdmin.register(collection: WebFeatureRequestsController())
 
     // API v1 routes
