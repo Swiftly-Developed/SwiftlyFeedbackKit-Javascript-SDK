@@ -92,6 +92,23 @@
             #endif
         </div>
 
+        <!-- Integrations -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Integrations</h3>
+                    <p class="text-gray-600 mt-1">Connect your project to external services like Slack, GitHub, and more.</p>
+                </div>
+                <a href="/admin/projects/#(project.id)/integrations"
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                    </svg>
+                    Manage Integrations
+                </a>
+            </div>
+        </div>
+
         #if(project.isOwner):
         <!-- Danger Zone -->
         <div class="bg-white rounded-xl shadow-sm border border-red-200 p-6">
