@@ -208,7 +208,7 @@ struct WebSettingsController: RouteCollection {
         try await user.delete(on: req.db)
 
         // Clear cookie and redirect to login
-        var response = req.redirect(to: "/admin/login")
+        let response = req.redirect(to: "/admin/login")
         response.cookies["feedbackkit_session"] = .expired
 
         return response

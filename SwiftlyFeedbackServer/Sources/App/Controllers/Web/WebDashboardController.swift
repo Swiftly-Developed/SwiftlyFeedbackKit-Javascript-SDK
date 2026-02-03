@@ -62,7 +62,7 @@ struct WebDashboardController: RouteCollection {
         }
 
         // Get recent feedback
-        if let firstProject = allProjects.first {
+        if !allProjects.isEmpty {
             let projectIds = try allProjects.map { try $0.requireID() }
             recentFeedbackItems = try await Feedback.query(on: req.db)
                 .filter(\.$project.$id ~~ projectIds)
