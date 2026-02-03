@@ -25,6 +25,10 @@ struct WebProjectController: RouteCollection {
         // Email Settings
         projects.get(":projectId", "email-settings", use: getEmailSettings)
         projects.post(":projectId", "email-settings", use: updateEmailSettings)
+
+        // Status Settings
+        projects.get(":projectId", "status-settings", use: getStatusSettings)
+        projects.post(":projectId", "status-settings", use: updateStatusSettings)
     }
 
     // MARK: - Project List
@@ -488,6 +492,44 @@ struct WebProjectController: RouteCollection {
 
         return Response(status: .ok)
     }
+
+    // MARK: - Status Settings
+
+    @Sendable
+    func getStatusSettings(req: Request) async throws -> Response {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectWithAccess(req: req, user: user)
+
+        let response = StatusSettingsResponse(allowedStatuses: project.allowedStatuses)
+        return try await response.encodeResponse(for: req)
+    }
+
+    @Sendable
+    func updateStatusSettings(req: Request) async throws -> Response {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
+
+        let form = try req.content.decode(UpdateStatusSettingsForm.self)
+
+        // Validate statuses
+        let validStatuses = FeedbackStatus.allCases.map { $0.rawValue }
+        for status in form.statuses {
+            guard validStatuses.contains(status) else {
+                throw Abort(.badRequest, reason: "Invalid status: \(status)")
+            }
+        }
+
+        // Ensure pending is always included
+        var statuses = form.statuses
+        if !statuses.contains("pending") {
+            statuses.insert("pending", at: 0)
+        }
+
+        project.allowedStatuses = statuses
+        try await project.save(on: req.db)
+
+        return Response(status: .ok)
+    }
 }
 
 // MARK: - Email Settings DTOs
@@ -497,6 +539,16 @@ struct EmailSettingsResponse: Content {
 }
 
 struct UpdateEmailSettingsForm: Content {
+    let statuses: [String]
+}
+
+// MARK: - Status Settings DTOs
+
+struct StatusSettingsResponse: Content {
+    let allowedStatuses: [String]
+}
+
+struct UpdateStatusSettingsForm: Content {
     let statuses: [String]
 }
 
