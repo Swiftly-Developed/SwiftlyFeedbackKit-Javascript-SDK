@@ -1,0 +1,382 @@
+#extend("layouts/dashboard"):
+    #export("extraHead"):
+    <script src="/js/integrations.js"></script>
+    #endexport
+
+    #export("main"):
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <a href="/admin/projects" class="hover:text-gray-700">Projects</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)" class="hover:text-gray-700">#(project.name)</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)/integrations" class="hover:text-gray-700">Integrations</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-gray-900">Linear</span>
+    </nav>
+
+    #if(success):
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-green-800">Settings updated successfully</p>
+    </div>
+    #endif
+
+    #if(error):
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-red-800">
+            #if(error == "pro_required"):Pro subscription required for integrations#endif
+        </p>
+    </div>
+    #endif
+
+    #if(!isProTier):
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <p class="font-medium text-amber-800">Pro subscription required</p>
+                <p class="text-sm text-amber-700 mt-1">Upgrade to Pro to enable the Linear integration.</p>
+            </div>
+        </div>
+    </div>
+    #endif
+
+    <div class="max-w-2xl">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <svg class="w-7 h-7 text-indigo-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M2.667 12.667L12 3.333l9.333 9.334L12 22l-9.333-9.333zM12 7.333l-4.667 4.667L12 16.667l4.667-4.667L12 7.333z"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">Linear Integration</h2>
+                <p class="text-gray-600">Create Linear issues from feedback.</p>
+            </div>
+        </div>
+
+        <form action="/admin/projects/#(project.id)/integrations/linear" method="POST">
+            #if(isConfigured):
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div>
+                        <p class="font-medium text-gray-900">Integration Active</p>
+                        <p class="text-sm text-gray-500">When disabled, you won't be able to create Linear issues from feedback.</p>
+                    </div>
+                    <input type="checkbox" name="linearIsActive" #if(linearIsActive):checked#endif
+                           class="w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                </label>
+            </div>
+            #endif
+
+            <!-- Authentication -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Authentication</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Create a personal API key from Linear Settings.
+                    <a href="https://linear.app/settings/api" target="_blank" class="text-primary-600 hover:text-primary-700">Create API key</a>
+                </p>
+
+                <div>
+                    <label for="linear-token" class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                    <input type="password"
+                           id="linear-token"
+                           name="linearToken"
+                           value="#(linearToken)"
+                           placeholder="lin_api_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+
+            <!-- Hidden fields -->
+            <input type="hidden" id="linear-team-hidden" name="linearTeamId" value="#(linearTeamId)">
+            <input type="hidden" id="linear-team-name-hidden" name="linearTeamName" value="#(linearTeamName)">
+            <input type="hidden" id="linear-project-hidden" name="linearProjectId" value="#(linearProjectId)">
+            <input type="hidden" id="linear-project-name-hidden" name="linearProjectName" value="#(linearProjectName)">
+            <input type="hidden" id="linear-labels-hidden" name="linearDefaultLabelIds" value="#(linearDefaultLabelIds)">
+            <input type="hidden" id="linear-team-saved" value="#(linearTeamId)">
+            <input type="hidden" id="linear-project-saved" value="#(linearProjectId)">
+            <input type="hidden" id="linear-labels-saved" value="#(linearDefaultLabelIds)">
+
+            <!-- Team & Project Selection -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Target Team</h3>
+                <p class="text-sm text-gray-600 mb-4">Select the team where issues will be created.</p>
+
+                <div class="space-y-4">
+                    <div id="linear-team-container">
+                        <label for="linear-team" class="block text-sm font-medium text-gray-700 mb-1">Team</label>
+                        <select id="linear-team"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Select Team</option>
+                        </select>
+                    </div>
+
+                    <div id="linear-project-container" class="hidden">
+                        <label for="linear-project" class="block text-sm font-medium text-gray-700 mb-1">Project (Optional)</label>
+                        <select id="linear-project"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">No Project</option>
+                        </select>
+                    </div>
+                </div>
+
+                #if(isConfigured):
+                <p class="text-sm text-gray-500 mt-4">
+                    Currently selected: <span class="font-medium">#(linearTeamName)</span>
+                    #if(linearProjectName): / <span class="font-medium">#(linearProjectName)</span>#endif
+                </p>
+                #endif
+            </div>
+
+            <!-- Labels Selection -->
+            <div id="linear-labels-container" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 #if(!isConfigured):hidden#endif">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Default Labels</h3>
+                <p class="text-sm text-gray-600 mb-4">Select labels to apply to all created issues. Click to toggle.</p>
+
+                <div id="linear-labels-picker">
+                    <p class="text-sm text-gray-500">Loading labels...</p>
+                </div>
+            </div>
+
+            <!-- Sync Options -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Sync Options</h3>
+
+                <div class="space-y-3">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="linearSyncStatus" #if(linearSyncStatus):checked#endif
+                               class="rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                        <span class="ml-3 text-sm text-gray-700">Sync status changes</span>
+                    </label>
+
+                    <label class="flex items-center">
+                        <input type="checkbox" name="linearSyncComments" #if(linearSyncComments):checked#endif
+                               class="rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                        <span class="ml-3 text-sm text-gray-700">Sync comments to issues</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <a href="/admin/projects/#(project.id)/integrations" class="text-gray-600 hover:text-gray-800">
+                    Cancel
+                </a>
+                <button type="submit"
+                        #if(!isProTier):disabled#endif
+                        class="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+
+        #if(isConfigured):
+        <div class="bg-white rounded-xl shadow-sm border border-red-200 p-6 mt-6">
+            <h3 class="text-lg font-semibold text-red-600 mb-2">Remove Integration</h3>
+            <p class="text-sm text-gray-600 mb-4">This will remove the Linear configuration.</p>
+            <form action="/admin/projects/#(project.id)/integrations/linear" method="POST"
+                  onsubmit="return confirm('Are you sure you want to remove the Linear integration?')">
+                <input type="hidden" name="linearToken" value="">
+                <input type="hidden" name="linearTeamId" value="">
+                <button type="submit"
+                        class="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                    Remove Linear Integration
+                </button>
+            </form>
+        </div>
+        #endif
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const projectId = '#(project.id)';
+            const tokenField = document.getElementById('linear-token');
+            const teamSelect = document.getElementById('linear-team');
+            const projectSelect = document.getElementById('linear-project');
+            let currentTeamId = null;
+            let selectedLabelIds = [];
+
+            // Parse saved labels
+            const savedLabelsStr = document.getElementById('linear-labels-saved').value;
+            if (savedLabelsStr) {
+                selectedLabelIds = savedLabelsStr.split(',').filter(id => id.trim());
+            }
+
+            let debounceTimer;
+            tokenField.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (this.value.trim().length > 10) {
+                        loadTeams();
+                    }
+                }, 500);
+            });
+
+            tokenField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    loadTeams();
+                }
+            });
+
+            if (tokenField.value.trim()) {
+                loadTeams();
+            }
+
+            async function loadTeams() {
+                teamSelect.disabled = true;
+                teamSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/linear/teams`);
+                    const teams = await response.json();
+
+                    const savedTeam = document.getElementById('linear-team-saved').value;
+                    let options = '<option value="">Select Team</option>';
+                    teams.forEach(team => {
+                        const selected = team.id === savedTeam ? 'selected' : '';
+                        options += `<option value="${team.id}" ${selected}>${team.name} (${team.key})</option>`;
+                    });
+                    teamSelect.innerHTML = options;
+                    teamSelect.disabled = false;
+
+                    if (savedTeam) {
+                        currentTeamId = savedTeam;
+                        loadProjects(savedTeam);
+                        loadLabels(savedTeam);
+                    }
+                } catch (error) {
+                    console.error('Error loading teams:', error);
+                    teamSelect.innerHTML = '<option value="">Error loading teams</option>';
+                }
+            }
+
+            teamSelect.addEventListener('change', function() {
+                const teamId = this.value;
+                const teamName = this.options[this.selectedIndex].text.split(' (')[0];
+
+                document.getElementById('linear-team-hidden').value = teamId;
+                document.getElementById('linear-team-name-hidden').value = teamName;
+                currentTeamId = teamId;
+
+                // Reset selections
+                document.getElementById('linear-project-hidden').value = '';
+                document.getElementById('linear-project-name-hidden').value = '';
+                selectedLabelIds = [];
+                updateLabelsHidden();
+
+                if (teamId) {
+                    loadProjects(teamId);
+                    loadLabels(teamId);
+                }
+            });
+
+            async function loadProjects(teamId) {
+                const container = document.getElementById('linear-project-container');
+                container.classList.remove('hidden');
+                projectSelect.disabled = true;
+                projectSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/linear/projects/${teamId}`);
+                    const projects = await response.json();
+
+                    const savedProject = document.getElementById('linear-project-saved').value;
+                    let options = '<option value="">No Project</option>';
+                    projects.forEach(proj => {
+                        const selected = proj.id === savedProject ? 'selected' : '';
+                        options += `<option value="${proj.id}" ${selected}>${proj.name}</option>`;
+                    });
+                    projectSelect.innerHTML = options;
+                    projectSelect.disabled = false;
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                }
+            }
+
+            projectSelect.addEventListener('change', function() {
+                const projId = this.value;
+                const projName = this.options[this.selectedIndex].text;
+                document.getElementById('linear-project-hidden').value = projId;
+                document.getElementById('linear-project-name-hidden').value = projId ? projName : '';
+            });
+
+            async function loadLabels(teamId) {
+                const container = document.getElementById('linear-labels-container');
+                const picker = document.getElementById('linear-labels-picker');
+
+                container.classList.remove('hidden');
+                picker.innerHTML = '<p class="text-sm text-gray-500">Loading labels...</p>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/linear/labels/${teamId}`);
+                    const labels = await response.json();
+
+                    if (labels.length === 0) {
+                        picker.innerHTML = '<p class="text-sm text-gray-500">No labels available for this team</p>';
+                        return;
+                    }
+
+                    renderLabels(labels);
+                } catch (error) {
+                    console.error('Error loading labels:', error);
+                    picker.innerHTML = '<p class="text-sm text-red-500">Error loading labels</p>';
+                }
+            }
+
+            function renderLabels(labels) {
+                const picker = document.getElementById('linear-labels-picker');
+                let html = '<div class="flex flex-wrap gap-2">';
+
+                labels.forEach(label => {
+                    const isSelected = selectedLabelIds.includes(label.id);
+                    const bgColor = label.color ? `background-color: ${label.color}20` : 'background-color: #f3f4f6';
+                    const borderColor = label.color ? `border-color: ${label.color}` : 'border-color: #d1d5db';
+                    const textColor = label.color || '#374151';
+
+                    html += `
+                        <button type="button"
+                                data-label-id="${label.id}"
+                                onclick="toggleLabel('${label.id}')"
+                                class="inline-flex items-center px-3 py-1.5 rounded-full text-sm border-2 transition-all ${isSelected ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}"
+                                style="${bgColor}; ${borderColor}; color: ${textColor}">
+                            ${isSelected ? '<svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>' : ''}
+                            ${label.name}
+                        </button>
+                    `;
+                });
+
+                html += '</div>';
+                picker.innerHTML = html;
+            }
+
+            window.toggleLabel = function(labelId) {
+                const index = selectedLabelIds.indexOf(labelId);
+                if (index > -1) {
+                    selectedLabelIds.splice(index, 1);
+                } else {
+                    selectedLabelIds.push(labelId);
+                }
+                updateLabelsHidden();
+
+                // Re-render if we have the labels cached
+                if (currentTeamId) {
+                    fetch(`/admin/projects/${projectId}/integrations/ajax/linear/labels/${currentTeamId}`)
+                        .then(res => res.json())
+                        .then(labels => renderLabels(labels));
+                }
+            };
+
+            function updateLabelsHidden() {
+                document.getElementById('linear-labels-hidden').value = selectedLabelIds.join(',');
+            }
+        });
+    </script>
+    #endexport
+#endextend

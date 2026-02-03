@@ -1,0 +1,367 @@
+#extend("layouts/dashboard"):
+    #export("extraHead"):
+    <script src="/js/integrations.js"></script>
+    #endexport
+
+    #export("main"):
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <a href="/admin/projects" class="hover:text-gray-700">Projects</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)" class="hover:text-gray-700">#(project.name)</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)/integrations" class="hover:text-gray-700">Integrations</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-gray-900">Basecamp</span>
+    </nav>
+
+    #if(success):
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-green-800">Settings updated successfully</p>
+    </div>
+    #endif
+
+    #if(error):
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-red-800">
+            #if(error == "pro_required"):Pro subscription required for integrations#endif
+        </p>
+    </div>
+    #endif
+
+    #if(!isProTier):
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <p class="font-medium text-amber-800">Pro subscription required</p>
+                <p class="text-sm text-amber-700 mt-1">Upgrade to Pro to enable the Basecamp integration.</p>
+            </div>
+        </div>
+    </div>
+    #endif
+
+    <div class="max-w-2xl">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-lg bg-yellow-100 flex items-center justify-center">
+                <svg class="w-7 h-7 text-yellow-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 3.6c4.636 0 8.4 3.764 8.4 8.4 0 4.636-3.764 8.4-8.4 8.4-4.636 0-8.4-3.764-8.4-8.4 0-4.636 3.764-8.4 8.4-8.4zm0 2.4c-3.314 0-6 2.686-6 6s2.686 6 6 6 6-2.686 6-6-2.686-6-6-6zm0 2.4c1.988 0 3.6 1.612 3.6 3.6s-1.612 3.6-3.6 3.6-3.6-1.612-3.6-3.6 1.612-3.6 3.6-3.6z"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">Basecamp Integration</h2>
+                <p class="text-gray-600">Create Basecamp todos from feedback.</p>
+            </div>
+        </div>
+
+        <form action="/admin/projects/#(project.id)/integrations/basecamp" method="POST">
+            #if(isConfigured):
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div>
+                        <p class="font-medium text-gray-900">Integration Active</p>
+                        <p class="text-sm text-gray-500">When disabled, you won't be able to create Basecamp todos from feedback.</p>
+                    </div>
+                    <input type="checkbox" name="basecampIsActive" #if(basecampIsActive):checked#endif
+                           class="w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                </label>
+            </div>
+            #endif
+
+            <!-- Authentication -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Authentication</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Enter your Basecamp OAuth access token.
+                    <a href="https://launchpad.37signals.com/integrations" target="_blank" class="text-primary-600 hover:text-primary-700">Manage integrations</a>
+                </p>
+
+                <div>
+                    <label for="basecamp-token" class="block text-sm font-medium text-gray-700 mb-1">Access Token</label>
+                    <input type="password"
+                           id="basecamp-token"
+                           name="basecampAccessToken"
+                           value="#(basecampAccessToken)"
+                           placeholder="Enter your Basecamp access token"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+
+            <!-- Hidden fields -->
+            <input type="hidden" id="basecamp-account-hidden" name="basecampAccountId" value="#(basecampAccountId)">
+            <input type="hidden" id="basecamp-account-name-hidden" name="basecampAccountName" value="#(basecampAccountName)">
+            <input type="hidden" id="basecamp-project-hidden" name="basecampProjectId" value="#(basecampProjectId)">
+            <input type="hidden" id="basecamp-project-name-hidden" name="basecampProjectName" value="#(basecampProjectName)">
+            <input type="hidden" id="basecamp-todoset-hidden" name="basecampTodosetId" value="#(basecampTodosetId)">
+            <input type="hidden" id="basecamp-todolist-hidden" name="basecampTodolistId" value="#(basecampTodolistId)">
+            <input type="hidden" id="basecamp-todolist-name-hidden" name="basecampTodolistName" value="#(basecampTodolistName)">
+            <input type="hidden" id="basecamp-account-saved" value="#(basecampAccountId)">
+            <input type="hidden" id="basecamp-project-saved" value="#(basecampProjectId)">
+            <input type="hidden" id="basecamp-todolist-saved" value="#(basecampTodolistId)">
+
+            <!-- Target Selection -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Target To-do List</h3>
+                <p class="text-sm text-gray-600 mb-4">Select the account, project, and to-do list where todos will be created.</p>
+
+                <div class="space-y-4">
+                    <div id="basecamp-account-container">
+                        <label for="basecamp-account" class="block text-sm font-medium text-gray-700 mb-1">Account</label>
+                        <select id="basecamp-account"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Select Account</option>
+                        </select>
+                    </div>
+
+                    <div id="basecamp-project-container" class="hidden">
+                        <label for="basecamp-project" class="block text-sm font-medium text-gray-700 mb-1">Project</label>
+                        <select id="basecamp-project"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Select Project</option>
+                        </select>
+                    </div>
+
+                    <div id="basecamp-todolist-container" class="hidden">
+                        <label for="basecamp-todolist" class="block text-sm font-medium text-gray-700 mb-1">To-do List</label>
+                        <select id="basecamp-todolist"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Select To-do List</option>
+                        </select>
+                    </div>
+                </div>
+
+                #if(isConfigured):
+                <p class="text-sm text-gray-500 mt-4">
+                    Currently selected: <span class="font-medium">#(basecampAccountName)</span> / <span class="font-medium">#(basecampProjectName)</span> / <span class="font-medium">#(basecampTodolistName)</span>
+                </p>
+                #endif
+            </div>
+
+            <!-- Sync Options -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Sync Options</h3>
+
+                <div class="space-y-3">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="basecampSyncStatus" #if(basecampSyncStatus):checked#endif
+                               class="rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                        <span class="ml-3 text-sm text-gray-700">Sync status changes (mark complete/incomplete)</span>
+                    </label>
+
+                    <label class="flex items-center">
+                        <input type="checkbox" name="basecampSyncComments" #if(basecampSyncComments):checked#endif
+                               class="rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                        <span class="ml-3 text-sm text-gray-700">Sync comments to todos</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <a href="/admin/projects/#(project.id)/integrations" class="text-gray-600 hover:text-gray-800">
+                    Cancel
+                </a>
+                <button type="submit"
+                        #if(!isProTier):disabled#endif
+                        class="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+
+        #if(isConfigured):
+        <div class="bg-white rounded-xl shadow-sm border border-red-200 p-6 mt-6">
+            <h3 class="text-lg font-semibold text-red-600 mb-2">Remove Integration</h3>
+            <p class="text-sm text-gray-600 mb-4">This will remove the Basecamp configuration.</p>
+            <form action="/admin/projects/#(project.id)/integrations/basecamp" method="POST"
+                  onsubmit="return confirm('Are you sure you want to remove the Basecamp integration?')">
+                <input type="hidden" name="basecampAccessToken" value="">
+                <input type="hidden" name="basecampTodolistId" value="">
+                <button type="submit"
+                        class="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                    Remove Basecamp Integration
+                </button>
+            </form>
+        </div>
+        #endif
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const projectId = '#(project.id)';
+            const tokenField = document.getElementById('basecamp-token');
+            const accountSelect = document.getElementById('basecamp-account');
+            const projectSelect = document.getElementById('basecamp-project');
+            const todolistSelect = document.getElementById('basecamp-todolist');
+            let currentAccountId = null;
+            let currentProjectId = null;
+            let projectsData = {};
+
+            let debounceTimer;
+            tokenField.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (this.value.trim().length > 10) {
+                        loadAccounts();
+                    }
+                }, 500);
+            });
+
+            tokenField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    loadAccounts();
+                }
+            });
+
+            if (tokenField.value.trim()) {
+                loadAccounts();
+            }
+
+            async function loadAccounts() {
+                accountSelect.disabled = true;
+                accountSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/basecamp/accounts`);
+                    const accounts = await response.json();
+
+                    const savedAccount = document.getElementById('basecamp-account-saved').value;
+                    let options = '<option value="">Select Account</option>';
+                    accounts.forEach(acc => {
+                        const selected = String(acc.id) === savedAccount ? 'selected' : '';
+                        options += `<option value="${acc.id}" ${selected}>${acc.name}</option>`;
+                    });
+                    accountSelect.innerHTML = options;
+                    accountSelect.disabled = false;
+
+                    if (savedAccount) {
+                        currentAccountId = savedAccount;
+                        loadProjects(savedAccount);
+                    }
+                } catch (error) {
+                    console.error('Error loading accounts:', error);
+                    accountSelect.innerHTML = '<option value="">Error loading accounts</option>';
+                }
+            }
+
+            accountSelect.addEventListener('change', function() {
+                const accId = this.value;
+                const accName = this.options[this.selectedIndex].text;
+
+                document.getElementById('basecamp-account-hidden').value = accId;
+                document.getElementById('basecamp-account-name-hidden').value = accName;
+                currentAccountId = accId;
+
+                // Reset subsequent selections
+                document.getElementById('basecamp-project-hidden').value = '';
+                document.getElementById('basecamp-project-name-hidden').value = '';
+                document.getElementById('basecamp-todoset-hidden').value = '';
+                document.getElementById('basecamp-todolist-hidden').value = '';
+                document.getElementById('basecamp-todolist-name-hidden').value = '';
+
+                if (accId) {
+                    loadProjects(accId);
+                }
+            });
+
+            async function loadProjects(accountId) {
+                const container = document.getElementById('basecamp-project-container');
+                container.classList.remove('hidden');
+                projectSelect.disabled = true;
+                projectSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/basecamp/projects/${accountId}`);
+                    const projects = await response.json();
+
+                    // Store projects data for todoset lookup
+                    projectsData = {};
+                    projects.forEach(proj => {
+                        projectsData[proj.id] = proj;
+                    });
+
+                    const savedProj = document.getElementById('basecamp-project-saved').value;
+                    let options = '<option value="">Select Project</option>';
+                    projects.forEach(proj => {
+                        const selected = String(proj.id) === savedProj ? 'selected' : '';
+                        options += `<option value="${proj.id}" ${selected}>${proj.name}</option>`;
+                    });
+                    projectSelect.innerHTML = options;
+                    projectSelect.disabled = false;
+
+                    if (savedProj) {
+                        currentProjectId = savedProj;
+                        const projData = projectsData[parseInt(savedProj)];
+                        if (projData && projData.todosetId) {
+                            document.getElementById('basecamp-todoset-hidden').value = projData.todosetId;
+                        }
+                        loadTodolists(currentAccountId, savedProj);
+                    }
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                }
+            }
+
+            projectSelect.addEventListener('change', function() {
+                const projId = this.value;
+                const projName = this.options[this.selectedIndex].text;
+
+                document.getElementById('basecamp-project-hidden').value = projId;
+                document.getElementById('basecamp-project-name-hidden').value = projName;
+                currentProjectId = projId;
+
+                // Set todoset ID from project data
+                const projData = projectsData[parseInt(projId)];
+                if (projData && projData.todosetId) {
+                    document.getElementById('basecamp-todoset-hidden').value = projData.todosetId;
+                }
+
+                // Reset todolist
+                document.getElementById('basecamp-todolist-hidden').value = '';
+                document.getElementById('basecamp-todolist-name-hidden').value = '';
+
+                if (projId && currentAccountId) {
+                    loadTodolists(currentAccountId, projId);
+                }
+            });
+
+            async function loadTodolists(accountId, basecampProjectId) {
+                const container = document.getElementById('basecamp-todolist-container');
+                container.classList.remove('hidden');
+                todolistSelect.disabled = true;
+                todolistSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/basecamp/todolists/${accountId}/${basecampProjectId}`);
+                    const todolists = await response.json();
+
+                    const savedList = document.getElementById('basecamp-todolist-saved').value;
+                    let options = '<option value="">Select To-do List</option>';
+                    todolists.forEach(list => {
+                        const selected = String(list.id) === savedList ? 'selected' : '';
+                        options += `<option value="${list.id}" ${selected}>${list.name}</option>`;
+                    });
+                    todolistSelect.innerHTML = options;
+                    todolistSelect.disabled = false;
+                } catch (error) {
+                    console.error('Error loading todolists:', error);
+                }
+            }
+
+            todolistSelect.addEventListener('change', function() {
+                const listId = this.value;
+                const listName = this.options[this.selectedIndex].text;
+                document.getElementById('basecamp-todolist-hidden').value = listId;
+                document.getElementById('basecamp-todolist-name-hidden').value = listId ? listName : '';
+            });
+        });
+    </script>
+    #endexport
+#endextend

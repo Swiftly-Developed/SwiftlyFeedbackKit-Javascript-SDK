@@ -1,0 +1,315 @@
+#extend("layouts/dashboard"):
+    #export("extraHead"):
+    <script src="/js/integrations.js"></script>
+    #endexport
+
+    #export("main"):
+    <!-- Breadcrumb -->
+    <nav class="flex items-center gap-2 text-sm text-gray-500 mb-6">
+        <a href="/admin/projects" class="hover:text-gray-700">Projects</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)" class="hover:text-gray-700">#(project.name)</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <a href="/admin/projects/#(project.id)/integrations" class="hover:text-gray-700">Integrations</a>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+        <span class="text-gray-900">Notion</span>
+    </nav>
+
+    #if(success):
+    <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-green-800">Settings updated successfully</p>
+    </div>
+    #endif
+
+    #if(error):
+    <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-red-800">
+            #if(error == "pro_required"):Pro subscription required for integrations#endif
+        </p>
+    </div>
+    #endif
+
+    #if(!isProTier):
+    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+        <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+                <p class="font-medium text-amber-800">Pro subscription required</p>
+                <p class="text-sm text-amber-700 mt-1">Upgrade to Pro to enable the Notion integration.</p>
+            </div>
+        </div>
+    </div>
+    #endif
+
+    <div class="max-w-2xl">
+        <div class="flex items-center gap-3 mb-6">
+            <div class="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                <svg class="w-7 h-7 text-gray-800" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 2.06c-.42-.326-.98-.7-2.055-.607L3.01 2.59c-.466.046-.56.28-.374.466l1.823 1.152zm.793 3.358v13.633c0 .746.373 1.026 1.214.98l14.523-.84c.84-.046.933-.56.933-1.166V6.72c0-.607-.233-.933-.746-.887l-15.177.887c-.56.046-.747.327-.747.846zm14.337.56c.093.42 0 .84-.42.887l-.7.14v10.09c-.607.326-1.166.513-1.633.513-.746 0-.933-.233-1.493-.933l-4.572-7.183v6.953l1.446.327s0 .84-1.166.84l-3.218.187c-.094-.187 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.093-.42.14-1.026.793-1.073l3.451-.233 4.758 7.276v-6.44l-1.213-.14c-.093-.513.28-.886.746-.933l3.219-.186zM2.222 1.214L16.153.014c1.726-.14 2.195.047 2.94.607l4.059 2.846c.607.42.793.933.793 1.586v16.712c0 1.026-.374 1.633-1.68 1.726l-15.458.933c-.98.047-1.446-.093-1.959-.747l-3.125-4.059c-.56-.746-.793-1.306-.793-1.959V2.8c0-.84.373-1.54 1.306-1.586z"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">Notion Integration</h2>
+                <p class="text-gray-600">Sync feedback to a Notion database.</p>
+            </div>
+        </div>
+
+        <form action="/admin/projects/#(project.id)/integrations/notion" method="POST">
+            #if(isConfigured):
+            <!-- Active Toggle -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div>
+                        <p class="font-medium text-gray-900">Integration Active</p>
+                        <p class="text-sm text-gray-500">When disabled, you won't be able to sync feedback to Notion.</p>
+                    </div>
+                    <input type="checkbox" name="notionIsActive" #if(notionIsActive):checked#endif
+                           class="w-5 h-5 rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                </label>
+            </div>
+            #endif
+
+            <!-- Authentication -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Authentication</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Create an internal integration in Notion and share your database with it.
+                    <a href="https://www.notion.so/my-integrations" target="_blank" class="text-primary-600 hover:text-primary-700">Create integration</a>
+                </p>
+
+                <div>
+                    <label for="notion-token" class="block text-sm font-medium text-gray-700 mb-1">Integration Token</label>
+                    <input type="password"
+                           id="notion-token"
+                           name="notionToken"
+                           value="#(notionToken)"
+                           placeholder="secret_xxxxxxxxxxxxxxxxxxxxxxxx"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                </div>
+            </div>
+
+            <!-- Error message container -->
+            <div id="notion-error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <p class="text-sm text-red-800"></p>
+            </div>
+
+            <!-- Database Selection -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Target Database</h3>
+                <p class="text-sm text-gray-600 mb-4">Select the Notion database where pages will be created. Make sure to share the database with your integration.</p>
+
+                <!-- Hidden fields -->
+                <input type="hidden" id="notion-database-hidden" name="notionDatabaseId" value="#(notionDatabaseId)">
+                <input type="hidden" id="notion-database-name-hidden" name="notionDatabaseName" value="#(notionDatabaseName)">
+                <input type="hidden" id="notion-database-saved" value="#(notionDatabaseId)">
+
+                <div>
+                    <label for="notion-database" class="block text-sm font-medium text-gray-700 mb-1">Database</label>
+                    <select id="notion-database"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Select Database</option>
+                    </select>
+                </div>
+
+                #if(isConfigured):
+                <p class="text-sm text-gray-500 mt-4">
+                    Currently selected: <span class="font-medium">#(notionDatabaseName)</span>
+                </p>
+                #endif
+            </div>
+
+            <!-- Property Mapping (shown after database selection) -->
+            <div id="notion-properties-container" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6 #if(!isConfigured):hidden#endif">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Property Mapping</h3>
+                <p class="text-sm text-gray-600 mb-4">Map feedback fields to Notion properties (optional).</p>
+
+                <div class="space-y-4">
+                    <div>
+                        <label for="notion-status-property" class="block text-sm font-medium text-gray-700 mb-1">Status Property</label>
+                        <select id="notion-status-property"
+                                name="notionStatusProperty"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">None</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Select or Status type property</p>
+                    </div>
+
+                    <div>
+                        <label for="notion-votes-property" class="block text-sm font-medium text-gray-700 mb-1">Votes Property</label>
+                        <select id="notion-votes-property"
+                                name="notionVotesProperty"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">None</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Number type property</p>
+                    </div>
+                </div>
+
+                <input type="hidden" id="notion-status-saved" value="#(notionStatusProperty)">
+                <input type="hidden" id="notion-votes-saved" value="#(notionVotesProperty)">
+            </div>
+
+            <!-- Sync Options -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Sync Options</h3>
+
+                <div class="space-y-3">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="notionSyncStatus" #if(notionSyncStatus):checked#endif
+                               class="rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                        <span class="ml-3 text-sm text-gray-700">Sync status changes</span>
+                    </label>
+
+                    <label class="flex items-center">
+                        <input type="checkbox" name="notionSyncComments" #if(notionSyncComments):checked#endif
+                               class="rounded border-gray-300 text-primary-500 focus:ring-primary-500">
+                        <span class="ml-3 text-sm text-gray-700">Sync comments to pages</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+                <a href="/admin/projects/#(project.id)/integrations" class="text-gray-600 hover:text-gray-800">
+                    Cancel
+                </a>
+                <button type="submit"
+                        #if(!isProTier):disabled#endif
+                        class="px-6 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+
+        #if(isConfigured):
+        <!-- Remove Integration -->
+        <div class="bg-white rounded-xl shadow-sm border border-red-200 p-6 mt-6">
+            <h3 class="text-lg font-semibold text-red-600 mb-2">Remove Integration</h3>
+            <p class="text-sm text-gray-600 mb-4">This will remove the Notion configuration. Existing pages will not be affected.</p>
+            <form action="/admin/projects/#(project.id)/integrations/notion" method="POST"
+                  onsubmit="return confirm('Are you sure you want to remove the Notion integration?')">
+                <input type="hidden" name="notionToken" value="">
+                <input type="hidden" name="notionDatabaseId" value="">
+                <button type="submit"
+                        class="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
+                    Remove Notion Integration
+                </button>
+            </form>
+        </div>
+        #endif
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const projectId = '#(project.id)';
+            const tokenField = document.getElementById('notion-token');
+            const databaseSelect = document.getElementById('notion-database');
+            let properties = [];
+
+            // Load databases when token changes
+            let debounceTimer;
+            tokenField.addEventListener('input', function() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (this.value.trim().length > 10) {
+                        loadDatabases();
+                    }
+                }, 500);
+            });
+
+            tokenField.addEventListener('blur', function() {
+                if (this.value.trim()) {
+                    loadDatabases();
+                }
+            });
+
+            // Load databases if token already exists
+            if (tokenField.value.trim()) {
+                loadDatabases();
+            }
+
+            async function loadDatabases() {
+                databaseSelect.disabled = true;
+                databaseSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/notion/databases`);
+                    const databases = await response.json();
+
+                    const savedDb = document.getElementById('notion-database-saved').value;
+                    let options = '<option value="">Select Database</option>';
+                    databases.forEach(db => {
+                        const selected = db.id === savedDb ? 'selected' : '';
+                        options += `<option value="${db.id}" ${selected}>${db.name}</option>`;
+                    });
+                    databaseSelect.innerHTML = options;
+                    databaseSelect.disabled = false;
+
+                    // If pre-selected, load properties
+                    if (savedDb) {
+                        loadProperties(savedDb);
+                    }
+
+                } catch (error) {
+                    console.error('Error loading databases:', error);
+                    databaseSelect.innerHTML = '<option value="">Error loading databases</option>';
+                }
+            }
+
+            databaseSelect.addEventListener('change', function() {
+                const dbId = this.value;
+                const dbName = this.options[this.selectedIndex].text;
+
+                document.getElementById('notion-database-hidden').value = dbId;
+                document.getElementById('notion-database-name-hidden').value = dbName;
+
+                if (dbId) {
+                    loadProperties(dbId);
+                }
+            });
+
+            async function loadProperties(databaseId) {
+                const container = document.getElementById('notion-properties-container');
+                const statusSelect = document.getElementById('notion-status-property');
+                const votesSelect = document.getElementById('notion-votes-property');
+
+                container.classList.remove('hidden');
+
+                try {
+                    const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/notion/database/${databaseId}/properties`);
+                    properties = await response.json();
+
+                    const savedStatus = document.getElementById('notion-status-saved').value;
+                    const savedVotes = document.getElementById('notion-votes-saved').value;
+
+                    // Status property (select or status type)
+                    let statusOptions = '<option value="">None</option>';
+                    properties.filter(p => p.type === 'select' || p.type === 'status').forEach(p => {
+                        const selected = p.name === savedStatus ? 'selected' : '';
+                        statusOptions += `<option value="${p.name}" ${selected}>${p.name}</option>`;
+                    });
+                    statusSelect.innerHTML = statusOptions;
+
+                    // Votes property (number type)
+                    let votesOptions = '<option value="">None</option>';
+                    properties.filter(p => p.type === 'number').forEach(p => {
+                        const selected = p.name === savedVotes ? 'selected' : '';
+                        votesOptions += `<option value="${p.name}" ${selected}>${p.name}</option>`;
+                    });
+                    votesSelect.innerHTML = votesOptions;
+
+                } catch (error) {
+                    console.error('Error loading properties:', error);
+                }
+            }
+        });
+    </script>
+    #endexport
+#endextend
