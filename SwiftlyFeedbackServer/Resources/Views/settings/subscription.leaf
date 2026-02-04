@@ -76,13 +76,28 @@
 
         <!-- Plans Comparison -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-6">Compare Plans</h2>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-semibold text-gray-900">Compare Plans</h2>
+
+                <!-- Billing Toggle -->
+                <div class="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+                    <button id="monthlyBtn" onclick="setBillingPeriod('monthly')"
+                        class="px-4 py-2 text-sm font-medium rounded-md transition-colors bg-white text-gray-900 shadow-sm">
+                        Monthly
+                    </button>
+                    <button id="yearlyBtn" onclick="setBillingPeriod('yearly')"
+                        class="px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-500 hover:text-gray-700">
+                        Yearly
+                        <span class="ml-1 text-xs text-green-600 font-semibold">-17%</span>
+                    </button>
+                </div>
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Free -->
                 <div class="border border-gray-200 rounded-xl p-6 #if(subscription.tier == "free"):ring-2 ring-primary-500#endif">
                     <h3 class="font-semibold text-gray-900">Free</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">$0<span class="text-sm font-normal text-gray-500">/mo</span></p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">€0<span class="text-sm font-normal text-gray-500">/mo</span></p>
                     <ul class="mt-6 space-y-3 text-sm">
                         <li class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +137,7 @@
                         Popular
                     </span>
                     <h3 class="font-semibold text-gray-900">Pro</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">$9<span class="text-sm font-normal text-gray-500">/mo</span></p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" id="proPrice">€9.99<span class="text-sm font-normal text-gray-500">/mo</span></p>
                     <ul class="mt-6 space-y-3 text-sm">
                         <li class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -164,7 +179,7 @@
                 <!-- Team -->
                 <div class="border border-gray-200 rounded-xl p-6 #if(subscription.tier == "team"):ring-2 ring-primary-500#endif">
                     <h3 class="font-semibold text-gray-900">Team</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">$29<span class="text-sm font-normal text-gray-500">/mo</span></p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" id="teamPrice">€99.99<span class="text-sm font-normal text-gray-500">/mo</span></p>
                     <ul class="mt-6 space-y-3 text-sm">
                         <li class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -217,12 +232,49 @@
     <script>
         // Stripe Price IDs from environment
         const PRICES = {
-            pro: '#(priceProMonthly)',
-            team: '#(priceTeamMonthly)'
+            pro: {
+                monthly: '#(priceProMonthly)',
+                yearly: '#(priceProYearly)'
+            },
+            team: {
+                monthly: '#(priceTeamMonthly)',
+                yearly: '#(priceTeamYearly)'
+            }
         };
 
+        // Billing period state
+        let billingPeriod = 'monthly';
+
+        function setBillingPeriod(period) {
+            billingPeriod = period;
+
+            // Update toggle buttons
+            const monthlyBtn = document.getElementById('monthlyBtn');
+            const yearlyBtn = document.getElementById('yearlyBtn');
+
+            if (period === 'monthly') {
+                monthlyBtn.className = 'px-4 py-2 text-sm font-medium rounded-md transition-colors bg-white text-gray-900 shadow-sm';
+                yearlyBtn.className = 'px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-500 hover:text-gray-700';
+            } else {
+                monthlyBtn.className = 'px-4 py-2 text-sm font-medium rounded-md transition-colors text-gray-500 hover:text-gray-700';
+                yearlyBtn.className = 'px-4 py-2 text-sm font-medium rounded-md transition-colors bg-white text-gray-900 shadow-sm';
+            }
+
+            // Update prices
+            const proPrice = document.getElementById('proPrice');
+            const teamPrice = document.getElementById('teamPrice');
+
+            if (period === 'monthly') {
+                proPrice.innerHTML = '€9.99<span class="text-sm font-normal text-gray-500">/mo</span>';
+                teamPrice.innerHTML = '€99.99<span class="text-sm font-normal text-gray-500">/mo</span>';
+            } else {
+                proPrice.innerHTML = '€99.99<span class="text-sm font-normal text-gray-500">/year</span>';
+                teamPrice.innerHTML = '€999.99<span class="text-sm font-normal text-gray-500">/year</span>';
+            }
+        }
+
         async function subscribe(plan) {
-            const priceId = PRICES[plan];
+            const priceId = PRICES[plan][billingPeriod];
 
             if (!priceId) {
                 alert('Subscription pricing is not configured yet. Please contact support.');

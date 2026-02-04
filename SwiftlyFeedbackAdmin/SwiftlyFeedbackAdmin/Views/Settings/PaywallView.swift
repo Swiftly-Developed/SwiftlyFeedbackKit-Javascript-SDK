@@ -386,10 +386,10 @@ struct WebTierSelectionCard: View {
 
     private var priceText: String {
         switch (tier, isYearly) {
-        case (.pro, false): return "$4.99/month"
-        case (.pro, true): return "$49.99/year"
-        case (.team, false): return "$9.99/month"
-        case (.team, true): return "$99.99/year"
+        case (.pro, false): return "€9.99/month"
+        case (.pro, true): return "€99.99/year"
+        case (.team, false): return "€99.99/month"
+        case (.team, true): return "€999.99/year"
         default: return ""
         }
     }
