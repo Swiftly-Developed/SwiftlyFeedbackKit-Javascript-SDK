@@ -73,6 +73,7 @@ struct StripeService {
             body += "&line_items[0][quantity]=1"
             body += "&metadata[user_id]=\(userId.uuidString)"
             body += "&client_reference_id=\(userId.uuidString)"
+            body += "&allow_promotion_codes=true"
             req.body = ByteBuffer(string: body)
         }
 
