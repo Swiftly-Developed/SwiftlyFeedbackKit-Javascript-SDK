@@ -3,10 +3,13 @@
 # ================================
 FROM swift:6.0-jammy as build
 
-# Install system dependencies for PostgreSQL
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies for PostgreSQL (with retry for flaky networks)
+RUN for i in 1 2 3; do \
+        apt-get update && apt-get install -y \
+            libpq-dev \
+        && rm -rf /var/lib/apt/lists/* \
+        && break || sleep 15; \
+    done
 
 # Set working directory
 WORKDIR /build
