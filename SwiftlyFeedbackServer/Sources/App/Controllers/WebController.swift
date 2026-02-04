@@ -85,7 +85,7 @@ struct WebController: RouteCollection {
                         <h2 class="text-xl font-bold">Free</h2>
                         <p class="text-gray-400 mt-2">For trying out FeedbackKit</p>
                         <div class="mt-4">
-                            <span class="text-4xl font-bold">$0</span>
+                            <span class="text-4xl font-bold">€0</span>
                             <span class="text-gray-400">/month</span>
                         </div>
                         <ul class="mt-6 space-y-3">
@@ -115,7 +115,7 @@ struct WebController: RouteCollection {
                         <h2 class="text-xl font-bold">Pro</h2>
                         <p class="text-gray-400 mt-2">For indie developers</p>
                         <div class="mt-4">
-                            <span id="pro-price" class="text-4xl font-bold">$4.99</span>
+                            <span id="pro-price" class="text-4xl font-bold">€9.99</span>
                             <span id="pro-period" class="text-gray-400">/month</span>
                         </div>
                         <ul class="mt-6 space-y-3">
@@ -142,7 +142,7 @@ struct WebController: RouteCollection {
                         <h2 class="text-xl font-bold">Team</h2>
                         <p class="text-gray-400 mt-2">For teams & agencies</p>
                         <div class="mt-4">
-                            <span id="team-price" class="text-4xl font-bold">$9.99</span>
+                            <span id="team-price" class="text-4xl font-bold">€99.99</span>
                             <span id="team-period" class="text-gray-400">/month</span>
                         </div>
                         <ul class="mt-6 space-y-3">
@@ -215,9 +215,9 @@ struct WebController: RouteCollection {
                         yearlyLabel.classList.remove('text-gray-400');
                         yearlyLabel.classList.add('text-white');
 
-                        document.getElementById('pro-price').textContent = '$49.99';
+                        document.getElementById('pro-price').textContent = '€99.99';
                         document.getElementById('pro-period').textContent = '/year';
-                        document.getElementById('team-price').textContent = '$99.99';
+                        document.getElementById('team-price').textContent = '€999.99';
                         document.getElementById('team-period').textContent = '/year';
                     } else {
                         toggle.style.transform = 'translateX(0)';
@@ -226,9 +226,9 @@ struct WebController: RouteCollection {
                         yearlyLabel.classList.add('text-gray-400');
                         yearlyLabel.classList.remove('text-white');
 
-                        document.getElementById('pro-price').textContent = '$4.99';
+                        document.getElementById('pro-price').textContent = '€9.99';
                         document.getElementById('pro-period').textContent = '/month';
-                        document.getElementById('team-price').textContent = '$9.99';
+                        document.getElementById('team-price').textContent = '€99.99';
                         document.getElementById('team-period').textContent = '/month';
                     }
                 }
