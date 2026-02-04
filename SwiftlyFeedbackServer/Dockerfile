@@ -31,11 +31,14 @@ RUN swift build -c release --static-swift-stdlib
 # ================================
 FROM swift:6.0-jammy-slim
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libpq5 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies (with retry for flaky networks)
+RUN for i in 1 2 3; do \
+        apt-get update && apt-get install -y \
+            libpq5 \
+            ca-certificates \
+        && rm -rf /var/lib/apt/lists/* \
+        && break || sleep 15; \
+    done
 
 # Create app user
 RUN useradd --user-group --create-home --system --skel /dev/null --home-dir /app vapor
