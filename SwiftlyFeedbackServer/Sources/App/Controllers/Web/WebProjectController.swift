@@ -69,6 +69,7 @@ struct WebProjectController: RouteCollection {
                 name: project.name,
                 description: project.description,
                 colorIndex: project.colorIndex,
+                colorClass: projectColors[project.colorIndex % projectColors.count].bgClass,
                 isArchived: project.isArchived,
                 isOwner: project.$owner.id == userId
             )
@@ -169,9 +170,17 @@ struct WebProjectController: RouteCollection {
         let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
         let form = try req.content.decode(UpdateProjectForm.self)
 
+        req.logger.info("📝 Project Settings Update:")
+        req.logger.info("   - Name: \(form.name)")
+        req.logger.info("   - Description: \(form.description ?? "nil")")
+        req.logger.info("   - ColorIndex from form: \(form.colorIndex.map { String($0) } ?? "nil")")
+        req.logger.info("   - Current project colorIndex: \(project.colorIndex)")
+
         project.name = form.name.trimmingCharacters(in: .whitespaces)
         project.description = form.description?.trimmingCharacters(in: .whitespaces)
         project.colorIndex = form.colorIndex ?? project.colorIndex
+
+        req.logger.info("   - New project colorIndex: \(project.colorIndex)")
 
         try await project.save(on: req.db)
 
@@ -596,12 +605,9 @@ struct ProjectListItem: Encodable {
     let name: String
     let description: String?
     let colorIndex: Int
+    let colorClass: String
     let isArchived: Bool
     let isOwner: Bool
-
-    var colorClass: String {
-        projectColors[colorIndex % projectColors.count].bgClass
-    }
 }
 
 struct ProjectDetailContext: Encodable {
@@ -645,14 +651,11 @@ struct ProjectContext: Encodable {
     let description: String?
     let apiKey: String
     let colorIndex: Int
+    let colorClass: String
     let isArchived: Bool
     let role: String
     let isOwner: Bool
     let isAdmin: Bool
-
-    var colorClass: String {
-        projectColors[colorIndex % projectColors.count].bgClass
-    }
 
     init(from project: Project, role: WebProjectRole) {
         self.id = project.id ?? UUID()
@@ -660,6 +663,7 @@ struct ProjectContext: Encodable {
         self.description = project.description
         self.apiKey = project.apiKey
         self.colorIndex = project.colorIndex
+        self.colorClass = projectColors[project.colorIndex % projectColors.count].bgClass
         self.isArchived = project.isArchived
         self.role = role.rawValue
         self.isOwner = role == .owner
