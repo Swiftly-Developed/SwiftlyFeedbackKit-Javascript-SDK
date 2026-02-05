@@ -380,10 +380,10 @@ struct OnboardingTierCard: View {
 
     private var priceText: String {
         switch (tier, isYearly) {
-        case (.pro, false): return "€9.99/mo"
-        case (.pro, true): return "€99.99/yr"
-        case (.team, false): return "€99.99/mo"
-        case (.team, true): return "€999.99/yr"
+        case (.pro, false): return "$15/mo"
+        case (.pro, true): return "$150/yr"
+        case (.team, false): return "$39/mo"
+        case (.team, true): return "$390/yr"
         default: return ""
         }
     }

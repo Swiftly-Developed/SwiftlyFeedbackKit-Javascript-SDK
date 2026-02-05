@@ -97,7 +97,7 @@
                 <!-- Free -->
                 <div class="border border-gray-200 rounded-xl p-6 #if(subscription.tier == "free"):ring-2 ring-primary-500#endif">
                     <h3 class="font-semibold text-gray-900">Free</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2">€0<span class="text-sm font-normal text-gray-500">/mo</span></p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2">$0<span class="text-sm font-normal text-gray-500">/mo</span></p>
                     <ul class="mt-6 space-y-3 text-sm">
                         <li class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -137,7 +137,7 @@
                         Popular
                     </span>
                     <h3 class="font-semibold text-gray-900">Pro</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2" id="proPrice">€9.99<span class="text-sm font-normal text-gray-500">/mo</span></p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" id="proPrice">$15<span class="text-sm font-normal text-gray-500">/mo</span></p>
                     <ul class="mt-6 space-y-3 text-sm">
                         <li class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,7 +179,7 @@
                 <!-- Team -->
                 <div class="border border-gray-200 rounded-xl p-6 #if(subscription.tier == "team"):ring-2 ring-primary-500#endif">
                     <h3 class="font-semibold text-gray-900">Team</h3>
-                    <p class="text-3xl font-bold text-gray-900 mt-2" id="teamPrice">€99.99<span class="text-sm font-normal text-gray-500">/mo</span></p>
+                    <p class="text-3xl font-bold text-gray-900 mt-2" id="teamPrice">$39<span class="text-sm font-normal text-gray-500">/mo</span></p>
                     <ul class="mt-6 space-y-3 text-sm">
                         <li class="flex items-center gap-2">
                             <svg class="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,11 +265,11 @@
             const teamPrice = document.getElementById('teamPrice');
 
             if (period === 'monthly') {
-                proPrice.innerHTML = '€9.99<span class="text-sm font-normal text-gray-500">/mo</span>';
-                teamPrice.innerHTML = '€99.99<span class="text-sm font-normal text-gray-500">/mo</span>';
+                proPrice.innerHTML = '$15<span class="text-sm font-normal text-gray-500">/mo</span>';
+                teamPrice.innerHTML = '$39<span class="text-sm font-normal text-gray-500">/mo</span>';
             } else {
-                proPrice.innerHTML = '€99.99<span class="text-sm font-normal text-gray-500">/year</span>';
-                teamPrice.innerHTML = '€999.99<span class="text-sm font-normal text-gray-500">/year</span>';
+                proPrice.innerHTML = '$150<span class="text-sm font-normal text-gray-500">/year</span>';
+                teamPrice.innerHTML = '$390<span class="text-sm font-normal text-gray-500">/year</span>';
             }
         }
 
