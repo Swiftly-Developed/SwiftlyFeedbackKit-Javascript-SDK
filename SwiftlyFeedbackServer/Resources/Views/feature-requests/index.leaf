@@ -194,11 +194,11 @@
                 console.log('Parsed data:', data);
 
                 if (data.success) {
-                    // Update vote count
+                    // Update vote count (server returns snake_case)
                     const countEl = button.querySelector('.vote-count');
                     if (countEl) {
-                        countEl.textContent = data.voteCount;
-                        console.log('Updated vote count to:', data.voteCount);
+                        countEl.textContent = data.vote_count;
+                        console.log('Updated vote count to:', data.vote_count);
                     }
 
                     // Toggle voted state
