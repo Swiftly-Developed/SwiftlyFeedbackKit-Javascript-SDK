@@ -234,6 +234,8 @@ struct WebFeatureRequestsController: RouteCollection {
         let userId = try user.requireID().uuidString
         let isAjax = req.headers.first(name: "X-Requested-With") == "XMLHttpRequest"
 
+        req.logger.info("🗳️ Vote request - Feedback: \(id), User: \(userId), isAjax: \(isAjax)")
+
         struct VoteRequest: Content {
             let userId: String
             let email: String?
@@ -262,13 +264,17 @@ struct WebFeatureRequestsController: RouteCollection {
             try clientReq.content.encode(voteRequest, as: .json)
         }
 
+        req.logger.info("🗳️ Vote API response status: \(response.status)")
+
         if response.status == .ok || response.status == .created {
             if isAjax {
                 let voteCount = try await getVoteCount(req: req, feedbackId: id)
+                req.logger.info("🗳️ Vote success, new count: \(voteCount)")
                 return try await VoteResponse(success: true, action: "voted", voteCount: voteCount).encodeResponse(for: req)
             }
             return req.redirect(to: "/admin/feature-requests/\(id.uuidString)?message=Vote recorded!")
         } else if response.status == .conflict {
+            req.logger.info("🗳️ Already voted, attempting unvote")
             // Already voted - try to unvote
             let unvoteResponse = try await req.client.delete(
                 URI(string: "\(env.serverURL)/api/v1/feedbacks/\(id.uuidString)/votes"),
@@ -280,18 +286,23 @@ struct WebFeatureRequestsController: RouteCollection {
                 try clientReq.content.encode(voteRequest, as: .json)
             }
 
+            req.logger.info("🗳️ Unvote API response status: \(unvoteResponse.status)")
+
             if unvoteResponse.status == .ok {
                 if isAjax {
                     let voteCount = try await getVoteCount(req: req, feedbackId: id)
+                    req.logger.info("🗳️ Unvote success, new count: \(voteCount)")
                     return try await VoteResponse(success: true, action: "unvoted", voteCount: voteCount).encodeResponse(for: req)
                 }
                 return req.redirect(to: "/admin/feature-requests/\(id.uuidString)?message=Vote removed!")
             }
             if isAjax {
+                req.logger.error("🗳️ Unvote failed")
                 return try await VoteResponse(success: false, action: "error", voteCount: 0).encodeResponse(for: req)
             }
             return req.redirect(to: "/admin/feature-requests/\(id.uuidString)?error=Failed to toggle vote")
         } else {
+            req.logger.error("🗳️ Vote failed with status: \(response.status)")
             if isAjax {
                 return try await VoteResponse(success: false, action: "error", voteCount: 0).encodeResponse(for: req)
             }
