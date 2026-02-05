@@ -88,12 +88,20 @@
 
                 <div>
                     <label for="clickup-token" class="block text-sm font-medium text-gray-700 mb-1">API Token</label>
-                    <input type="password"
-                           id="clickup-token"
-                           name="clickupToken"
-                           value="#(clickupToken)"
-                           placeholder="pk_xxxxxxxx_xxxxxxxxxxxxxxxxxxxxxxxx"
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                    <div class="flex gap-2">
+                        <input type="password"
+                               id="clickup-token"
+                               name="clickupToken"
+                               value="#(clickupToken)"
+                               placeholder="pk_xxxxxxxx_xxxxxxxxxxxxxxxxxxxxxxxx"
+                               class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
+                        <button type="button"
+                                id="clickup-load-btn"
+                                onclick="loadClickUpWorkspaces()"
+                                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors whitespace-nowrap">
+                            Load Workspaces
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -241,26 +249,83 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const projectId = '#(project.id)';
-            let currentSpaceId = null;
-            let selectedFolderId = null;
+        const projectId = '#(project.id)';
+        let currentSpaceId = null;
+        let selectedFolderId = null;
 
-            const picker = new IntegrationPicker({
-                projectId: projectId,
-                integration: 'clickup',
-                tokenFieldId: 'clickup-token',
-                pickers: [
-                    { id: 'workspace', endpoint: 'workspaces', label: 'Workspace' },
-                    { id: 'space', endpoint: 'spaces/:workspaceId', label: 'Space', dependsOn: 'workspace' }
-                ],
-                onComplete: function(values) {
-                    if (values.space) {
-                        currentSpaceId = values.space;
-                        loadFoldersAndLists(values.space);
-                    }
+        // Load workspaces when button is clicked
+        async function loadClickUpWorkspaces() {
+            const tokenField = document.getElementById('clickup-token');
+            const token = tokenField.value.trim();
+            const loadBtn = document.getElementById('clickup-load-btn');
+            const errorDiv = document.getElementById('clickup-error');
+            const workspaceSelect = document.getElementById('clickup-workspace');
+
+            if (!token) {
+                if (errorDiv) {
+                    errorDiv.classList.remove('hidden');
+                    errorDiv.querySelector('p').textContent = 'Please enter an API token first';
                 }
-            });
+                return;
+            }
+
+            // Show loading state
+            loadBtn.textContent = 'Loading...';
+            loadBtn.disabled = true;
+            workspaceSelect.innerHTML = '<option value="">Loading...</option>';
+
+            try {
+                const response = await fetch(`/admin/projects/${projectId}/integrations/ajax/clickup/workspaces?token=${encodeURIComponent(token)}`);
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.reason || 'Failed to load workspaces');
+                }
+
+                const workspaces = await response.json();
+
+                // Populate dropdown
+                let options = '<option value="">Select Workspace</option>';
+                workspaces.forEach(ws => {
+                    options += `<option value="${ws.id}">${ws.name}</option>`;
+                });
+                workspaceSelect.innerHTML = options;
+
+                // Hide error
+                if (errorDiv) {
+                    errorDiv.classList.add('hidden');
+                }
+
+            } catch (error) {
+                console.error('Error loading workspaces:', error);
+                workspaceSelect.innerHTML = '<option value="">Error loading workspaces</option>';
+                if (errorDiv) {
+                    errorDiv.classList.remove('hidden');
+                    errorDiv.querySelector('p').textContent = error.message;
+                }
+            } finally {
+                loadBtn.textContent = 'Load Workspaces';
+                loadBtn.disabled = false;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-load if token already exists
+            const tokenField = document.getElementById('clickup-token');
+            if (tokenField.value) {
+                loadClickUpWorkspaces();
+            }
+
+            // Helper to get current token
+            function getToken() {
+                return document.getElementById('clickup-token').value.trim();
+            }
+
+            // Helper to build URL with token
+            function withToken(url) {
+                const token = getToken();
+                return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+            }
 
             async function loadFoldersAndLists(spaceId) {
                 const folderContainer = document.getElementById('clickup-folder-container');
@@ -273,7 +338,7 @@
 
                 // Load folders
                 try {
-                    const foldersResponse = await fetch(`/admin/projects/${projectId}/integrations/ajax/clickup/folders/${spaceId}`);
+                    const foldersResponse = await fetch(withToken(`/admin/projects/${projectId}/integrations/ajax/clickup/folders/${spaceId}`));
                     const folders = await foldersResponse.json();
 
                     let folderOptions = '<option value="">No Folder (select from folderless lists)</option>';
@@ -297,7 +362,7 @@
                 listContainer.classList.remove('hidden');
 
                 try {
-                    const listsResponse = await fetch(`/admin/projects/${projectId}/integrations/ajax/clickup/folderless-lists/${spaceId}`);
+                    const listsResponse = await fetch(withToken(`/admin/projects/${projectId}/integrations/ajax/clickup/folderless-lists/${spaceId}`));
                     const lists = await listsResponse.json();
 
                     let listOptions = '<option value="">Select List</option>';
@@ -318,7 +383,7 @@
                 listContainer.classList.remove('hidden');
 
                 try {
-                    const listsResponse = await fetch(`/admin/projects/${projectId}/integrations/ajax/clickup/lists/${folderId}`);
+                    const listsResponse = await fetch(withToken(`/admin/projects/${projectId}/integrations/ajax/clickup/lists/${folderId}`));
                     const lists = await listsResponse.json();
 
                     let listOptions = '<option value="">Select List</option>';
@@ -381,11 +446,56 @@
                 }
             }
 
-            // Workspace selection - update hidden name field
-            document.getElementById('clickup-workspace').addEventListener('change', function() {
+            // Workspace selection - load spaces
+            document.getElementById('clickup-workspace').addEventListener('change', async function() {
+                const workspaceId = this.value;
                 const name = this.options[this.selectedIndex].text;
+
                 if (name !== 'Select Workspace') {
                     document.getElementById('clickup-workspace-hidden').value = name;
+                }
+
+                // Hide subsequent pickers
+                document.getElementById('clickup-space-container').classList.add('hidden');
+                document.getElementById('clickup-folder-container').classList.add('hidden');
+                document.getElementById('clickup-list-container').classList.add('hidden');
+
+                if (!workspaceId) return;
+
+                // Load spaces
+                const spaceContainer = document.getElementById('clickup-space-container');
+                const spaceSelect = document.getElementById('clickup-space');
+
+                spaceContainer.classList.remove('hidden');
+                spaceSelect.innerHTML = '<option value="">Loading...</option>';
+
+                try {
+                    const response = await fetch(withToken(`/admin/projects/${projectId}/integrations/ajax/clickup/spaces/${workspaceId}`));
+                    const spaces = await response.json();
+
+                    let options = '<option value="">Select Space</option>';
+                    spaces.forEach(space => {
+                        options += `<option value="${space.id}">${space.name}</option>`;
+                    });
+                    spaceSelect.innerHTML = options;
+
+                } catch (error) {
+                    console.error('Error loading spaces:', error);
+                    spaceSelect.innerHTML = '<option value="">Error loading spaces</option>';
+                }
+            });
+
+            // Space selection - load folders and lists
+            document.getElementById('clickup-space').addEventListener('change', function() {
+                const spaceId = this.value;
+                currentSpaceId = spaceId;
+
+                // Hide subsequent pickers
+                document.getElementById('clickup-folder-container').classList.add('hidden');
+                document.getElementById('clickup-list-container').classList.add('hidden');
+
+                if (spaceId) {
+                    loadFoldersAndLists(spaceId);
                 }
             });
 

@@ -754,7 +754,13 @@ struct WebIntegrationsController: RouteCollection {
         let user = try req.auth.require(User.self)
         let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
 
-        guard let token = project.clickupToken else {
+        // Accept token from query param (for unsaved form) or from saved project
+        let token: String
+        if let queryToken = req.query[String.self, at: "token"], !queryToken.isEmpty {
+            token = queryToken
+        } else if let savedToken = project.clickupToken {
+            token = savedToken
+        } else {
             throw Abort(.badRequest, reason: "ClickUp token not configured")
         }
 
@@ -767,7 +773,13 @@ struct WebIntegrationsController: RouteCollection {
         let user = try req.auth.require(User.self)
         let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
 
-        guard let token = project.clickupToken else {
+        // Accept token from query param (for unsaved form) or from saved project
+        let token: String
+        if let queryToken = req.query[String.self, at: "token"], !queryToken.isEmpty {
+            token = queryToken
+        } else if let savedToken = project.clickupToken {
+            token = savedToken
+        } else {
             throw Abort(.badRequest, reason: "ClickUp token not configured")
         }
 
@@ -784,7 +796,13 @@ struct WebIntegrationsController: RouteCollection {
         let user = try req.auth.require(User.self)
         let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
 
-        guard let token = project.clickupToken else {
+        // Accept token from query param (for unsaved form) or from saved project
+        let token: String
+        if let queryToken = req.query[String.self, at: "token"], !queryToken.isEmpty {
+            token = queryToken
+        } else if let savedToken = project.clickupToken {
+            token = savedToken
+        } else {
             throw Abort(.badRequest, reason: "ClickUp token not configured")
         }
 
@@ -801,7 +819,13 @@ struct WebIntegrationsController: RouteCollection {
         let user = try req.auth.require(User.self)
         let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
 
-        guard let token = project.clickupToken else {
+        // Accept token from query param (for unsaved form) or from saved project
+        let token: String
+        if let queryToken = req.query[String.self, at: "token"], !queryToken.isEmpty {
+            token = queryToken
+        } else if let savedToken = project.clickupToken {
+            token = savedToken
+        } else {
             throw Abort(.badRequest, reason: "ClickUp token not configured")
         }
 
@@ -818,7 +842,13 @@ struct WebIntegrationsController: RouteCollection {
         let user = try req.auth.require(User.self)
         let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
 
-        guard let token = project.clickupToken else {
+        // Accept token from query param (for unsaved form) or from saved project
+        let token: String
+        if let queryToken = req.query[String.self, at: "token"], !queryToken.isEmpty {
+            token = queryToken
+        } else if let savedToken = project.clickupToken {
+            token = savedToken
+        } else {
             throw Abort(.badRequest, reason: "ClickUp token not configured")
         }
 
