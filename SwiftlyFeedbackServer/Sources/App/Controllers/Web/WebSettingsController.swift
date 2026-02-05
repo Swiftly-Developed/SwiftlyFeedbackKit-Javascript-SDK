@@ -150,9 +150,10 @@ struct WebSettingsController: RouteCollection {
             req.logger.info("   - Token value (first 20 chars): \(String(userToken.value.prefix(20)))...")
             req.logger.info("   - Token created at: \(userToken.createdAt ?? Date())")
 
-            // Build portal URL with auth token
+            // Build portal URL with auth token (URL-encode to handle +, /, = characters)
             let baseUrl = AppEnvironment.shared.serverURL
-            portalUrl = "\(baseUrl)/portal?token=\(userToken.value)"
+            let encodedToken = userToken.value.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? userToken.value
+            portalUrl = "\(baseUrl)/portal?token=\(encodedToken)"
             req.logger.info("   - Portal URL: \(portalUrl ?? "nil")")
         }
 
