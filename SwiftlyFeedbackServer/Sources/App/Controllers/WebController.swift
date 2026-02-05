@@ -461,7 +461,7 @@ struct WebController: RouteCollection {
         // Create portal session
         let stripeService = req.stripeService
         let baseUrl = Environment.get("WEB_APP_URL") ?? "http://localhost:8080"
-        let returnUrl = "\(baseUrl)/subscribe"
+        let returnUrl = "\(baseUrl)/admin/settings/subscription"
 
         let portalUrl = try await stripeService.createPortalSession(
             customerId: customerId,
