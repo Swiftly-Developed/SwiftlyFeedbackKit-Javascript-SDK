@@ -127,9 +127,33 @@ struct WebSettingsController: RouteCollection {
         // Get Stripe portal URL if user has Stripe subscription
         var portalUrl: String?
         if let stripeCustomerId = user.stripeCustomerId {
-            // Build portal URL
+            // Get or create a user token for portal authentication
+            let userId = try user.requireID()
+            let userToken: UserToken
+
+            if let existingToken = try await UserToken.query(on: req.db)
+                .filter(\.$user.$id == userId)
+                .first() {
+                userToken = existingToken
+                req.logger.info("🔑 Portal: Using existing token for user \(userId)")
+            } else {
+                // Create a new token if none exists
+                userToken = try user.generateToken()
+                try await userToken.save(on: req.db)
+                req.logger.info("🔑 Portal: Created new token for user \(userId)")
+            }
+
+            // Debug: Log token info
+            req.logger.info("🔑 Portal URL Debug:")
+            req.logger.info("   - User ID: \(userId)")
+            req.logger.info("   - Stripe Customer ID: \(stripeCustomerId)")
+            req.logger.info("   - Token value (first 20 chars): \(String(userToken.value.prefix(20)))...")
+            req.logger.info("   - Token created at: \(userToken.createdAt ?? Date())")
+
+            // Build portal URL with auth token
             let baseUrl = AppEnvironment.shared.serverURL
-            portalUrl = "\(baseUrl)/portal?token=\(stripeCustomerId)"
+            portalUrl = "\(baseUrl)/portal?token=\(userToken.value)"
+            req.logger.info("   - Portal URL: \(portalUrl ?? "nil")")
         }
 
         // Get Stripe price IDs from environment
