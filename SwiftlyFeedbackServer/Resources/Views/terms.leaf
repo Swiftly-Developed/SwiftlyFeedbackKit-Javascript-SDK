@@ -200,7 +200,7 @@
                              class="w-9 h-9 rounded-xl">
                         <span class="text-xl font-bold text-white">FeedbackKit</span>
                     </div>
-                    <p class="text-sm text-gray-500">by Swiftly Developed</p>
+                    <p class="text-sm text-gray-500">by Swiftly Workspace</p>
                     <p class="mt-4 text-sm">The complete feedback platform for Apple apps.</p>
                 </div>
 
@@ -218,9 +218,9 @@
                 <div>
                     <h4 class="text-white font-semibold mb-4">Resources</h4>
                     <ul class="space-y-3 text-sm">
-                        <li><a href="#" class="hover:text-white transition-colors">Documentation</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">API Reference</a></li>
-                        <li><a href="#" class="hover:text-white transition-colors">Support</a></li>
+                        <li><a href="https://github.com/Swiftly-Developed/FeedbackKit-Workspace" target="_blank" class="hover:text-white transition-colors">Documentation</a></li>
+                        <li><a href="https://github.com/Swiftly-Developed/FeedbackKit-Workspace" target="_blank" class="hover:text-white transition-colors">API Reference</a></li>
+                        <li><a href="https://calendly.com/d/cw7h-k8z-qrf" target="_blank" class="hover:text-white transition-colors">Support</a></li>
                     </ul>
                 </div>
 
@@ -236,7 +236,7 @@
             </div>
 
             <div class="mt-12 pt-8 border-t border-gray-800 text-center text-sm">
-                <p>&copy; 2025 Swiftly Developed. All rights reserved.</p>
+                <p>&copy; 2026 Swiftly Workspace. All rights reserved.</p>
             </div>
         </div>
     </footer>
