@@ -13,6 +13,7 @@ struct WebFeedbackController: RouteCollection {
         feedback.post(":feedbackId", "category", use: updateCategory)
         feedback.post(":feedbackId", "comment", use: addComment)
         feedback.post(":feedbackId", "delete", use: delete)
+        feedback.post(":feedbackId", "integrations", use: createIntegrationTasks)
     }
 
     // MARK: - Feedback List
@@ -266,6 +267,32 @@ struct WebFeedbackController: RouteCollection {
             mergedFeedbackCount: feedback.mergedFeedbackIds?.count ?? 0
         )
 
+        // Get project for integration availability
+        let project = feedback.$project.value!
+
+        let integrations = IntegrationAvailability(
+            // Available (configured and active)
+            clickup: project.clickupToken != nil && project.clickupListId != nil && project.clickupIsActive,
+            github: project.githubToken != nil && project.githubOwner != nil && project.githubRepo != nil && project.githubIsActive,
+            linear: project.linearToken != nil && project.linearTeamId != nil && project.linearIsActive,
+            notion: project.notionToken != nil && project.notionDatabaseId != nil && project.notionIsActive,
+            trello: project.trelloToken != nil && project.trelloBoardId != nil && project.trelloListId != nil && project.trelloIsActive,
+            monday: project.mondayToken != nil && project.mondayBoardId != nil && project.mondayIsActive,
+            airtable: project.airtableToken != nil && project.airtableBaseId != nil && project.airtableTableId != nil && project.airtableIsActive,
+            asana: project.asanaToken != nil && project.asanaProjectId != nil && project.asanaIsActive,
+            basecamp: project.basecampAccessToken != nil && project.basecampProjectId != nil && project.basecampTodolistId != nil && project.basecampIsActive,
+            // Already linked to this feedback
+            clickupLinked: feedback.clickupTaskId != nil,
+            githubLinked: feedback.githubIssueNumber != nil,
+            linearLinked: feedback.linearIssueId != nil,
+            notionLinked: feedback.notionPageId != nil,
+            trelloLinked: feedback.trelloCardId != nil,
+            mondayLinked: feedback.mondayItemId != nil,
+            airtableLinked: feedback.airtableRecordId != nil,
+            asanaLinked: feedback.asanaTaskId != nil,
+            basecampLinked: feedback.basecampTodoId != nil
+        )
+
         return try await req.view.render("feedback/show", FeedbackDetailContext(
             title: feedback.title,
             pageTitle: "Feedback Details",
@@ -278,7 +305,8 @@ struct WebFeedbackController: RouteCollection {
             statuses: FeedbackStatus.allCases.map { StatusOption(value: $0.rawValue, label: $0.displayName) },
             categories: categoryOptions,
             success: req.query[String.self, at: "success"],
-            error: req.query[String.self, at: "error"]
+            error: req.query[String.self, at: "error"],
+            integrations: integrations
         ))
     }
 
@@ -408,6 +436,306 @@ struct WebFeedbackController: RouteCollection {
         try await feedback.delete(on: req.db)
 
         return req.redirect(to: "/admin/feedback?project_id=\(projectId)")
+    }
+
+    // MARK: - Create Integration Tasks
+
+    struct CreateIntegrationsForm: Content {
+        var clickup: String?
+        var github: String?
+        var linear: String?
+        var notion: String?
+        var trello: String?
+        var monday: String?
+        var airtable: String?
+        var asana: String?
+        var basecamp: String?
+    }
+
+    @Sendable
+    func createIntegrationTasks(req: Request) async throws -> Response {
+        let user = try req.auth.require(User.self)
+        let userId = try user.requireID()
+
+        guard let feedbackId = req.parameters.get("feedbackId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        guard let feedback = try await Feedback.query(on: req.db)
+            .filter(\.$id == feedbackId)
+            .with(\.$project)
+            .first() else {
+            throw Abort(.notFound)
+        }
+
+        let role = try await getProjectRole(req: req, userId: userId, projectId: feedback.$project.id)
+        guard role == .owner || role == .admin else {
+            throw Abort(.forbidden)
+        }
+
+        let form = try req.content.decode(CreateIntegrationsForm.self)
+        let project = feedback.$project.value!
+
+        var createdCount = 0
+        var errors: [String] = []
+
+        // ClickUp
+        if form.clickup == "on" && project.clickupToken != nil && project.clickupListId != nil && feedback.clickupTaskId == nil {
+            do {
+                let description = req.clickupService.buildTaskDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil
+                )
+                let tags = project.clickupDefaultTags ?? []
+                let result = try await req.clickupService.createTask(
+                    listId: project.clickupListId!,
+                    token: project.clickupToken!,
+                    name: feedback.title,
+                    markdownDescription: description,
+                    tags: tags.isEmpty ? nil : tags
+                )
+                feedback.clickupTaskId = result.id
+                feedback.clickupTaskURL = result.url
+                createdCount += 1
+            } catch {
+                errors.append("ClickUp: \(error.localizedDescription)")
+            }
+        }
+
+        // GitHub
+        if form.github == "on" && project.githubToken != nil && project.githubOwner != nil && project.githubRepo != nil && feedback.githubIssueNumber == nil {
+            do {
+                let body = req.githubService.buildIssueBody(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil
+                )
+                let labels = project.githubDefaultLabels ?? []
+                let result = try await req.githubService.createIssue(
+                    owner: project.githubOwner!,
+                    repo: project.githubRepo!,
+                    token: project.githubToken!,
+                    title: feedback.title,
+                    body: body,
+                    labels: labels.isEmpty ? nil : labels
+                )
+                feedback.githubIssueNumber = result.number
+                feedback.githubIssueURL = result.htmlUrl
+                createdCount += 1
+            } catch {
+                errors.append("GitHub: \(error.localizedDescription)")
+            }
+        }
+
+        // Linear
+        if form.linear == "on" && project.linearToken != nil && project.linearTeamId != nil && feedback.linearIssueId == nil {
+            do {
+                let description = req.linearService.buildIssueDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil
+                )
+                let labelIds = project.linearDefaultLabelIds ?? []
+                let result = try await req.linearService.createIssue(
+                    teamId: project.linearTeamId!,
+                    projectId: project.linearProjectId,
+                    title: feedback.title,
+                    description: description,
+                    labelIds: labelIds.isEmpty ? nil : labelIds,
+                    token: project.linearToken!
+                )
+                feedback.linearIssueId = result.id
+                feedback.linearIssueURL = result.url
+                createdCount += 1
+            } catch {
+                errors.append("Linear: \(error.localizedDescription)")
+            }
+        }
+
+        // Notion
+        if form.notion == "on" && project.notionToken != nil && project.notionDatabaseId != nil && feedback.notionPageId == nil {
+            do {
+                let content = req.notionService.buildPageContent(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil
+                )
+                let properties = req.notionService.buildPageProperties(
+                    feedback: feedback,
+                    voteCount: feedback.voteCount,
+                    mrr: nil,
+                    statusProperty: project.notionStatusProperty,
+                    votesProperty: project.notionVotesProperty
+                )
+                let result = try await req.notionService.createPage(
+                    databaseId: project.notionDatabaseId!,
+                    token: project.notionToken!,
+                    title: feedback.title,
+                    properties: properties,
+                    content: content
+                )
+                feedback.notionPageId = result.id
+                feedback.notionPageURL = result.url
+                createdCount += 1
+            } catch {
+                errors.append("Notion: \(error.localizedDescription)")
+            }
+        }
+
+        // Trello
+        if form.trello == "on" && project.trelloToken != nil && project.trelloListId != nil && feedback.trelloCardId == nil {
+            do {
+                let description = req.trelloService.buildCardDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil
+                )
+                let result = try await req.trelloService.createCard(
+                    token: project.trelloToken!,
+                    listId: project.trelloListId!,
+                    name: feedback.title,
+                    description: description
+                )
+                feedback.trelloCardId = result.id
+                feedback.trelloCardURL = result.url
+                createdCount += 1
+            } catch {
+                errors.append("Trello: \(error.localizedDescription)")
+            }
+        }
+
+        // Monday
+        if form.monday == "on" && project.mondayToken != nil && project.mondayBoardId != nil && feedback.mondayItemId == nil {
+            do {
+                let item = try await req.mondayService.createItem(
+                    boardId: project.mondayBoardId!,
+                    groupId: project.mondayGroupId,
+                    token: project.mondayToken!,
+                    name: feedback.title
+                )
+                let itemUrl = req.mondayService.buildItemURL(boardId: project.mondayBoardId!, itemId: item.id)
+                feedback.mondayItemId = item.id
+                feedback.mondayItemURL = itemUrl
+                createdCount += 1
+
+                // Create update with description (fire and forget)
+                let description = req.mondayService.buildItemDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil
+                )
+                Task {
+                    _ = try? await req.mondayService.createUpdate(
+                        itemId: item.id,
+                        token: project.mondayToken!,
+                        body: description
+                    )
+                }
+            } catch {
+                errors.append("Monday: \(error.localizedDescription)")
+            }
+        }
+
+        // Airtable
+        if form.airtable == "on" && project.airtableToken != nil && project.airtableBaseId != nil && project.airtableTableId != nil && feedback.airtableRecordId == nil {
+            do {
+                let fields = req.airtableService.buildRecordFields(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil,
+                    titleFieldName: project.airtableTitleFieldId,
+                    descriptionFieldName: project.airtableDescriptionFieldId,
+                    categoryFieldName: project.airtableCategoryFieldId,
+                    statusFieldName: project.airtableStatusFieldId,
+                    votesFieldName: project.airtableVotesFieldId
+                )
+                let record = try await req.airtableService.createRecord(
+                    baseId: project.airtableBaseId!,
+                    tableId: project.airtableTableId!,
+                    token: project.airtableToken!,
+                    fields: fields
+                )
+                let recordUrl = req.airtableService.buildRecordURL(
+                    baseId: project.airtableBaseId!,
+                    tableId: project.airtableTableId!,
+                    recordId: record.id
+                )
+                feedback.airtableRecordId = record.id
+                feedback.airtableRecordURL = recordUrl
+                createdCount += 1
+            } catch {
+                errors.append("Airtable: \(error.localizedDescription)")
+            }
+        }
+
+        // Asana
+        if form.asana == "on" && project.asanaToken != nil && project.asanaProjectId != nil && feedback.asanaTaskId == nil {
+            do {
+                let notes = req.asanaService.buildTaskNotes(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil
+                )
+                let task = try await req.asanaService.createTask(
+                    projectId: project.asanaProjectId!,
+                    sectionId: project.asanaSectionId,
+                    token: project.asanaToken!,
+                    name: feedback.title,
+                    notes: notes,
+                    customFields: nil
+                )
+                let taskUrl = task.permalinkUrl ?? req.asanaService.buildTaskURL(projectId: project.asanaProjectId!, taskId: task.gid)
+                feedback.asanaTaskId = task.gid
+                feedback.asanaTaskURL = taskUrl
+                createdCount += 1
+            } catch {
+                errors.append("Asana: \(error.localizedDescription)")
+            }
+        }
+
+        // Basecamp
+        if form.basecamp == "on" && project.basecampAccessToken != nil && project.basecampProjectId != nil && project.basecampTodolistId != nil && feedback.basecampTodoId == nil {
+            do {
+                let description = req.basecampService.buildTodoDescription(
+                    feedback: feedback,
+                    projectName: project.name,
+                    voteCount: feedback.voteCount,
+                    mrr: nil
+                )
+                let todo = try await req.basecampService.createTodo(
+                    accountId: project.basecampAccountId!,
+                    projectId: project.basecampProjectId!,
+                    todolistId: project.basecampTodolistId!,
+                    token: project.basecampAccessToken!,
+                    title: feedback.title,
+                    description: description
+                )
+                feedback.basecampTodoId = String(todo.id)
+                feedback.basecampTodoURL = todo.appUrl
+                feedback.basecampBucketId = project.basecampProjectId
+                createdCount += 1
+            } catch {
+                errors.append("Basecamp: \(error.localizedDescription)")
+            }
+        }
+
+        // Save feedback with linked IDs
+        try await feedback.save(on: req.db)
+
+        if errors.isEmpty {
+            return req.redirect(to: "/admin/feedback/\(feedbackId)?success=integrations_created")
+        } else {
+            return req.redirect(to: "/admin/feedback/\(feedbackId)?error=some_integrations_failed")
+        }
     }
 
     // MARK: - Helpers
@@ -580,6 +908,30 @@ struct FeedbackDetailContext: Encodable {
     let categories: [CategoryOption]
     let success: String?
     let error: String?
+    let integrations: IntegrationAvailability
+}
+
+struct IntegrationAvailability: Encodable {
+    let clickup: Bool
+    let github: Bool
+    let linear: Bool
+    let notion: Bool
+    let trello: Bool
+    let monday: Bool
+    let airtable: Bool
+    let asana: Bool
+    let basecamp: Bool
+
+    // Already linked
+    let clickupLinked: Bool
+    let githubLinked: Bool
+    let linearLinked: Bool
+    let notionLinked: Bool
+    let trelloLinked: Bool
+    let mondayLinked: Bool
+    let airtableLinked: Bool
+    let asanaLinked: Bool
+    let basecampLinked: Bool
 }
 
 struct FeedbackDetail: Encodable {
