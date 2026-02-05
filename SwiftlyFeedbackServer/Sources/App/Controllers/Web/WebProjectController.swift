@@ -169,9 +169,17 @@ struct WebProjectController: RouteCollection {
         let project = try await getProjectWithAccess(req: req, user: user, requireAdmin: true)
         let form = try req.content.decode(UpdateProjectForm.self)
 
+        req.logger.info("📝 Project Settings Update:")
+        req.logger.info("   - Name: \(form.name)")
+        req.logger.info("   - Description: \(form.description ?? "nil")")
+        req.logger.info("   - ColorIndex from form: \(form.colorIndex.map { String($0) } ?? "nil")")
+        req.logger.info("   - Current project colorIndex: \(project.colorIndex)")
+
         project.name = form.name.trimmingCharacters(in: .whitespaces)
         project.description = form.description?.trimmingCharacters(in: .whitespaces)
         project.colorIndex = form.colorIndex ?? project.colorIndex
+
+        req.logger.info("   - New project colorIndex: \(project.colorIndex)")
 
         try await project.save(on: req.db)
 

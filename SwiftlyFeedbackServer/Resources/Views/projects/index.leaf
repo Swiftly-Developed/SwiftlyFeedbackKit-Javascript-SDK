@@ -38,10 +38,11 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         #for(project in projects):
         <a href="/admin/projects/#(project.id)"
-           class="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow #if(project.isArchived):opacity-60#endif">
+           class="block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow #if(project.isArchived):opacity-60#endif">
+            <div class="h-2 #(project.colorClass)"></div>
+            <div class="p-6">
             <div class="flex items-start justify-between mb-4">
                 <div class="flex items-center gap-3">
-                    <div class="w-4 h-4 rounded-full #(project.colorClass)"></div>
                     <h3 class="font-semibold text-gray-900">#(project.name)</h3>
                 </div>
                 #if(project.isArchived):
@@ -59,6 +60,7 @@
                 #else:
                 <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">Member</span>
                 #endif
+            </div>
             </div>
         </a>
         #endfor
