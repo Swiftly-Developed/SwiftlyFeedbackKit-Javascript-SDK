@@ -15,6 +15,7 @@ struct WebProjectController: RouteCollection {
         projects.post(":projectId", "archive", use: archive)
         projects.post(":projectId", "unarchive", use: unarchive)
         projects.post(":projectId", "regenerate-key", use: regenerateKey)
+        projects.post(":projectId", "transfer", use: transfer)
 
         // Members
         projects.get(":projectId", "members", use: members)
@@ -236,6 +237,82 @@ struct WebProjectController: RouteCollection {
         try await project.save(on: req.db)
 
         return req.redirect(to: "/admin/projects/\(try project.requireID())/settings?success=key_regenerated")
+    }
+
+    // MARK: - Transfer Ownership
+
+    @Sendable
+    func transfer(req: Request) async throws -> Response {
+        let user = try req.auth.require(User.self)
+        let project = try await getProjectWithAccess(req: req, user: user, requireOwner: true)
+        let form = try req.content.decode(TransferOwnershipForm.self)
+
+        let currentOwnerId = try user.requireID()
+        let projectId = try project.requireID()
+
+        // Find the new owner by email
+        guard let newOwner = try await User.query(on: req.db)
+            .filter(\.$email == form.email.lowercased())
+            .first() else {
+            return req.redirect(to: "/admin/projects/\(projectId)/settings?error=user_not_found")
+        }
+
+        let newOwnerId = try newOwner.requireID()
+
+        // Cannot transfer to self
+        guard newOwnerId != currentOwnerId else {
+            return req.redirect(to: "/admin/projects/\(projectId)/settings?error=cannot_transfer_to_self")
+        }
+
+        // Check tier requirements if project has members
+        let memberCount = try await ProjectMember.query(on: req.db)
+            .filter(\.$project.$id == projectId)
+            .count()
+
+        if memberCount > 0 && !newOwner.subscriptionTier.meetsRequirement(.team) {
+            return req.redirect(to: "/admin/projects/\(projectId)/settings?error=new_owner_needs_team")
+        }
+
+        // Execute transfer in transaction
+        try await req.db.transaction { database in
+            // Check if new owner is currently a member
+            if let existingMembership = try await ProjectMember.query(on: database)
+                .filter(\.$project.$id == projectId)
+                .filter(\.$user.$id == newOwnerId)
+                .first() {
+                // Remove their membership (they're becoming owner)
+                try await existingMembership.delete(on: database)
+            }
+
+            // Update project owner
+            project.$owner.id = newOwnerId
+            try await project.save(on: database)
+
+            // Add previous owner as Admin member
+            let adminMember = ProjectMember(
+                projectId: projectId,
+                userId: currentOwnerId,
+                role: .admin
+            )
+            try await adminMember.save(on: database)
+        }
+
+        // Send notification email (outside transaction)
+        Task {
+            do {
+                try await req.emailService.sendOwnershipTransferNotification(
+                    to: newOwner.email,
+                    newOwnerName: newOwner.name,
+                    projectName: project.name,
+                    previousOwnerName: user.name
+                )
+            } catch {
+                req.logger.error("Failed to send ownership transfer email: \(error)")
+            }
+        }
+
+        // Redirect to projects list since user is no longer owner
+        return req.redirect(to: "/admin/projects")
     }
 
     // MARK: - Members
@@ -582,6 +659,10 @@ struct AddMemberForm: Content {
 
 struct UpdateMemberForm: Content {
     let role: String
+}
+
+struct TransferOwnershipForm: Content {
+    let email: String
 }
 
 // MARK: - View Contexts
