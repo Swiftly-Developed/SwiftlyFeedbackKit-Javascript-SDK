@@ -78,21 +78,20 @@
     <div class="space-y-4">
         #for(feedback in feedbacks):
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 hover:border-primary-300 hover:shadow-md transition-all">
-            <div class="flex items-stretch">
-                <!-- Vote Button -->
-                <form action="/admin/feature-requests/#(feedback.id)/vote" method="POST" class="flex-shrink-0">
-                    <button type="submit"
-                            class="flex flex-col items-center justify-center w-20 h-full min-h-[120px] border-r border-gray-200 hover:bg-primary-50 transition-colors group rounded-l-xl">
-                        <svg class="w-5 h-5 text-gray-400 group-hover:text-primary-500 transition-colors mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
-                        </svg>
-                        <div class="text-xl font-bold text-gray-900 group-hover:text-primary-600 transition-colors">#(feedback.voteCount)</div>
-                        <div class="text-xs text-gray-500 group-hover:text-primary-500 transition-colors">votes</div>
-                    </button>
-                </form>
+            <div class="flex items-center p-4 gap-4">
+                <!-- Vote Button (AJAX) -->
+                <button type="button"
+                        onclick="toggleVote('#(feedback.id)', this)"
+                        class="vote-btn flex flex-col items-center justify-center w-14 py-2 rounded-lg hover:bg-gray-100 transition-colors group flex-shrink-0">
+                    <!-- Filled Triangle -->
+                    <svg class="vote-icon w-6 h-6 text-gray-400 group-hover:text-primary-500 transition-colors" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 4l8 12H4z"/>
+                    </svg>
+                    <span class="vote-count text-lg font-bold text-gray-700 group-hover:text-primary-600 transition-colors mt-1">#(feedback.voteCount)</span>
+                </button>
 
                 <!-- Content (clickable link) -->
-                <a href="/admin/feature-requests/#(feedback.id)" class="flex-1 p-5 flex items-start gap-4">
+                <a href="/admin/feature-requests/#(feedback.id)" class="flex-1 flex items-start gap-4 min-w-0">
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 mb-2 flex-wrap">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #(feedback.statusColor) text-white">
@@ -152,6 +151,51 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        .vote-btn.voted .vote-icon {
+            color: rgb(var(--color-primary-500));
+        }
+        .vote-btn.voted .vote-count {
+            color: rgb(var(--color-primary-600));
+        }
+        .vote-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
+
+    <script>
+        async function toggleVote(feedbackId, button) {
+            // Disable button while processing
+            button.disabled = true;
+
+            try {
+                const response = await fetch(`/admin/feature-requests/${feedbackId}/vote`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update vote count
+                    const countEl = button.querySelector('.vote-count');
+                    countEl.textContent = data.voteCount;
+
+                    // Toggle voted state
+                    if (data.action === 'voted') {
+                        button.classList.add('voted');
+                    } else {
+                        button.classList.remove('voted');
+                    }
+                }
+            } catch (error) {
+                console.error('Vote failed:', error);
+            } finally {
+                button.disabled = false;
+            }
+        }
+    </script>
     #endexport
 #endextend
