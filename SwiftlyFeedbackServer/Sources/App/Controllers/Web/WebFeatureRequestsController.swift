@@ -232,11 +232,18 @@ struct WebFeatureRequestsController: RouteCollection {
         }
 
         let userId = try user.requireID().uuidString
+        let isAjax = req.headers.first(name: "X-Requested-With") == "XMLHttpRequest"
 
         struct VoteRequest: Content {
             let userId: String
             let email: String?
             let notifyStatusChange: Bool
+        }
+
+        struct VoteResponse: Content {
+            let success: Bool
+            let action: String
+            let voteCount: Int
         }
 
         let voteRequest = VoteRequest(
@@ -256,6 +263,10 @@ struct WebFeatureRequestsController: RouteCollection {
         }
 
         if response.status == .ok || response.status == .created {
+            if isAjax {
+                let voteCount = try await getVoteCount(req: req, feedbackId: id)
+                return try await VoteResponse(success: true, action: "voted", voteCount: voteCount).encodeResponse(for: req)
+            }
             return req.redirect(to: "/admin/feature-requests/\(id.uuidString)?message=Vote recorded!")
         } else if response.status == .conflict {
             // Already voted - try to unvote
@@ -270,12 +281,41 @@ struct WebFeatureRequestsController: RouteCollection {
             }
 
             if unvoteResponse.status == .ok {
+                if isAjax {
+                    let voteCount = try await getVoteCount(req: req, feedbackId: id)
+                    return try await VoteResponse(success: true, action: "unvoted", voteCount: voteCount).encodeResponse(for: req)
+                }
                 return req.redirect(to: "/admin/feature-requests/\(id.uuidString)?message=Vote removed!")
+            }
+            if isAjax {
+                return try await VoteResponse(success: false, action: "error", voteCount: 0).encodeResponse(for: req)
             }
             return req.redirect(to: "/admin/feature-requests/\(id.uuidString)?error=Failed to toggle vote")
         } else {
+            if isAjax {
+                return try await VoteResponse(success: false, action: "error", voteCount: 0).encodeResponse(for: req)
+            }
             return req.redirect(to: "/admin/feature-requests/\(id.uuidString)?error=Failed to vote")
         }
+    }
+
+    private func getVoteCount(req: Request, feedbackId: UUID) async throws -> Int {
+        let env = AppEnvironment.shared
+        let response = try await req.client.get(
+            URI(string: "\(env.serverURL)/api/v1/feedbacks/\(feedbackId.uuidString)"),
+            headers: [
+                "X-API-Key": env.feedbackKitAPIKey
+            ]
+        )
+
+        struct FeedbackResponse: Content {
+            let voteCount: Int
+        }
+
+        if let feedback = try? response.content.decode(FeedbackResponse.self) {
+            return feedback.voteCount
+        }
+        return 0
     }
 
     // MARK: - Comment
