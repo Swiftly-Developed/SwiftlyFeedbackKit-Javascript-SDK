@@ -69,6 +69,7 @@ struct WebProjectController: RouteCollection {
                 name: project.name,
                 description: project.description,
                 colorIndex: project.colorIndex,
+                colorClass: projectColors[project.colorIndex % projectColors.count].bgClass,
                 isArchived: project.isArchived,
                 isOwner: project.$owner.id == userId
             )
@@ -604,12 +605,9 @@ struct ProjectListItem: Encodable {
     let name: String
     let description: String?
     let colorIndex: Int
+    let colorClass: String
     let isArchived: Bool
     let isOwner: Bool
-
-    var colorClass: String {
-        projectColors[colorIndex % projectColors.count].bgClass
-    }
 }
 
 struct ProjectDetailContext: Encodable {
@@ -653,14 +651,11 @@ struct ProjectContext: Encodable {
     let description: String?
     let apiKey: String
     let colorIndex: Int
+    let colorClass: String
     let isArchived: Bool
     let role: String
     let isOwner: Bool
     let isAdmin: Bool
-
-    var colorClass: String {
-        projectColors[colorIndex % projectColors.count].bgClass
-    }
 
     init(from project: Project, role: WebProjectRole) {
         self.id = project.id ?? UUID()
@@ -668,6 +663,7 @@ struct ProjectContext: Encodable {
         self.description = project.description
         self.apiKey = project.apiKey
         self.colorIndex = project.colorIndex
+        self.colorClass = projectColors[project.colorIndex % projectColors.count].bgClass
         self.isArchived = project.isArchived
         self.role = role.rawValue
         self.isOwner = role == .owner

@@ -38,29 +38,38 @@
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         #for(project in projects):
         <a href="/admin/projects/#(project.id)"
-           class="block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow #if(project.isArchived):opacity-60#endif">
-            <div class="h-2 #(project.colorClass)"></div>
-            <div class="p-6">
-            <div class="flex items-start justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <h3 class="font-semibold text-gray-900">#(project.name)</h3>
+           class="group block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all #if(project.isArchived):opacity-60#endif">
+            <div class="flex">
+                <!-- Color accent bar -->
+                <div class="w-1.5 #(project.colorClass) flex-shrink-0"></div>
+                <div class="flex-1 p-5">
+                    <div class="flex items-center gap-3 mb-3">
+                        <!-- Color icon -->
+                        <div class="w-10 h-10 rounded-lg #(project.colorClass) flex items-center justify-center flex-shrink-0">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between">
+                                <h3 class="font-semibold text-gray-900 group-hover:text-primary-600 transition-colors truncate">#(project.name)</h3>
+                                #if(project.isArchived):
+                                <span class="text-xs font-medium px-2 py-1 bg-gray-100 text-gray-600 rounded ml-2 flex-shrink-0">Archived</span>
+                                #endif
+                            </div>
+                            <div class="flex items-center gap-2 mt-1">
+                                #if(project.isOwner):
+                                <span class="text-xs font-medium text-primary-600">Owner</span>
+                                #else:
+                                <span class="text-xs text-gray-500">Member</span>
+                                #endif
+                            </div>
+                        </div>
+                    </div>
+                    #if(project.description):
+                    <p class="text-sm text-gray-500 line-clamp-2">#(project.description)</p>
+                    #endif
                 </div>
-                #if(project.isArchived):
-                <span class="text-xs font-medium px-2 py-1 bg-gray-100 text-gray-600 rounded">Archived</span>
-                #endif
-            </div>
-            #if(project.description):
-            <p class="text-sm text-gray-600 line-clamp-2">#(project.description)</p>
-            #else:
-            <p class="text-sm text-gray-400 italic">No description</p>
-            #endif
-            <div class="mt-4 flex items-center gap-2 text-xs text-gray-500">
-                #if(project.isOwner):
-                <span class="px-2 py-1 bg-primary-100 text-primary-700 rounded">Owner</span>
-                #else:
-                <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded">Member</span>
-                #endif
-            </div>
             </div>
         </a>
         #endfor

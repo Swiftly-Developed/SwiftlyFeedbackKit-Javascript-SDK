@@ -77,45 +77,53 @@
     #if(count(feedbacks) > 0):
     <div class="space-y-4">
         #for(feedback in feedbacks):
-        <a href="/admin/feature-requests/#(feedback.id)" class="block bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:border-primary-300 hover:shadow-md transition-all">
-            <div class="flex items-start gap-4">
-                <!-- Vote Count -->
-                <div class="flex flex-col items-center min-w-[60px]">
-                    <div class="text-2xl font-bold text-gray-900">#(feedback.voteCount)</div>
-                    <div class="text-xs text-gray-500">votes</div>
-                </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 hover:border-primary-300 hover:shadow-md transition-all">
+            <div class="flex items-stretch">
+                <!-- Vote Button -->
+                <form action="/admin/feature-requests/#(feedback.id)/vote" method="POST" class="flex-shrink-0">
+                    <button type="submit"
+                            class="flex flex-col items-center justify-center w-20 h-full min-h-[120px] border-r border-gray-200 hover:bg-primary-50 transition-colors group rounded-l-xl">
+                        <svg class="w-5 h-5 text-gray-400 group-hover:text-primary-500 transition-colors mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
+                        </svg>
+                        <div class="text-xl font-bold text-gray-900 group-hover:text-primary-600 transition-colors">#(feedback.voteCount)</div>
+                        <div class="text-xs text-gray-500 group-hover:text-primary-500 transition-colors">votes</div>
+                    </button>
+                </form>
 
-                <!-- Content -->
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-2 flex-wrap">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #(feedback.statusColor) text-white">
-                            #(feedback.statusDisplay)
-                        </span>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                            #(feedback.categoryDisplay)
-                        </span>
+                <!-- Content (clickable link) -->
+                <a href="/admin/feature-requests/#(feedback.id)" class="flex-1 p-5 flex items-start gap-4">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-2 flex-wrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #(feedback.statusColor) text-white">
+                                #(feedback.statusDisplay)
+                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                #(feedback.categoryDisplay)
+                            </span>
+                        </div>
+
+                        <h3 class="text-lg font-semibold text-gray-900 mb-1">#(feedback.title)</h3>
+                        <p class="text-gray-600 text-sm line-clamp-2">#(feedback.description)</p>
+
+                        <div class="flex items-center gap-4 mt-3 text-sm text-gray-500">
+                            <span class="flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                </svg>
+                                #(feedback.commentCount) comments
+                            </span>
+                            <span>#(feedback.createdAt)</span>
+                        </div>
                     </div>
 
-                    <h3 class="text-lg font-semibold text-gray-900 mb-1">#(feedback.title)</h3>
-                    <p class="text-gray-600 text-sm line-clamp-2">#(feedback.description)</p>
-
-                    <div class="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                        <span class="flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                            </svg>
-                            #(feedback.commentCount) comments
-                        </span>
-                        <span>#(feedback.createdAt)</span>
-                    </div>
-                </div>
-
-                <!-- Arrow -->
-                <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                </svg>
+                    <!-- Arrow -->
+                    <svg class="w-5 h-5 text-gray-400 flex-shrink-0 self-center" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
             </div>
-        </a>
+        </div>
         #endfor
     </div>
     #else:
