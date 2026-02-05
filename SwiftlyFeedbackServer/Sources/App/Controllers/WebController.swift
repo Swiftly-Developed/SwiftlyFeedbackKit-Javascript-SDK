@@ -426,13 +426,30 @@ struct WebController: RouteCollection {
             throw Abort(.badRequest, reason: "Missing authentication token")
         }
 
+        // Debug: Log received token
+        req.logger.info("🔑 Portal Redirect Debug:")
+        req.logger.info("   - Received token (first 20 chars): \(String(token.prefix(20)))...")
+        req.logger.info("   - Token length: \(token.count)")
+
         // Validate token and get user
         guard let userToken = try await UserToken.query(on: req.db)
             .filter(\.$value == token)
             .with(\.$user)
             .first() else {
+            // Debug: Check if token looks like a Stripe customer ID
+            if token.hasPrefix("cus_") {
+                req.logger.warning("   - ⚠️ Token appears to be a Stripe customer ID, not an auth token!")
+            }
+            // Debug: List all tokens for comparison
+            let allTokens = try await UserToken.query(on: req.db).all()
+            req.logger.info("   - Total tokens in DB: \(allTokens.count)")
+            for (i, t) in allTokens.prefix(5).enumerated() {
+                req.logger.info("   - Token \(i): \(String(t.value.prefix(20)))...")
+            }
             throw Abort(.unauthorized, reason: "Invalid token")
         }
+
+        req.logger.info("   - ✅ Token valid for user: \(userToken.user.email)")
 
         let user = userToken.user
 
