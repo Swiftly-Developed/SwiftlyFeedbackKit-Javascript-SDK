@@ -1,0 +1,65 @@
+name: Validate OpenAPI Spec
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - 'openapi/**'
+      - '.github/workflows/validate.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'openapi/**'
+
+jobs:
+  validate:
+    name: Validate OpenAPI Specification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install -g @apidevtools/swagger-cli
+          npm install -g redoc-cli
+
+      - name: Validate OpenAPI spec
+        run: swagger-cli validate openapi/openapi.yaml
+
+      - name: Generate documentation
+        run: |
+          mkdir -p docs
+          redoc-cli bundle openapi/openapi.yaml \
+            --output docs/api.html \
+            --title "FeedbackKit API Documentation"
+
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-documentation
+          path: docs/api.html
+          retention-days: 30
+
+  lint-fixtures:
+    name: Lint JSON Fixtures
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate JSON files
+        run: |
+          echo "Validating JSON fixtures..."
+          for file in $(find fixtures -name "*.json"); do
+            echo "Checking $file"
+            python3 -m json.tool "$file" > /dev/null
+          done
+          echo "All JSON files are valid!"

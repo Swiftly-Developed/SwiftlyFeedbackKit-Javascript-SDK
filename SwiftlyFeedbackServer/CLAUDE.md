@@ -20,15 +20,35 @@ swift test --filter TestClassName/testMethodName  # Single test
 
 ```
 Sources/App/
-├── Controllers/     # Route handlers
-├── Models/          # Fluent models
-├── Migrations/      # Database migrations
-├── DTOs/            # Request/response types
-├── Services/        # Email, integrations
-├── Jobs/            # Background tasks (cleanup scheduler)
-├── configure.swift  # App configuration
-├── routes.swift     # Route registration
-└── entrypoint.swift # Server entry point
+├── Controllers/
+│   ├── API/             # REST API handlers
+│   │   ├── AuthController.swift
+│   │   ├── FeedbackController.swift
+│   │   ├── ProjectController.swift
+│   │   ├── VoteController.swift
+│   │   ├── CommentController.swift
+│   │   └── ...
+│   └── Web/             # Web admin handlers
+│       ├── WebAuthController.swift
+│       ├── WebDashboardController.swift
+│       ├── WebFeedbackController.swift
+│       ├── WebFeatureRequestsController.swift
+│       ├── WebIntegrationsController.swift
+│       └── ...
+├── Models/              # Fluent models
+├── Migrations/          # Database migrations (57+)
+├── DTOs/                # Request/response types
+├── Services/            # Email, integrations, payments
+│   ├── EmailService.swift
+│   ├── PushNotificationService.swift
+│   ├── AppStoreService.swift
+│   ├── StripeService.swift
+│   └── {Integration}Service.swift
+├── Jobs/                # Background tasks
+├── Resources/Views/     # Leaf templates for web admin
+├── configure.swift      # App configuration
+├── routes.swift         # Route registration
+└── entrypoint.swift     # Server entry point
 ```
 
 ## API Endpoints
@@ -229,6 +249,46 @@ Returns 402 Payment Required for tier violations:
 | Integrations | Pro | All integration endpoints |
 | Configurable statuses | Pro | PATCH /statuses |
 
+## Web Admin Interface
+
+Browser-based admin at server root URL. Built with Leaf templates.
+
+**Controllers in `Controllers/Web/`:**
+- `WebAuthController.swift` - Login/logout
+- `WebDashboardController.swift` - Main dashboard
+- `WebFeedbackController.swift` - Feedback management
+- `WebFeatureRequestsController.swift` - Feature requests with AJAX voting
+- `WebProjectController.swift` - Project CRUD
+- `WebIntegrationsController.swift` - Integration settings
+- `WebSettingsController.swift` - Account settings
+- `WebAnalyticsController.swift` - Analytics dashboard
+
+**AJAX Voting:** Feature requests support AJAX voting without page reload. Response uses snake_case (`vote_count`).
+
+## Payment Processing
+
+### App Store (`AppStoreService.swift`, `AppStoreWebhookController.swift`)
+- Receives Server Notifications v2 (JWS format)
+- Verifies JWS tokens and decodes transaction payloads
+- Maps product IDs to tiers: `feedbackkit.pro.*`, `feedbackkit.team.*`
+- Handles lifecycle: SUBSCRIBED, DID_RENEW, EXPIRED, GRACE_PERIOD, REFUND
+
+### Stripe (`StripeService.swift`, `StripeWebhookController.swift`)
+- Checkout sessions with promotion codes
+- Billing portal management
+- Webhook signature verification (HMAC-SHA256)
+- Price-to-tier mapping via `STRIPE_PRICE_*` env vars
+
+## Push Notifications (`PushNotificationService.swift`)
+
+APNs integration with JWT authentication:
+- Device token registration and lifecycle
+- Per-user and per-project notification preferences
+- Notification types: new feedback, comments, votes, status changes
+- Deep linking: `feedbackkit://` URL scheme
+- Token expiry detection and cleanup
+- Logging via `PushNotificationLog` model
+
 ## Code Patterns
 
 **New Model:**
@@ -242,6 +302,12 @@ Returns 402 Payment Required for tier violations:
 2. Implement `RouteCollection`
 3. Register in `routes.swift`
 
+**New Web Controller:**
+1. Create in `Controllers/Web/`
+2. Implement `RouteCollection`
+3. Add Leaf templates in `Resources/Views/`
+4. Register in `routes.swift`
+
 **Auth Patterns:**
 ```swift
 // Bearer token
@@ -249,4 +315,7 @@ let user = try req.auth.require(User.self)
 
 // API key (middleware)
 // X-API-Key header validated by APIKeyMiddleware
+
+// Web session
+let session = try req.session.require(WebSession.self)
 ```

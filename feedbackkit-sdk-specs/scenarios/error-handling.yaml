@@ -1,0 +1,199 @@
+name: Error Handling
+description: Test error responses and edge cases
+
+variables:
+  API_KEY: "${API_KEY}"
+  INVALID_API_KEY: "invalid_api_key_12345"
+  BASE_URL: "${BASE_URL}"
+
+tests:
+  # === 401 Unauthorized ===
+  - name: "401 - Missing API key"
+    request:
+      method: GET
+      path: /feedbacks
+    response:
+      status: 401
+      body:
+        error: true
+        reason: { type: string }
+
+  - name: "401 - Invalid API key"
+    request:
+      method: GET
+      path: /feedbacks
+      headers:
+        X-API-Key: "${INVALID_API_KEY}"
+    response:
+      status: 401
+      body:
+        error: true
+
+  - name: "401 - Empty API key"
+    request:
+      method: GET
+      path: /feedbacks
+      headers:
+        X-API-Key: ""
+    response:
+      status: 401
+
+  # === 400 Bad Request ===
+  - name: "400 - Empty request body"
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body: {}
+    response:
+      status: 400
+      body:
+        error: true
+
+  - name: "400 - Invalid JSON"
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      rawBody: "{ invalid json }"
+    response:
+      status: 400
+
+  - name: "400 - Invalid UUID format"
+    request:
+      method: GET
+      path: /feedbacks/not-a-valid-uuid
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 400
+
+  # === 404 Not Found ===
+  - name: "404 - Feedback not found"
+    request:
+      method: GET
+      path: /feedbacks/00000000-0000-0000-0000-000000000000
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 404
+      body:
+        error: true
+        reason: { contains: "not found" }
+
+  - name: "404 - Comment on non-existent feedback"
+    request:
+      method: POST
+      path: /feedbacks/00000000-0000-0000-0000-000000000000/comments
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body:
+        content: "Test comment"
+        userId: "user_12345"
+    response:
+      status: 404
+
+  # === 409 Conflict ===
+  - name: "409 - Duplicate vote"
+    description: Second vote from same user should conflict
+    setup:
+      - name: First vote
+        request:
+          method: POST
+          path: /feedbacks/${FEEDBACK_ID}/votes
+          headers:
+            X-API-Key: "${API_KEY}"
+            Content-Type: application/json
+          body:
+            userId: "duplicate_voter"
+    request:
+      method: POST
+      path: /feedbacks/${FEEDBACK_ID}/votes
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body:
+        userId: "duplicate_voter"
+    response:
+      status: 409
+      body:
+        error: true
+
+  # === 403 Forbidden ===
+  - name: "403 - Vote on archived project"
+    description: Archived projects block all write operations
+    request:
+      method: POST
+      path: /feedbacks/${ARCHIVED_FEEDBACK_ID}/votes
+      headers:
+        X-API-Key: "${ARCHIVED_PROJECT_API_KEY}"
+        Content-Type: application/json
+      body:
+        userId: "user_12345"
+    response:
+      status: 403
+      body:
+        error: true
+        reason: { contains: "archived" }
+
+  - name: "403 - Comment on archived project"
+    request:
+      method: POST
+      path: /feedbacks/${ARCHIVED_FEEDBACK_ID}/comments
+      headers:
+        X-API-Key: "${ARCHIVED_PROJECT_API_KEY}"
+        Content-Type: application/json
+      body:
+        content: "Test comment"
+        userId: "user_12345"
+    response:
+      status: 403
+
+  - name: "403 - Vote on completed feedback"
+    request:
+      method: POST
+      path: /feedbacks/${COMPLETED_FEEDBACK_ID}/votes
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body:
+        userId: "user_12345"
+    response:
+      status: 403
+
+  - name: "403 - Vote on rejected feedback"
+    request:
+      method: POST
+      path: /feedbacks/${REJECTED_FEEDBACK_ID}/votes
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body:
+        userId: "user_12345"
+    response:
+      status: 403
+
+  # === 402 Payment Required ===
+  - name: "402 - Feedback limit exceeded (Free tier)"
+    description: Free tier is limited to 10 feedback items per project
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        X-API-Key: "${FREE_TIER_API_KEY}"
+        Content-Type: application/json
+      body:
+        title: "11th feedback item"
+        description: "This should exceed the limit"
+        category: "feature_request"
+        userId: "user_12345"
+    response:
+      status: 402
+      body:
+        error: true
+        reason: { contains: "limit" }

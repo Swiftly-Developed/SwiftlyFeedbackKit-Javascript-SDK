@@ -1,0 +1,13 @@
+{
+  "valid": {
+    "basic": {
+      "userId": "user_12345"
+    }
+  },
+  "invalid": {
+    "missing_userId": {},
+    "empty_userId": {
+      "userId": ""
+    }
+  }
+}

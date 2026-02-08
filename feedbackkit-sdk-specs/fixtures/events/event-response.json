@@ -1,0 +1,41 @@
+{
+  "single": {
+    "basic": {
+      "id": "880e8400-e29b-41d4-a716-446655440000",
+      "eventName": "feedback_list",
+      "userId": "user_12345",
+      "properties": null,
+      "createdAt": "2026-02-08T12:35:00Z"
+    },
+    "with_properties": {
+      "id": "880e8400-e29b-41d4-a716-446655440001",
+      "eventName": "feedback_list",
+      "userId": "user_67890",
+      "properties": {
+        "filter": "feature_request",
+        "sort": "votes"
+      },
+      "createdAt": "2026-02-08T12:40:00Z"
+    },
+    "feedback_detail": {
+      "id": "880e8400-e29b-41d4-a716-446655440002",
+      "eventName": "feedback_detail",
+      "userId": "user_12345",
+      "properties": {
+        "feedbackId": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "createdAt": "2026-02-08T12:45:00Z"
+    },
+    "custom_event": {
+      "id": "880e8400-e29b-41d4-a716-446655440003",
+      "eventName": "onboarding_completed",
+      "userId": "user_new",
+      "properties": {
+        "step_count": 5,
+        "duration_seconds": 120,
+        "skipped_steps": []
+      },
+      "createdAt": "2026-02-08T13:00:00Z"
+    }
+  }
+}

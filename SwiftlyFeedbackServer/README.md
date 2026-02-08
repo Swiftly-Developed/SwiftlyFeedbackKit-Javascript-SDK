@@ -9,11 +9,15 @@ Vapor 4 backend API server for FeedbackKit.
 ## Features
 
 - **RESTful API** — Clean `/api/v1` endpoints for feedback, voting, and comments
+- **Web Admin Interface** — Full-featured browser-based admin dashboard
 - **Dual authentication** — Bearer tokens for admin, API keys for SDK
-- **Email notifications** — Resend-powered emails for verification, invites, and status updates
-- **Integrations** — Slack, GitHub, Notion, Linear, ClickUp, Monday.com, Trello
+- **Email notifications** — Resend-powered emails for verification, invites, status updates, and voter notifications
+- **Push notifications** — APNs integration for real-time mobile alerts
+- **Integrations** — Slack, GitHub, Notion, Linear, ClickUp, Monday.com, Trello, Airtable, Asana, Basecamp
+- **Payment processing** — App Store Server Notifications v2 and Stripe webhooks
 - **Analytics** — Event tracking and dashboard stats
 - **MRR tracking** — Associate feedback with customer revenue
+- **Feedback merging** — Combine duplicate items with vote/comment migration
 
 ## Requirements
 
@@ -59,6 +63,15 @@ swift test
 | `DATABASE_NAME` | Database name | `swiftly_feedback` |
 | `RESEND_API_KEY` | Resend API key for emails | - |
 | `TRELLO_API_KEY` | Trello integration API key | - |
+| `STRIPE_SECRET_KEY` | Stripe secret key | - |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | - |
+| `STRIPE_PRICE_PRO_MONTHLY` | Stripe price ID for Pro monthly | - |
+| `STRIPE_PRICE_PRO_YEARLY` | Stripe price ID for Pro yearly | - |
+| `STRIPE_PRICE_TEAM_MONTHLY` | Stripe price ID for Team monthly | - |
+| `STRIPE_PRICE_TEAM_YEARLY` | Stripe price ID for Team yearly | - |
+| `APNS_KEY_ID` | APNs key ID for push notifications | - |
+| `APNS_TEAM_ID` | Apple team ID | - |
+| `APNS_PRIVATE_KEY` | APNs private key (P8 format) | - |
 
 ## API Overview
 
@@ -144,19 +157,61 @@ All integrations follow the same pattern:
 | ClickUp | Tasks | Status |
 | Monday.com | Board items | Status column |
 | Trello | Cards | List-based |
+| Airtable | Records | Status field |
+| Asana | Tasks | Section-based |
+| Basecamp | Todos | Completion |
+
+## Web Admin Interface
+
+Browser-based admin dashboard at the server root URL:
+
+| Path | Description |
+|------|-------------|
+| `/` | Dashboard with analytics |
+| `/login` | Web authentication |
+| `/projects` | Project management |
+| `/feedback` | Feedback list with AJAX voting |
+| `/feature-requests` | Feature request management |
+| `/integrations` | Integration configuration |
+| `/settings` | Account and project settings |
+| `/subscribe` | Stripe checkout |
+| `/portal` | Stripe billing portal |
+
+## Payment Processing
+
+### App Store (iOS/macOS)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/appstore/webhook` | Server Notifications v2 |
+
+Handles: SUBSCRIBED, DID_RENEW, EXPIRED, GRACE_PERIOD_EXPIRED, DID_CHANGE_RENEWAL_STATUS, DID_FAIL_TO_RENEW, REFUND, OFFER_REDEEMED
+
+### Stripe (Web)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/stripe/webhook` | Stripe webhooks |
+| POST | `/stripe/create-checkout-session` | Create checkout |
+| POST | `/stripe/create-portal-session` | Billing portal |
+
+Environment variables: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_*`
 
 ## Project Structure
 
 ```
 Sources/App/
-├── Controllers/     # Route handlers
-├── Models/          # Fluent models
-├── Migrations/      # Database migrations
-├── DTOs/            # Data transfer objects
-├── Services/        # Email, integrations
-├── Jobs/            # Background tasks
-├── configure.swift  # App configuration
-└── routes.swift     # Route registration
+├── Controllers/
+│   ├── API/             # REST API handlers
+│   └── Web/             # Web admin handlers
+├── Models/              # Fluent models
+├── Migrations/          # Database migrations (57+)
+├── DTOs/                # Data transfer objects
+├── Services/            # Email, integrations, payments
+├── Jobs/                # Background tasks
+├── Resources/Views/     # Leaf templates
+├── configure.swift      # App configuration
+└── routes.swift         # Route registration
 ```
 
 ## Authorization Model

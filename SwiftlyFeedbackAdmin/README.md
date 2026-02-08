@@ -10,9 +10,12 @@ Native admin app for managing FeedbackKit projects and feedback.
 
 - **Project management** — Create, configure, and archive projects
 - **Feedback dashboard** — List and Kanban views with drag-and-drop status updates
+- **Feedback merging** — Combine duplicate feedback items with vote migration
 - **Team collaboration** — Invite members with role-based permissions
-- **Integrations** — Connect to Slack, GitHub, Notion, Linear, ClickUp, Monday.com, Trello
+- **Integrations** — Connect to Slack, GitHub, Notion, Linear, ClickUp, Monday.com, Trello, Airtable, Asana, Basecamp
 - **Analytics** — View events, user stats, and MRR tracking
+- **Subscriptions** — RevenueCat-powered with paywall UI
+- **Push notifications** — Real-time alerts for feedback activity
 - **Multi-platform** — Native iOS and macOS apps from a single codebase
 
 ## Requirements
@@ -89,6 +92,9 @@ Push feedback to external tools:
 - **ClickUp** — Create tasks in lists
 - **Monday.com** — Create board items
 - **Trello** — Create cards in lists
+- **Airtable** — Create records in bases
+- **Asana** — Create tasks in projects
+- **Basecamp** — Create todos in lists
 
 ### Analytics
 - Event tracking with daily/weekly/monthly charts
@@ -136,18 +142,26 @@ RevenueCat-powered subscription management:
 ```
 SwiftlyFeedbackAdmin/
 ├── SwiftlyFeedbackAdminApp.swift
-├── Models/           # Data models
+├── Models/           # Data models and DTOs
 ├── ViewModels/       # View state management
 ├── Views/
 │   ├── Auth/         # Login, signup, verification
-│   ├── Onboarding/   # New user flow
-│   ├── Home/         # Dashboard
-│   ├── Projects/     # Project management
-│   ├── Feedback/     # Feedback views (list, kanban, detail)
+│   ├── Onboarding/   # New user flow with paywall
+│   ├── Home/         # Dashboard with KPIs
+│   ├── Projects/     # Project management, members, settings
+│   ├── Feedback/     # List, Kanban, detail, merge views
 │   ├── Users/        # SDK user analytics
-│   ├── Events/       # Event tracking
-│   └── Settings/     # App settings, developer tools
-├── Services/         # API client, auth, subscriptions
+│   ├── Events/       # Event tracking charts
+│   ├── Settings/     # App settings, developer tools, paywalls
+│   │   ├── PaywallView.swift
+│   │   ├── FeatureGatedView.swift
+│   │   └── FeatureUnavailableView.swift
+│   └── Components/   # Reusable UI components
+├── Services/
+│   ├── AdminAPIClient.swift
+│   ├── AuthService.swift
+│   ├── SubscriptionService.swift  # RevenueCat integration
+│   └── Storage/      # Keychain-based secure storage
 ├── Configuration/    # Environment setup
 └── Utilities/        # Helpers, extensions
 ```

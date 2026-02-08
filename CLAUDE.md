@@ -105,6 +105,14 @@ git subtree push --prefix=SwiftlyFeedbackDemoApp feedbackkit-demo dev
 - Archived projects: reads allowed, writes blocked
 - Voting blocked on `completed`/`rejected` status feedback
 - Feedback creators automatically get a vote (voteCount starts at 1)
+- Voters can opt-in to status change email notifications (Team tier)
+- One-click unsubscribe via permission key UUID
+
+**Feedback Merging:**
+- `POST /feedbacks/merge` combines duplicate items
+- Migrates votes (de-duplicated by user) and comments
+- Comments prefixed with `[Originally on: <title>]`
+- Recalculates vote count and MRR
 
 ## Subscription Tiers
 
@@ -135,6 +143,37 @@ All support: create/bulk create, status sync, comment sync, link tracking, activ
 
 See [Server CLAUDE.md](./SwiftlyFeedbackServer/CLAUDE.md) for API endpoints and configuration.
 
+## Web Admin Interface
+
+The server includes a full web admin interface built with Leaf templates:
+- Dashboard with analytics and KPIs
+- Feedback management with AJAX voting
+- Project settings and member management
+- Integration configuration UI
+- Ownership transfer functionality
+
+Access via browser at the server URL (requires authentication).
+
+## Payment Processing
+
+**App Store (iOS/macOS):**
+- Server Notifications v2 (JWS format)
+- Handles: SUBSCRIBED, DID_RENEW, EXPIRED, GRACE_PERIOD, REFUND
+- Automatic tier mapping from product IDs
+
+**Stripe (Web):**
+- Checkout sessions with promotion codes
+- Billing portal for subscription management
+- Webhook signature verification (HMAC-SHA256)
+
+## Push Notifications
+
+APNs integration for real-time notifications:
+- New feedback, comments, votes, status changes
+- Per-user and per-project notification preferences
+- Deep linking with `feedbackkit://` URL scheme
+- Automatic device token lifecycle management
+
 ## Code Conventions
 
 - `@main` for entry points
@@ -143,3 +182,13 @@ See [Server CLAUDE.md](./SwiftlyFeedbackServer/CLAUDE.md) for API endpoints and 
 - `@Test` macro for tests
 - Models: `Codable`, `Sendable`, `Equatable`
 - Platform conditionals: `#if os(macOS)` / `#if os(iOS)`
+
+## Roadmap
+
+**Multi-Platform SDKs (Planned):**
+- JavaScript SDK (npm)
+- React Native SDK (npm)
+- Flutter SDK (pub.dev)
+- Kotlin SDK (Maven)
+
+See [Multi-Platform SDK Plan](./SwiftlyFeedbackKit/docs/Plans/Multi-Platform-SDK-Plan.md) for details.

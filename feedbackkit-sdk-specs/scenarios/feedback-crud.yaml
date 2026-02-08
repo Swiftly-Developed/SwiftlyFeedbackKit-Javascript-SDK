@@ -1,0 +1,205 @@
+name: Feedback CRUD Operations
+description: Test creating, reading, and listing feedback items
+
+variables:
+  API_KEY: "${API_KEY}"
+  BASE_URL: "${BASE_URL}"
+  USER_ID: "test_user_12345"
+
+tests:
+  # === CREATE FEEDBACK ===
+  - name: Create feedback successfully
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body:
+        title: "Add dark mode support"
+        description: "It would be great to have a dark mode option."
+        category: "feature_request"
+        userId: "${USER_ID}"
+    response:
+      status: 200
+      body:
+        id: { type: uuid }
+        title: "Add dark mode support"
+        status: "pending"
+        category: "feature_request"
+        voteCount: 1
+        hasVoted: true
+        commentCount: 0
+
+  - name: Create feedback with email
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body:
+        title: "Bug report"
+        description: "Found an issue with the login."
+        category: "bug_report"
+        userId: "${USER_ID}"
+        userEmail: "test@example.com"
+    response:
+      status: 200
+      body:
+        userEmail: "test@example.com"
+
+  - name: Create feedback - missing title
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body:
+        description: "Some description"
+        category: "feature_request"
+        userId: "${USER_ID}"
+    response:
+      status: 400
+      body:
+        error: true
+
+  - name: Create feedback - invalid category
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        X-API-Key: "${API_KEY}"
+        Content-Type: application/json
+      body:
+        title: "Some title"
+        description: "Some description"
+        category: "invalid_category"
+        userId: "${USER_ID}"
+    response:
+      status: 400
+
+  - name: Create feedback - invalid API key
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        X-API-Key: "invalid_key"
+        Content-Type: application/json
+      body:
+        title: "Some title"
+        description: "Some description"
+        category: "feature_request"
+        userId: "${USER_ID}"
+    response:
+      status: 401
+
+  - name: Create feedback - missing API key
+    request:
+      method: POST
+      path: /feedbacks
+      headers:
+        Content-Type: application/json
+      body:
+        title: "Some title"
+        description: "Some description"
+        category: "feature_request"
+        userId: "${USER_ID}"
+    response:
+      status: 401
+
+  # === LIST FEEDBACK ===
+  - name: List all feedback
+    request:
+      method: GET
+      path: /feedbacks
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 200
+      body: { type: array }
+
+  - name: List feedback with user ID header
+    request:
+      method: GET
+      path: /feedbacks
+      headers:
+        X-API-Key: "${API_KEY}"
+        X-User-Id: "${USER_ID}"
+    response:
+      status: 200
+      body:
+        - hasVoted: { type: boolean }
+
+  - name: Filter feedback by status
+    request:
+      method: GET
+      path: /feedbacks?status=pending
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 200
+      body:
+        - status: "pending"
+
+  - name: Filter feedback by category
+    request:
+      method: GET
+      path: /feedbacks?category=bug_report
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 200
+      body:
+        - category: "bug_report"
+
+  - name: Filter by status and category
+    request:
+      method: GET
+      path: /feedbacks?status=approved&category=feature_request
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 200
+
+  - name: Include merged feedback
+    request:
+      method: GET
+      path: /feedbacks?includeMerged=true
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 200
+
+  # === GET SINGLE FEEDBACK ===
+  - name: Get feedback by ID
+    request:
+      method: GET
+      path: /feedbacks/${feedbackId}
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 200
+      body:
+        id: "${feedbackId}"
+
+  - name: Get feedback - not found
+    request:
+      method: GET
+      path: /feedbacks/00000000-0000-0000-0000-000000000000
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 404
+      body:
+        error: true
+
+  - name: Get feedback - invalid UUID
+    request:
+      method: GET
+      path: /feedbacks/not-a-uuid
+      headers:
+        X-API-Key: "${API_KEY}"
+    response:
+      status: 400

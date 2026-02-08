@@ -1,0 +1,815 @@
+openapi: 3.0.3
+info:
+  title: FeedbackKit API
+  description: |
+    REST API for FeedbackKit - a feedback collection platform for iOS, macOS, and visionOS apps.
+
+    ## Authentication
+
+    SDK clients authenticate using the `X-API-Key` header with a project-specific API key.
+
+    Optionally include `X-User-Id` header to get personalized `hasVoted` state in responses.
+
+    ## Rate Limiting
+
+    API requests are subject to rate limiting. If you exceed the limit, you'll receive a 429 response.
+
+    ## Subscription Tiers
+
+    Some features are limited by subscription tier:
+    - **Free**: 1 project, 10 feedback items per project
+    - **Pro**: 2 projects, unlimited feedback, integrations
+    - **Team**: Unlimited projects, team members, voter notifications
+  version: 1.0.0
+  contact:
+    name: FeedbackKit Support
+    email: support@swiftly-developed.com
+    url: https://swiftly-developed.com/feedbackkit
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: https://api.feedbackkit.dev/api/v1
+    description: Development server
+  - url: https://api.feedbackkit.testflight/api/v1
+    description: TestFlight/Staging server
+  - url: https://api.feedbackkit.app/api/v1
+    description: Production server
+
+tags:
+  - name: Feedback
+    description: Create, read, and manage feedback items
+  - name: Votes
+    description: Vote on feedback items
+  - name: Comments
+    description: Add and view comments on feedback
+  - name: Users
+    description: SDK user registration and tracking
+  - name: Events
+    description: Event tracking and analytics
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /feedbacks:
+    get:
+      tags:
+        - Feedback
+      summary: List feedback
+      description: |
+        Retrieves all feedback for the project. Results are sorted by vote count (descending).
+
+        Merged feedback items are excluded by default.
+      operationId: listFeedback
+      parameters:
+        - name: status
+          in: query
+          description: Filter by feedback status
+          schema:
+            $ref: '#/components/schemas/FeedbackStatus'
+        - name: category
+          in: query
+          description: Filter by feedback category
+          schema:
+            $ref: '#/components/schemas/FeedbackCategory'
+        - name: includeMerged
+          in: query
+          description: Include merged feedback items
+          schema:
+            type: boolean
+            default: false
+        - $ref: '#/components/parameters/UserIdHeader'
+      responses:
+        '200':
+          description: List of feedback items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FeedbackResponse'
+              example:
+                - id: "550e8400-e29b-41d4-a716-446655440000"
+                  title: "Add dark mode support"
+                  description: "It would be great to have a dark mode option."
+                  status: "approved"
+                  category: "feature_request"
+                  userId: "user_12345"
+                  userEmail: null
+                  voteCount: 42
+                  hasVoted: false
+                  commentCount: 5
+                  totalMrr: 499.50
+                  createdAt: "2026-02-01T10:30:00Z"
+                  updatedAt: "2026-02-05T14:20:00Z"
+                  rejectionReason: null
+                  mergedIntoId: null
+                  mergedAt: null
+                  mergedFeedbackIds: null
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - Feedback
+      summary: Submit feedback
+      description: |
+        Creates a new feedback item. The creator automatically receives a vote (voteCount starts at 1).
+
+        Triggers notifications to project members and configured integrations.
+      operationId: createFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeedbackRequest'
+            example:
+              title: "Add dark mode support"
+              description: "It would be great to have a dark mode option for the app."
+              category: "feature_request"
+              userId: "user_12345"
+              userEmail: "user@example.com"
+      responses:
+        '200':
+          description: Feedback created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '402':
+          $ref: '#/components/responses/PaymentRequired'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /feedbacks/{feedbackId}:
+    get:
+      tags:
+        - Feedback
+      summary: Get feedback by ID
+      description: Retrieves a single feedback item by its ID.
+      operationId: getFeedback
+      parameters:
+        - $ref: '#/components/parameters/FeedbackId'
+        - $ref: '#/components/parameters/UserIdHeader'
+      responses:
+        '200':
+          description: Feedback details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /feedbacks/{feedbackId}/votes:
+    post:
+      tags:
+        - Votes
+      summary: Vote for feedback
+      description: |
+        Adds a vote to the feedback item. Each user can only vote once per feedback.
+
+        **Restrictions:**
+        - Cannot vote on archived projects (403)
+        - Cannot vote on completed or rejected feedback (403)
+        - Cannot vote twice (409)
+
+        **Notifications:**
+        - Set `notifyStatusChange: true` with an email to receive status update emails
+        - Voter notifications require Team tier subscription
+      operationId: vote
+      parameters:
+        - $ref: '#/components/parameters/FeedbackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVoteRequest'
+            example:
+              userId: "user_12345"
+              email: "user@example.com"
+              notifyStatusChange: true
+      responses:
+        '200':
+          description: Vote recorded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteResponse'
+              example:
+                feedbackId: "550e8400-e29b-41d4-a716-446655440000"
+                voteCount: 43
+                hasVoted: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+    delete:
+      tags:
+        - Votes
+      summary: Remove vote
+      description: Removes the user's vote from the feedback item.
+      operationId: unvote
+      parameters:
+        - $ref: '#/components/parameters/FeedbackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteVoteRequest'
+            example:
+              userId: "user_12345"
+      responses:
+        '200':
+          description: Vote removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoteResponse'
+              example:
+                feedbackId: "550e8400-e29b-41d4-a716-446655440000"
+                voteCount: 42
+                hasVoted: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /feedbacks/{feedbackId}/comments:
+    get:
+      tags:
+        - Comments
+      summary: List comments
+      description: Retrieves all comments for a feedback item, sorted by creation time (ascending).
+      operationId: listComments
+      parameters:
+        - $ref: '#/components/parameters/FeedbackId'
+      responses:
+        '200':
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CommentResponse'
+              example:
+                - id: "660e8400-e29b-41d4-a716-446655440001"
+                  content: "Thanks for the suggestion! We're looking into this."
+                  userId: "admin_user"
+                  isAdmin: true
+                  createdAt: "2026-02-02T09:15:00Z"
+                - id: "660e8400-e29b-41d4-a716-446655440002"
+                  content: "This would be really helpful for night time use."
+                  userId: "user_67890"
+                  isAdmin: false
+                  createdAt: "2026-02-03T16:45:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Comments
+      summary: Add comment
+      description: |
+        Adds a comment to the feedback item.
+
+        **Restrictions:**
+        - Cannot comment on archived projects (403)
+      operationId: createComment
+      parameters:
+        - $ref: '#/components/parameters/FeedbackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+            example:
+              content: "This would be really helpful for night time use."
+              userId: "user_67890"
+              isAdmin: false
+      responses:
+        '200':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/register:
+    post:
+      tags:
+        - Users
+      summary: Register SDK user
+      description: |
+        Registers or updates an SDK user. Use this to track user activity and associate MRR (Monthly Recurring Revenue).
+
+        If the user already exists, their `lastSeenAt` timestamp and MRR will be updated.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUserRequest'
+            example:
+              userId: "user_12345"
+              mrr: 9.99
+      responses:
+        '200':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+              example:
+                id: "770e8400-e29b-41d4-a716-446655440000"
+                userId: "user_12345"
+                mrr: 9.99
+                firstSeenAt: "2026-01-15T08:00:00Z"
+                lastSeenAt: "2026-02-08T12:30:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /events/track:
+    post:
+      tags:
+        - Events
+      summary: Track event
+      description: |
+        Tracks a custom event for analytics. Use this to measure user engagement with the feedback system.
+
+        **Common events:**
+        - `feedback_list` - User viewed feedback list
+        - `feedback_detail` - User viewed feedback details
+        - `submit_feedback` - User opened submit form
+        - Custom events for your app
+      operationId: trackEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrackEventRequest'
+            example:
+              eventName: "feedback_list"
+              userId: "user_12345"
+              properties:
+                filter: "feature_request"
+                sort: "votes"
+      responses:
+        '200':
+          description: Event tracked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventResponse'
+              example:
+                id: "880e8400-e29b-41d4-a716-446655440000"
+                eventName: "feedback_list"
+                userId: "user_12345"
+                properties:
+                  filter: "feature_request"
+                  sort: "votes"
+                createdAt: "2026-02-08T12:35:00Z"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Project API key for SDK authentication
+
+  parameters:
+    FeedbackId:
+      name: feedbackId
+      in: path
+      required: true
+      description: Unique identifier of the feedback item
+      schema:
+        type: string
+        format: uuid
+
+    UserIdHeader:
+      name: X-User-Id
+      in: header
+      required: false
+      description: Current user ID to determine `hasVoted` state in responses
+      schema:
+        type: string
+
+  schemas:
+    # Enums
+    FeedbackStatus:
+      type: string
+      enum:
+        - pending
+        - approved
+        - in_progress
+        - testflight
+        - completed
+        - rejected
+      description: |
+        Status of the feedback item:
+        - `pending` - New, awaiting review
+        - `approved` - Accepted for consideration
+        - `in_progress` - Currently being worked on
+        - `testflight` - Available in beta/TestFlight
+        - `completed` - Shipped and available
+        - `rejected` - Won't be implemented
+
+    FeedbackCategory:
+      type: string
+      enum:
+        - feature_request
+        - bug_report
+        - improvement
+        - other
+      description: |
+        Category of the feedback:
+        - `feature_request` - New functionality
+        - `bug_report` - Issue or problem
+        - `improvement` - Enhancement to existing feature
+        - `other` - General feedback
+
+    # Request schemas
+    CreateFeedbackRequest:
+      type: object
+      required:
+        - title
+        - description
+        - category
+        - userId
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Brief title of the feedback
+        description:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Detailed description of the feedback
+        category:
+          $ref: '#/components/schemas/FeedbackCategory'
+        userId:
+          type: string
+          minLength: 1
+          description: Unique identifier of the user submitting feedback
+        userEmail:
+          type: string
+          format: email
+          description: Optional email for status update notifications
+
+    CreateVoteRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          minLength: 1
+          description: Unique identifier of the voting user
+        email:
+          type: string
+          format: email
+          description: Email for status change notifications (optional)
+        notifyStatusChange:
+          type: boolean
+          default: false
+          description: Opt-in to receive email notifications when status changes
+
+    DeleteVoteRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          minLength: 1
+          description: Unique identifier of the user removing their vote
+
+    CreateCommentRequest:
+      type: object
+      required:
+        - content
+        - userId
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Comment text
+        userId:
+          type: string
+          minLength: 1
+          description: Unique identifier of the commenting user
+        isAdmin:
+          type: boolean
+          default: false
+          description: Whether this comment is from an admin/developer
+
+    RegisterUserRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          minLength: 1
+          description: Unique identifier of the SDK user
+        mrr:
+          type: number
+          format: double
+          minimum: 0
+          description: Monthly Recurring Revenue for this user (optional)
+
+    TrackEventRequest:
+      type: object
+      required:
+        - eventName
+        - userId
+      properties:
+        eventName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Name of the event to track
+        userId:
+          type: string
+          minLength: 1
+          description: Unique identifier of the user
+        properties:
+          type: object
+          additionalProperties: true
+          description: Optional key-value properties for the event
+
+    # Response schemas
+    FeedbackResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+        title:
+          type: string
+          description: Feedback title
+        description:
+          type: string
+          description: Feedback description
+        status:
+          $ref: '#/components/schemas/FeedbackStatus'
+        category:
+          $ref: '#/components/schemas/FeedbackCategory'
+        userId:
+          type: string
+          description: ID of the user who submitted the feedback
+        userEmail:
+          type: string
+          format: email
+          nullable: true
+          description: Email of the submitter (if provided)
+        voteCount:
+          type: integer
+          minimum: 0
+          description: Total number of votes
+        hasVoted:
+          type: boolean
+          description: Whether the current user (from X-User-Id header) has voted
+        commentCount:
+          type: integer
+          minimum: 0
+          description: Total number of comments
+        totalMrr:
+          type: number
+          format: double
+          nullable: true
+          description: Combined MRR of all voters (if tracked)
+        createdAt:
+          type: string
+          format: date-time
+          description: When the feedback was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the feedback was last updated
+        rejectionReason:
+          type: string
+          nullable: true
+          maxLength: 500
+          description: Explanation for rejection (only for rejected status)
+        mergedIntoId:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the feedback this was merged into
+        mergedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When this feedback was merged
+        mergedFeedbackIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          nullable: true
+          description: IDs of feedback items merged into this one
+
+    VoteResponse:
+      type: object
+      properties:
+        feedbackId:
+          type: string
+          format: uuid
+          description: ID of the feedback item
+        voteCount:
+          type: integer
+          minimum: 0
+          description: Updated vote count
+        hasVoted:
+          type: boolean
+          description: Whether the user has voted after this action
+
+    CommentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+        content:
+          type: string
+          description: Comment text
+        userId:
+          type: string
+          description: ID of the commenting user
+        isAdmin:
+          type: boolean
+          description: Whether this is an admin comment
+        createdAt:
+          type: string
+          format: date-time
+          description: When the comment was created
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Internal unique identifier
+        userId:
+          type: string
+          description: SDK user identifier
+        mrr:
+          type: number
+          format: double
+          nullable: true
+          description: Monthly Recurring Revenue
+        firstSeenAt:
+          type: string
+          format: date-time
+          description: When the user was first registered
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: When the user was last seen
+
+    EventResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+        eventName:
+          type: string
+          description: Name of the tracked event
+        userId:
+          type: string
+          description: User who triggered the event
+        properties:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: Event properties
+        createdAt:
+          type: string
+          format: date-time
+          description: When the event was tracked
+
+    # Error schemas
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - reason
+      properties:
+        error:
+          type: boolean
+          default: true
+        reason:
+          type: string
+          description: Human-readable error message
+
+  responses:
+    BadRequest:
+      description: Bad Request - Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: true
+            reason: "Title is required"
+
+    Unauthorized:
+      description: Unauthorized - Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: true
+            reason: "Invalid API key"
+
+    PaymentRequired:
+      description: Payment Required - Subscription tier limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: true
+            reason: "Feedback limit reached. Upgrade to Pro for unlimited feedback."
+
+    Forbidden:
+      description: Forbidden - Action not allowed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: true
+            reason: "Cannot vote on archived projects"
+
+    NotFound:
+      description: Not Found - Resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: true
+            reason: "Feedback not found"
+
+    Conflict:
+      description: Conflict - Duplicate action
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: true
+            reason: "User has already voted for this feedback"

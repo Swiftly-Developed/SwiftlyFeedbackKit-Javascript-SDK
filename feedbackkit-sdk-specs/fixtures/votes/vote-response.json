@@ -1,0 +1,26 @@
+{
+  "after_vote": {
+    "first_vote": {
+      "feedbackId": "550e8400-e29b-41d4-a716-446655440000",
+      "voteCount": 2,
+      "hasVoted": true
+    },
+    "high_count": {
+      "feedbackId": "550e8400-e29b-41d4-a716-446655440001",
+      "voteCount": 43,
+      "hasVoted": true
+    }
+  },
+  "after_unvote": {
+    "basic": {
+      "feedbackId": "550e8400-e29b-41d4-a716-446655440000",
+      "voteCount": 1,
+      "hasVoted": false
+    },
+    "high_count": {
+      "feedbackId": "550e8400-e29b-41d4-a716-446655440001",
+      "voteCount": 42,
+      "hasVoted": false
+    }
+  }
+}

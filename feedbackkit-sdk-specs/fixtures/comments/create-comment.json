@@ -1,0 +1,38 @@
+{
+  "valid": {
+    "basic": {
+      "content": "This would be really helpful for night time use.",
+      "userId": "user_12345"
+    },
+    "admin_comment": {
+      "content": "Thanks for the suggestion! We're looking into this.",
+      "userId": "admin_user",
+      "isAdmin": true
+    },
+    "long_comment": {
+      "content": "I've been thinking about this feature for a while. Here are my thoughts:\n\n1. It would help users who work late at night\n2. It would reduce eye strain significantly\n3. Many competing apps already have this feature\n\nPlease consider implementing this soon!",
+      "userId": "user_67890",
+      "isAdmin": false
+    },
+    "minimal": {
+      "content": "Yes please!",
+      "userId": "u"
+    }
+  },
+  "invalid": {
+    "missing_content": {
+      "userId": "user_12345"
+    },
+    "missing_userId": {
+      "content": "Some comment here"
+    },
+    "empty_content": {
+      "content": "",
+      "userId": "user_12345"
+    },
+    "empty_userId": {
+      "content": "Some comment here",
+      "userId": ""
+    }
+  }
+}
