@@ -4,7 +4,6 @@
   "description": "FeedbackKit React Native SDK - Collect user feedback in your React Native apps",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",
-  "types": "lib/typescript/index.d.ts",
   "react-native": "src/index.ts",
   "source": "src/index.ts",
   "files": [
@@ -22,8 +21,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "build": "bob build",
-    "clean": "rm -rf lib",
-    "prepare": "npm run build"
+    "clean": "rm -rf lib"
   },
   "keywords": [
     "react-native",
@@ -78,13 +76,7 @@
     "output": "lib",
     "targets": [
       "commonjs",
-      "module",
-      [
-        "typescript",
-        {
-          "project": "tsconfig.build.json"
-        }
-      ]
+      "module"
     ]
   },
   "engines": {

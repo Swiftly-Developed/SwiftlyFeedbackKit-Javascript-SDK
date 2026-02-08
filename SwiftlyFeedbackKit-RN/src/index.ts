@@ -8,7 +8,7 @@
 export * from '@feedbackkit/js';
 
 // Provider
-export { FeedbackKitProvider, type FeedbackKitProviderProps } from './provider';
+export { FeedbackProvider, type FeedbackProviderProps, type FeedbackKitTheme, useFeedbackKitContext } from './provider';
 
 // Hooks
 export {
@@ -36,10 +36,10 @@ export {
 
 // Theme
 export {
-  type FeedbackKitTheme,
+  type Theme,
   defaultTheme,
   darkTheme,
-  createTheme,
+  mergeTheme,
   getStatusColor,
   getStatusDisplayName,
   getCategoryColor,

@@ -83,4 +83,4 @@ export class EventsApi {
 }
 
 // Re-export types for convenience
-export { TrackedEvent, TrackEventRequest };
+export type { TrackedEvent, TrackEventRequest };

@@ -138,7 +138,7 @@ func configure(_ app: Application) async throws {
     let corsConfiguration = CORSMiddleware.Configuration(
         allowedOrigin: .all,
         allowedMethods: [.GET, .POST, .PUT, .DELETE, .PATCH, .OPTIONS],
-        allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith]
+        allowedHeaders: [.accept, .authorization, .contentType, .origin, .xRequestedWith, .init("X-API-Key"), .init("X-User-Id")]
     )
     app.middleware.use(CORSMiddleware(configuration: corsConfiguration))
 

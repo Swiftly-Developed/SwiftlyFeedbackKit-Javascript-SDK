@@ -69,4 +69,4 @@ export class CommentsApi {
 }
 
 // Re-export types for convenience
-export { Comment, CreateCommentRequest };
+export type { Comment, CreateCommentRequest };
