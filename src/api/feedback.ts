@@ -98,4 +98,5 @@ export class FeedbackApi {
 }
 
 // Re-export types for convenience
-export { Feedback, CreateFeedbackRequest, ListFeedbackOptions, FeedbackStatus, FeedbackCategory };
+export type { Feedback, CreateFeedbackRequest, ListFeedbackOptions };
+export { FeedbackStatus, FeedbackCategory };

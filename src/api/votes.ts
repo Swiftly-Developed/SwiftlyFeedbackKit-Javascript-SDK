@@ -79,4 +79,4 @@ export class VotesApi {
 }
 
 // Re-export types for convenience
-export { VoteRequest, UnvoteRequest, VoteResponse };
+export type { VoteRequest, UnvoteRequest, VoteResponse };

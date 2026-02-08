@@ -50,4 +50,4 @@ export class UsersApi {
 }
 
 // Re-export types for convenience
-export { SDKUser, RegisterUserRequest };
+export type { SDKUser, RegisterUserRequest };

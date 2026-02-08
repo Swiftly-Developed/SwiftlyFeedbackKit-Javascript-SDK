@@ -9,37 +9,27 @@
 // Main client
 export { FeedbackKit } from './client';
 
-// Types
-export {
-  // Enums
-  FeedbackStatus,
-  FeedbackCategory,
+// Enums (runtime values)
+export { FeedbackStatus, FeedbackCategory } from './models/types';
 
-  // Feedback types
+// Config constant
+export { DEFAULT_CONFIG } from './models/types';
+
+// Types (type-only exports)
+export type {
   Feedback,
   CreateFeedbackRequest,
   ListFeedbackOptions,
-
-  // Vote types
   VoteRequest,
   UnvoteRequest,
   VoteResponse,
-
-  // Comment types
   Comment,
   CreateCommentRequest,
-
-  // User types
   SDKUser,
   RegisterUserRequest,
-
-  // Event types
   TrackedEvent,
   TrackEventRequest,
-
-  // Config types
-  FeedbackKitConfig,
-  DEFAULT_CONFIG
+  FeedbackKitConfig
 } from './models/types';
 
 // Errors
