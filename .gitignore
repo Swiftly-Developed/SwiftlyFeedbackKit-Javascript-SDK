@@ -1,51 +1,30 @@
-# macOS
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Test coverage
+coverage/
+
+# OS files
 .DS_Store
-*.swp
-*~
+Thumbs.db
 
-# Xcode
-xcuserdata/
-*.xcscmblueprint
-*.xccheckout
-DerivedData/
-*.moved-aside
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-*.hmap
-*.ipa
-*.dSYM.zip
-*.dSYM
-
-# Swift Package Manager
-.build/
-.swiftpm/
-Package.resolved
-
-# CocoaPods (if used)
-Pods/
-
-# Carthage (if used)
-Carthage/Build/
-
-# Vapor
-.vapor/
-
-# Environment files
-.env
-.env.*
-!.env.example
-
-# IDE
+# Editor files
+.vscode/
 .idea/
-*.iml
+*.swp
+*.swo
 
-# Build artifacts
-*.o
-*.a
-*.dylib
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# Temporary files
+*.tmp
+*.temp
