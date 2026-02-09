@@ -2,9 +2,9 @@
 
 JavaScript/TypeScript SDK for [FeedbackKit](https://swiftly-developed.com/feedbackkit) - In-app feedback collection.
 
-![npm](https://img.shields.io/npm/v/@feedbackkit/js)
+![npm](https://img.shields.io/npm/v/feedbackkit-js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
-![License](https://img.shields.io/npm/l/@feedbackkit/js)
+![License](https://img.shields.io/npm/l/feedbackkit-js)
 
 ## Features
 
@@ -16,17 +16,17 @@ JavaScript/TypeScript SDK for [FeedbackKit](https://swiftly-developed.com/feedba
 ## Installation
 
 ```bash
-npm install @feedbackkit/js
+npm install feedbackkit-js
 # or
-yarn add @feedbackkit/js
+yarn add feedbackkit-js
 # or
-pnpm add @feedbackkit/js
+pnpm add feedbackkit-js
 ```
 
 ## Quick Start
 
 ```typescript
-import { FeedbackKit, FeedbackCategory } from '@feedbackkit/js';
+import { FeedbackKit, FeedbackCategory } from 'feedbackkit-js';
 
 // Initialize the client
 const feedbackKit = new FeedbackKit({
@@ -161,7 +161,7 @@ import {
   ForbiddenError,
   NotFoundError,
   ConflictError
-} from '@feedbackkit/js';
+} from 'feedbackkit-js';
 
 try {
   await feedbackKit.votes.vote('feedback-id', { userId: 'user_123' });
@@ -193,7 +193,7 @@ import type {
   VoteResponse,
   SDKUser,
   TrackedEvent
-} from '@feedbackkit/js';
+} from 'feedbackkit-js';
 ```
 
 ## Feedback Statuses
@@ -219,7 +219,7 @@ import type {
 ## Related Packages
 
 - **Swift SDK**: [SwiftlyFeedbackKit](https://github.com/Swiftly-Developed/SwiftlyFeedbackKit)
-- **React Native**: Coming soon
+- **React Native**: [feedbackkit-react-native](https://www.npmjs.com/package/feedbackkit-react-native)
 - **Flutter**: Coming soon
 - **Kotlin**: Coming soon
 
