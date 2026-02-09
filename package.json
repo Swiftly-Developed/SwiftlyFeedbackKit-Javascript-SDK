@@ -1,5 +1,5 @@
 {
-  "name": "@feedbackkit/js",
+  "name": "feedbackkit-js",
   "version": "1.0.0",
   "description": "JavaScript SDK for FeedbackKit - In-app feedback collection",
   "author": "Swiftly Developed <info@swiftly-developed.com>",
