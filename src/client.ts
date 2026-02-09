@@ -98,7 +98,7 @@ export class FeedbackKit {
    * // Full configuration
    * const feedbackKit = new FeedbackKit({
    *   apiKey: 'sf_your_api_key',
-   *   baseUrl: 'https://api.feedbackkit.app/api/v1',
+   *   baseUrl: 'https://feedbackkit.swiftly-workspace.com/api/v1',
    *   userId: 'user_12345',
    *   timeout: 10000
    * });

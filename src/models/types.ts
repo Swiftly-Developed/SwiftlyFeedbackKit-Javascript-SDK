@@ -253,6 +253,6 @@ export interface FeedbackKitConfig {
  * Default configuration values
  */
 export const DEFAULT_CONFIG = {
-  baseUrl: 'https://api.feedbackkit.app/api/v1',
+  baseUrl: 'https://feedbackkit.swiftly-workspace.com/api/v1',
   timeout: 30000
 } as const;
