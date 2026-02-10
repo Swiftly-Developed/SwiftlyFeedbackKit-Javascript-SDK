@@ -58,7 +58,6 @@ const voteResult = await feedbackKit.votes.vote('feedback-id', {
 ```typescript
 const feedbackKit = new FeedbackKit({
   apiKey: 'sf_your_api_key',      // Required: Your project API key
-  baseUrl: 'https://...',          // Optional: Custom API URL
   userId: 'user_12345',            // Optional: Current user ID
   timeout: 30000                   // Optional: Request timeout (ms)
 });
