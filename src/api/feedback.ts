@@ -92,7 +92,9 @@ export class FeedbackApi {
       description: request.description,
       category: request.category,
       userId: request.userId,
-      userEmail: request.userEmail
+      userEmail: request.userEmail,
+      subscribeToMailingList: request.subscribeToMailingList,
+      mailingListEmailTypes: request.mailingListEmailTypes
     });
   }
 }

@@ -51,7 +51,9 @@ export class VotesApi {
     return this.http.post<VoteResponse>(`/feedbacks/${feedbackId}/votes`, {
       userId: request.userId,
       email: request.email,
-      notifyStatusChange: request.notifyStatusChange ?? false
+      notifyStatusChange: request.notifyStatusChange ?? false,
+      subscribeToMailingList: request.subscribeToMailingList,
+      mailingListEmailTypes: request.mailingListEmailTypes
     });
   }
 

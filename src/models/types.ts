@@ -87,6 +87,10 @@ export interface CreateFeedbackRequest {
   userId: string;
   /** Optional email for status update notifications */
   userEmail?: string;
+  /** Whether the user consents to join the project's mailing list */
+  subscribeToMailingList?: boolean;
+  /** Email preference types (e.g. ["operational", "marketing"]). Defaults to both when omitted. */
+  mailingListEmailTypes?: string[];
 }
 
 /**
@@ -115,6 +119,10 @@ export interface VoteRequest {
   email?: string;
   /** Opt-in to receive email notifications when status changes */
   notifyStatusChange?: boolean;
+  /** Whether the user consents to join the project's mailing list */
+  subscribeToMailingList?: boolean;
+  /** Email preference types (e.g. ["operational", "marketing"]). Defaults to both when omitted. */
+  mailingListEmailTypes?: string[];
 }
 
 /**

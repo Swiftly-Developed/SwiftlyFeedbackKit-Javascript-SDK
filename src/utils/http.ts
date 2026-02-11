@@ -5,6 +5,54 @@
 
 import { createErrorFromResponse, NetworkError } from '../models/errors';
 
+/**
+ * Convert a snake_case string to camelCase
+ */
+function snakeToCamelKey(key: string): string {
+  return key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+}
+
+/**
+ * Convert a camelCase string to snake_case
+ */
+function camelToSnakeKey(key: string): string {
+  return key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+}
+
+/**
+ * Recursively convert all keys in an object from snake_case to camelCase
+ */
+function snakeToCamel(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(snakeToCamel);
+  }
+  if (data !== null && typeof data === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      result[snakeToCamelKey(key)] = snakeToCamel(value);
+    }
+    return result;
+  }
+  return data;
+}
+
+/**
+ * Recursively convert all keys in an object from camelCase to snake_case
+ */
+function camelToSnake(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(camelToSnake);
+  }
+  if (data !== null && typeof data === 'object') {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      result[camelToSnakeKey(key)] = camelToSnake(value);
+    }
+    return result;
+  }
+  return data;
+}
+
 export interface HttpClientConfig {
   baseUrl: string;
   apiKey: string;
@@ -48,7 +96,7 @@ export class HttpClient {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
-          searchParams.append(key, String(value));
+          searchParams.append(camelToSnakeKey(key), String(value));
         }
       });
       const queryString = searchParams.toString();
@@ -75,7 +123,7 @@ export class HttpClient {
       const response = await fetch(url, {
         method,
         headers,
-        body: body ? JSON.stringify(body) : undefined,
+        body: body ? JSON.stringify(camelToSnake(body)) : undefined,
         signal: controller.signal
       });
 
@@ -86,7 +134,7 @@ export class HttpClient {
       let responseBody: unknown;
 
       if (contentType?.includes('application/json')) {
-        responseBody = await response.json();
+        responseBody = snakeToCamel(await response.json());
       } else {
         responseBody = await response.text();
       }
