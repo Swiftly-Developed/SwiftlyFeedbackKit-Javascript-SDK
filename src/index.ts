@@ -10,7 +10,7 @@
 export { FeedbackKit } from './client';
 
 // Enums (runtime values)
-export { FeedbackStatus, FeedbackCategory } from './models/types';
+export { FeedbackStatus, FeedbackCategory, FeedbackSort } from './models/types';
 
 // Config constant
 export { DEFAULT_CONFIG } from './models/types';

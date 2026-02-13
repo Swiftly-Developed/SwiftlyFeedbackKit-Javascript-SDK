@@ -96,6 +96,20 @@ export interface CreateFeedbackRequest {
 }
 
 /**
+ * Sort order for feedback list
+ */
+export enum FeedbackSort {
+  /** Most votes first (default) */
+  Votes = 'votes',
+  /** Most recently created first */
+  Newest = 'newest',
+  /** Oldest first */
+  Oldest = 'oldest',
+  /** Most comments first */
+  Comments = 'comments'
+}
+
+/**
  * Options for listing feedback
  */
 export interface ListFeedbackOptions {
@@ -105,6 +119,8 @@ export interface ListFeedbackOptions {
   category?: FeedbackCategory;
   /** Include merged feedback items */
   includeMerged?: boolean;
+  /** Sort order (defaults to votes descending) */
+  sort?: FeedbackSort;
 }
 
 // ============================================================================

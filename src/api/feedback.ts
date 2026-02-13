@@ -8,7 +8,8 @@ import {
   CreateFeedbackRequest,
   ListFeedbackOptions,
   FeedbackStatus,
-  FeedbackCategory
+  FeedbackCategory,
+  FeedbackSort
 } from '../models/types';
 
 /**
@@ -20,8 +21,8 @@ export class FeedbackApi {
   /**
    * List all feedback for the project
    *
-   * @param options - Filter and pagination options
-   * @returns Array of feedback items sorted by vote count (descending)
+   * @param options - Filter, sort, and pagination options
+   * @returns Array of feedback items sorted by the specified order (default: vote count descending)
    *
    * @example
    * ```ts
@@ -42,7 +43,8 @@ export class FeedbackApi {
     return this.http.get<Feedback[]>('/feedbacks', {
       status: options?.status,
       category: options?.category,
-      includeMerged: options?.includeMerged
+      includeMerged: options?.includeMerged,
+      sort: options?.sort
     });
   }
 
@@ -101,4 +103,4 @@ export class FeedbackApi {
 
 // Re-export types for convenience
 export type { Feedback, CreateFeedbackRequest, ListFeedbackOptions };
-export { FeedbackStatus, FeedbackCategory };
+export { FeedbackStatus, FeedbackCategory, FeedbackSort };
