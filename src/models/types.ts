@@ -71,6 +71,8 @@ export interface Feedback {
   mergedAt?: string | null;
   /** IDs of feedback items merged into this one */
   mergedFeedbackIds?: string[] | null;
+  /** Whether this feedback is hidden over the free-tier limit (only visible to creator) */
+  isHiddenOverLimit?: boolean;
 }
 
 /**
@@ -261,6 +263,6 @@ export interface FeedbackKitConfig {
  * Default configuration values
  */
 export const DEFAULT_CONFIG = {
-  baseUrl: 'https://feedbackkit.swiftly-workspace.com/api/v1',
+  baseUrl: 'https://getfeedbackkit.com/api/v1',
   timeout: 30000
 } as const;
