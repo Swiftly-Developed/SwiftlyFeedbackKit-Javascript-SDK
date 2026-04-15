@@ -279,6 +279,6 @@ export interface FeedbackKitConfig {
  * Default configuration values
  */
 export const DEFAULT_CONFIG = {
-  baseUrl: 'https://getfeedbackkit.com/api/v1',
+  baseUrl: 'https://api.prod.getfeedbackkit.com/api/v1',
   timeout: 30000
 } as const;
