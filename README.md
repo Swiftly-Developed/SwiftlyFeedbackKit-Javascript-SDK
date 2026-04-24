@@ -219,8 +219,8 @@ import type {
 
 - **Swift SDK**: [SwiftlyFeedbackKit](https://github.com/Swiftly-Developed/SwiftlyFeedbackKit)
 - **React Native**: [feedbackkit-react-native](https://www.npmjs.com/package/feedbackkit-react-native)
-- **Flutter**: Coming soon
-- **Kotlin**: Coming soon
+- **Flutter**: [feedbackkit_flutter](https://pub.dev/packages/feedbackkit_flutter)
+- **Kotlin**: [feedbackkit](https://central.sonatype.com/artifact/com.getfeedbackkit/feedbackkit)
 
 ## License
 
