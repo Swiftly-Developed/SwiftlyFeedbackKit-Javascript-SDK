@@ -90,13 +90,15 @@ export class HttpClient {
   async request<T>(options: RequestOptions): Promise<T> {
     const { method, path, body, params } = options;
 
-    // Build URL with query parameters
+    // Build URL with query parameters.
+    // Query keys are sent verbatim: the API reads them literally (e.g. `includeMerged`),
+    // unlike JSON bodies, which it decodes with a snake_case strategy.
     let url = `${this.config.baseUrl}${path}`;
     if (params) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
         if (value !== undefined) {
-          searchParams.append(camelToSnakeKey(key), String(value));
+          searchParams.append(key, String(value));
         }
       });
       const queryString = searchParams.toString();

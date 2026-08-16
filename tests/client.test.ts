@@ -1,9 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { FeedbackKit, FeedbackCategory, FeedbackStatus } from '../src';
+import { FeedbackKit, FeedbackCategory, FeedbackSort, FeedbackStatus } from '../src';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
+
+// The SDK's default baseUrl. Kept in one place so a future URL migration
+// updates every expectation at once.
+const BASE_URL = 'https://api.prod.getfeedbackkit.com/api/v1';
 
 describe('FeedbackKit', () => {
   beforeEach(() => {
@@ -22,7 +26,7 @@ describe('FeedbackKit', () => {
 
     it('should use default baseUrl if not provided', () => {
       const client = new FeedbackKit({ apiKey: 'sf_test_key' });
-      expect(client.getBaseUrl()).toBe('https://api.feedbackkit.app/api/v1');
+      expect(client.getBaseUrl()).toBe(BASE_URL);
     });
 
     it('should use custom baseUrl if provided', () => {
@@ -69,7 +73,7 @@ describe('FeedbackKit', () => {
 
       expect(result).toEqual(mockFeedback);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.feedbackkit.app/api/v1/feedbacks',
+        `${BASE_URL}/feedbacks`,
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -90,7 +94,7 @@ describe('FeedbackKit', () => {
       await client.feedback.list({ status: FeedbackStatus.Pending });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.feedbackkit.app/api/v1/feedbacks?status=pending',
+        `${BASE_URL}/feedbacks?status=pending`,
         expect.any(Object)
       );
     });
@@ -106,9 +110,54 @@ describe('FeedbackKit', () => {
       await client.feedback.list({ category: FeedbackCategory.BugReport });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.feedbackkit.app/api/v1/feedbacks?category=bug_report',
+        `${BASE_URL}/feedbacks?category=bug_report`,
         expect.any(Object)
       );
+    });
+
+    it('should send includeMerged as a camelCase query key', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: () => Promise.resolve([])
+      });
+
+      const client = new FeedbackKit({ apiKey: 'sf_test_key' });
+      await client.feedback.list({ includeMerged: true });
+
+      // The API reads this key literally. A snake_cased `include_merged` is
+      // silently ignored and the server falls back to `false`.
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${BASE_URL}/feedbacks?includeMerged=true`,
+        expect.any(Object)
+      );
+    });
+
+    it('should send every query key unmangled', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: () => Promise.resolve([])
+      });
+
+      const client = new FeedbackKit({ apiKey: 'sf_test_key' });
+      await client.feedback.list({
+        status: FeedbackStatus.Approved,
+        category: FeedbackCategory.FeatureRequest,
+        includeMerged: true,
+        sort: FeedbackSort.Newest
+      });
+
+      const [requestedUrl] = mockFetch.mock.calls[0];
+      const query = new URL(requestedUrl as string).searchParams;
+      expect([...query.keys()]).toEqual([
+        'status',
+        'category',
+        'includeMerged',
+        'sort'
+      ]);
+      expect(query.get('includeMerged')).toBe('true');
+      expect(query.get('sort')).toBe('newest');
     });
   });
 
@@ -138,15 +187,17 @@ describe('FeedbackKit', () => {
 
       expect(result).toEqual(mockResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://api.feedbackkit.app/api/v1/feedbacks',
+        `${BASE_URL}/feedbacks`,
         expect.objectContaining({
           method: 'POST',
+          // Request bodies are snake_cased on the wire; the API decodes them
+          // with a convertFromSnakeCase strategy. Query keys are not (see above).
           body: JSON.stringify({
             title: 'New Feature',
             description: 'Please add this feature',
             category: 'feature_request',
-            userId: 'user_123',
-            userEmail: undefined
+            user_id: 'user_123',
+            user_email: undefined
           })
         })
       );

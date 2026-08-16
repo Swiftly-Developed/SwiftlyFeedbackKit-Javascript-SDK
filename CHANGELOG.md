@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- `feedback.list({ includeMerged: true })` was silently ignored. Query parameter
+  keys were converted to snake_case before being appended to the URL, so the SDK
+  sent `include_merged`, which the API does not read — every call behaved as
+  `includeMerged: false`. Query keys are now sent verbatim; JSON request bodies
+  are still snake_cased, which is unchanged and correct.
+
 ## [1.1.1] - 2026-04-24
 
 ### Changed
