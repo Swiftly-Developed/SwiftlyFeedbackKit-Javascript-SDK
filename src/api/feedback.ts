@@ -74,8 +74,11 @@ export class FeedbackApi {
    * @param request - The feedback to create
    * @returns The created feedback item
    * @throws ValidationError if required fields are missing
-   * @throws PaymentRequiredError if feedback limit is exceeded (Free tier)
    * @throws ForbiddenError if project is archived
+   *
+   * The Free-tier feedback cap does not refuse the write. The item is saved and
+   * returned with `isHiddenOverLimit: true`, and later reads omit it. A 402 is
+   * reserved for other subscription limits.
    *
    * @example
    * ```ts
@@ -93,7 +96,7 @@ export class FeedbackApi {
       title: request.title,
       description: request.description,
       category: request.category,
-      userId: request.userId,
+      userId: this.http.resolveRequestUserId(request.userId),
       userEmail: request.userEmail,
       subscribeToMailingList: request.subscribeToMailingList,
       mailingListEmailTypes: request.mailingListEmailTypes

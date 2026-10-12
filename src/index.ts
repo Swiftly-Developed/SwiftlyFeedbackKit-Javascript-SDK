@@ -15,6 +15,16 @@ export { FeedbackStatus, FeedbackCategory, FeedbackSort } from './models/types';
 // Config constant
 export { DEFAULT_CONFIG } from './models/types';
 
+// Metrics vocabularies and the sparse-map accessor (runtime values, so they cannot
+// ride in the `export type` block below).
+export {
+  MetricMeasure,
+  MetricGranularity,
+  MetricDimension,
+  MetricEventScope,
+  metricValue
+} from './models/types';
+
 // Types (type-only exports)
 export type {
   Feedback,
@@ -29,7 +39,20 @@ export type {
   RegisterUserRequest,
   TrackedEvent,
   TrackEventRequest,
-  FeedbackKitConfig
+  FeedbackKitConfig,
+  MetricValues,
+  MetricsMeta,
+  PaginationMeta,
+  MetricSummary,
+  MetricSeriesPoint,
+  MetricSeries,
+  MetricBreakdownItem,
+  MetricBreakdown,
+  MetricEventList,
+  MetricsQueryOptions,
+  MetricsSeriesOptions,
+  MetricsBreakdownOptions,
+  MetricsEventsOptions
 } from './models/types';
 
 // Errors
@@ -41,6 +64,8 @@ export {
   NotFoundError,
   ConflictError,
   ValidationError,
+  RateLimitError,
+  ServerError,
   NetworkError
 } from './models/errors';
 

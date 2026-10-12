@@ -4,6 +4,7 @@
 
 import { HttpClient } from '../utils/http';
 import { TrackedEvent, TrackEventRequest } from '../models/types';
+import { ValidationError } from '../models/errors';
 
 /**
  * Predefined event names for SDK views
@@ -61,8 +62,8 @@ export class EventsApi {
    *   eventName: 'onboarding_completed',
    *   userId: 'user_12345',
    *   properties: {
-   *     step_count: 5,
-   *     duration_seconds: 120
+   *     step_count: '5',
+   *     duration_seconds: '120'
    *   }
    * });
    *
@@ -77,9 +78,36 @@ export class EventsApi {
     return this.http.post<TrackedEvent>('/events/track', {
       eventName: request.eventName,
       userId: request.userId,
-      properties: request.properties
+      properties: eventProperties(request.properties)
     });
   }
+}
+
+/**
+ * The server stores event properties as a string map. Numbers and booleans are
+ * stringified; objects, arrays, null, and non-finite numbers are refused before
+ * the request is sent.
+ */
+function eventProperties(
+  properties: Record<string, unknown> | undefined
+): Record<string, string> | undefined {
+  if (properties === undefined) return undefined;
+
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(properties)) {
+    if (typeof value === 'string') {
+      result[key] = value;
+    } else if (typeof value === 'number' && Number.isFinite(value)) {
+      result[key] = String(value);
+    } else if (typeof value === 'boolean') {
+      result[key] = value ? 'true' : 'false';
+    } else {
+      throw new ValidationError(
+        `FeedbackKit: event property "${key}" must be a string, finite number, or boolean`
+      );
+    }
+  }
+  return result;
 }
 
 // Re-export types for convenience

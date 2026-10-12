@@ -51,7 +51,9 @@ export class CommentsApi {
    *   userId: 'user_12345'
    * });
    *
-   * // Admin response
+   * // Admin response. The client must have been created with `bearerToken`
+   * // (a server-side credential). The project API key alone cannot mark a
+   * // reply as admin.
    * const adminComment = await feedbackKit.comments.create('feedback-id', {
    *   content: 'Thanks for the feedback! We are working on this.',
    *   userId: 'admin_user',
@@ -60,11 +62,16 @@ export class CommentsApi {
    * ```
    */
   async create(feedbackId: string, request: CreateCommentRequest): Promise<Comment> {
-    return this.http.post<Comment>(`/feedbacks/${feedbackId}/comments`, {
-      content: request.content,
-      userId: request.userId,
-      isAdmin: request.isAdmin ?? false
-    });
+    const isAdmin = request.isAdmin ?? false;
+    return this.http.post<Comment>(
+      `/feedbacks/${feedbackId}/comments`,
+      {
+        content: request.content,
+        userId: this.http.resolveRequestUserId(request.userId),
+        isAdmin
+      },
+      isAdmin
+    );
   }
 }
 
