@@ -1,16 +1,16 @@
 {
   "name": "feedbackkit-js",
-  "version": "1.2.0",
+  "version": "2.1.0",
   "description": "JavaScript SDK for FeedbackKit - In-app feedback collection",
   "author": "Swiftly Developed <info@swiftly-developed.com>",
   "license": "MIT",
   "homepage": "https://swiftly-developed.com/feedbackkit",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Swiftly-Developed/SwiftlyFeedbackKit-JS"
+    "url": "https://github.com/Swiftly-Developed/SwiftlyFeedbackKit-Javascript-SDK"
   },
   "bugs": {
-    "url": "https://github.com/Swiftly-Developed/SwiftlyFeedbackKit-JS/issues"
+    "url": "https://github.com/Swiftly-Developed/SwiftlyFeedbackKit-Javascript-SDK/issues"
   },
   "keywords": [
     "feedback",
@@ -34,8 +34,27 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
+    },
+    "./ui": {
+      "import": {
+        "types": "./dist/ui.d.mts",
+        "default": "./dist/ui.mjs"
+      },
+      "require": {
+        "types": "./dist/ui.d.ts",
+        "default": "./dist/ui.js"
+      }
     }
   },
+  "typesVersions": {
+    "*": {
+      "ui": [
+        "dist/ui.d.ts"
+      ]
+    }
+  },
+  "unpkg": "dist/feedbackkit-ui.global.js",
+  "jsdelivr": "dist/feedbackkit-ui.global.js",
   "files": [
     "dist",
     "README.md",
@@ -50,15 +69,21 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc --noEmit -p tsconfig.test.json",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build"
+    "prepublishOnly": "npm run clean && npm run build",
+    "screenshots:ui": "node scripts/ui-screenshots.mjs"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/user-event": "^14.6.8",
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "@vitest/coverage-v8": "^1.2.0",
     "eslint": "^8.56.0",
+    "jsdom": "^24.1.3",
+    "playwright-core": "1.47",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
     "vitest": "^1.2.0"

@@ -11,7 +11,9 @@ import {
   ForbiddenError,
   NotFoundError,
   ConflictError,
-  ValidationError
+  ValidationError,
+  RateLimitError,
+  ServerError
 } from '../src';
 // Deep import, deliberately: `createErrorFromResponse` is NOT re-exported from the
 // barrel (`src/index.ts`) — a case below pins that as shipped, reading the barrel source.
@@ -169,17 +171,12 @@ describe('QA-UNIT10 -10 · JS error map by class and code', () => {
     [403, ForbiddenError, 'FORBIDDEN'],
     [404, NotFoundError, 'NOT_FOUND'],
     [409, ConflictError, 'CONFLICT'],
-    // ⚠️ RECORDED AS SHIPPED: nobody maps 422. A Vapor validation failure that arrives
-    // as 422 Unprocessable Entity falls into the default arm and surfaces as a generic
-    // `FeedbackKitError` with code SERVER_ERROR — an integrator branching on
-    // `ValidationError` never sees it.
-    [422, FeedbackKitError, 'SERVER_ERROR'],
-    [429, FeedbackKitError, 'SERVER_ERROR'],
-    // ⚠️ RECORDED AS SHIPPED: no `ServerError` class exists in the JS SDK, while
-    // Flutter and Kotlin each ship one. 5xx collapses into the base class with the
-    // catch-all SERVER_ERROR code, indistinguishable (by class) from 422 and 429.
-    [500, FeedbackKitError, 'SERVER_ERROR'],
-    [503, FeedbackKitError, 'SERVER_ERROR']
+    // 422 is a validation failure. A body with no machine code keeps
+    // UNPROCESSABLE_ENTITY so it stays distinct from a 400 BAD_REQUEST.
+    [422, ValidationError, 'UNPROCESSABLE_ENTITY'],
+    [429, RateLimitError, 'RATE_LIMITED'],
+    [500, ServerError, 'SERVER_ERROR'],
+    [503, ServerError, 'SERVER_ERROR']
   ];
 
   it('maps every status to the pinned class, code and statusCode', () => {
@@ -200,13 +197,13 @@ describe('QA-UNIT10 -10 · JS error map by class and code', () => {
       // message is the same plumbing, asserted here per status.
       expect(error.message).toBe(`probe ${status}`);
     }
-    // Non-vacuity: the table covers the six mapped statuses plus four default-arm ones.
     expect(ERROR_MAP).toHaveLength(10);
   });
 
-  it('the default arm is the BASE class exactly — no subclass leaks in', () => {
-    const error = createErrorFromResponse(500, 'plain text body');
+  it('an unmapped status stays the BASE class exactly — no subclass leaks in', () => {
+    const error = createErrorFromResponse(418, 'plain text body');
     expect(error.constructor).toBe(FeedbackKitError);
+    expect(error.statusCode).toBe(418);
     expect(error).not.toBeInstanceOf(ValidationError);
     expect(error).not.toBeInstanceOf(AuthenticationError);
     // A string body is the message verbatim (non-JSON error responses).
@@ -214,10 +211,10 @@ describe('QA-UNIT10 -10 · JS error map by class and code', () => {
   });
 
   it('createErrorFromResponse is NOT exported from the barrel — deep import only', () => {
-    // ⚠️ RECORDED AS SHIPPED: `src/index.ts` re-exports all eight error CLASSES but not
-    // the factory, so an integrator (or a test) can only reach it by deep-importing
-    // `src/models/errors` — which is what this file does, and why. The day the barrel
-    // gains the export, this reddens and the deep import above should move to '../src'.
+    // The barrel re-exports every error class and not the factory, so an integrator
+    // reaches `createErrorFromResponse` only by deep-importing `src/models/errors`.
+    // The day the barrel gains the export, this reddens and the deep import above
+    // should move to '../src'.
     const barrel = readFileSync(
       fileURLToPath(new URL('../src/index.ts', import.meta.url)),
       'utf8'
@@ -240,11 +237,7 @@ describe('QA-UNIT10 -15/-17 · JS config defaults and missing-key throw', () => 
     expect(DEFAULT_CONFIG.timeout).toBe(30000);
   });
 
-  it('-17 · missing apiKey throws a BARE Error, not a FeedbackKitError', () => {
-    // ⚠️ RECORDED AS SHIPPED: `client.ts` throws `new Error('FeedbackKit: apiKey is
-    // required')` — the one SDK-authored throw that is NOT a `FeedbackKitError`. An
-    // integrator's `catch (e) { if (e instanceof FeedbackKitError) ... }` misses the
-    // very first error the SDK can produce. Asserted verbatim, both halves.
+  it('-17 · missing apiKey throws ValidationError, which is a FeedbackKitError', () => {
     let thrown: unknown;
     try {
       new FeedbackKit({} as never);
@@ -252,8 +245,8 @@ describe('QA-UNIT10 -15/-17 · JS config defaults and missing-key throw', () => 
       thrown = error;
     }
 
-    expect(thrown).toBeInstanceOf(Error);
-    expect(thrown).not.toBeInstanceOf(FeedbackKitError);
+    expect(thrown).toBeInstanceOf(ValidationError);
+    expect(thrown).toBeInstanceOf(FeedbackKitError);
     expect((thrown as Error).message).toBe('FeedbackKit: apiKey is required');
   });
 });
@@ -299,7 +292,14 @@ describe('QA-UNIT10 -21 · JS decode census (immune by construction)', () => {
       ['id', 'eventName', 'userId', 'properties', 'createdAt'].sort()
     );
     expect(rows[0].eventName).toBe(eventCorpus[0].event_name);
-    // The nested properties object survives (recursion), keys intact.
+    // The nested properties object survives, keys intact — but NOT by recursion any
+    // more: `properties` is now exempt from the key transform in both directions, so
+    // the whole subtree crosses verbatim. ⚠️ This assertion cannot tell the two
+    // mechanisms apart: `source` is a single word and is invariant under both
+    // `snakeToCamelKey` and `camelToSnakeKey`, so this fixture is structurally BLIND to
+    // key mangling inside `properties`. The discriminating multi-word probe lives in
+    // `tests/metrics-transport.test.ts`; this row is kept as the unchanged-behaviour
+    // guard for the shipped corpus.
     expect(rows[0].properties).toEqual({ source: 'fixture-tab' });
     expect(Object.keys(rows[1]).sort()).toEqual(
       ['id', 'eventName', 'userId', 'createdAt'].sort()

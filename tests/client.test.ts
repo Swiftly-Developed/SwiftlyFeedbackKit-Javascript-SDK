@@ -41,7 +41,9 @@ describe('FeedbackKit', () => {
   describe('setUserId', () => {
     it('should set and get userId', () => {
       const client = new FeedbackKit({ apiKey: 'sf_test_key' });
-      expect(client.getUserId()).toBeUndefined();
+      expect(client.getUserId()).toMatch(
+        /^local_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      );
 
       client.setUserId('user_123');
       expect(client.getUserId()).toBe('user_123');
@@ -73,7 +75,7 @@ describe('FeedbackKit', () => {
 
       expect(result).toEqual(mockFeedback);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/feedbacks`,
+        `${BASE_URL}/feedbacks?paged=1`,
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({
@@ -94,7 +96,7 @@ describe('FeedbackKit', () => {
       await client.feedback.list({ status: FeedbackStatus.Pending });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/feedbacks?status=pending`,
+        `${BASE_URL}/feedbacks?status=pending&paged=1`,
         expect.any(Object)
       );
     });
@@ -110,7 +112,7 @@ describe('FeedbackKit', () => {
       await client.feedback.list({ category: FeedbackCategory.BugReport });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/feedbacks?category=bug_report`,
+        `${BASE_URL}/feedbacks?category=bug_report&paged=1`,
         expect.any(Object)
       );
     });
@@ -128,7 +130,7 @@ describe('FeedbackKit', () => {
       // The API reads this key literally. A snake_cased `include_merged` is
       // silently ignored and the server falls back to `false`.
       expect(mockFetch).toHaveBeenCalledWith(
-        `${BASE_URL}/feedbacks?includeMerged=true`,
+        `${BASE_URL}/feedbacks?includeMerged=true&paged=1`,
         expect.any(Object)
       );
     });
@@ -154,10 +156,53 @@ describe('FeedbackKit', () => {
         'status',
         'category',
         'includeMerged',
-        'sort'
+        'sort',
+        'paged'
       ]);
       expect(query.get('includeMerged')).toBe('true');
       expect(query.get('sort')).toBe('newest');
+    });
+
+    it('follows an envelope and does not request page 2 of a bare array', async () => {
+      const pageOne = {
+        items: [{ id: 'page-1', title: 'First', status: 'pending', vote_count: 2 }],
+        meta: { total: 2, page: 1, per_page: 1, total_pages: 2 }
+      };
+      const pageTwo = {
+        items: [{ id: 'page-2', title: 'Second', status: 'pending', vote_count: 1 }],
+        meta: { total: 2, page: 2, per_page: 1, total_pages: 2 }
+      };
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: () => Promise.resolve(pageOne)
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: () => Promise.resolve(pageTwo)
+        });
+
+      const client = new FeedbackKit({ apiKey: 'sf_test_key' });
+      const followed = await client.feedback.list();
+      expect(followed.map((item) => item.id)).toEqual(['page-1', 'page-2']);
+      expect(mockFetch).toHaveBeenNthCalledWith(1, `${BASE_URL}/feedbacks?paged=1`, expect.any(Object));
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        `${BASE_URL}/feedbacks?paged=1&page=2&per_page=1`,
+        expect.any(Object)
+      );
+
+      mockFetch.mockClear();
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: () => Promise.resolve([{ id: 'only', title: 'Whole', status: 'pending', voteCount: 1 }])
+      });
+      const legacy = await client.feedback.list();
+      expect(legacy).toHaveLength(1);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
   });
 

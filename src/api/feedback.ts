@@ -3,6 +3,7 @@
  */
 
 import { HttpClient } from '../utils/http';
+import { collectList } from './listPages';
 import {
   Feedback,
   CreateFeedbackRequest,
@@ -40,12 +41,17 @@ export class FeedbackApi {
    * ```
    */
   async list(options?: ListFeedbackOptions): Promise<Feedback[]> {
-    return this.http.get<Feedback[]>('/feedbacks', {
-      status: options?.status,
-      category: options?.category,
-      includeMerged: options?.includeMerged,
-      sort: options?.sort
-    });
+    return collectList<Feedback>(async (page, perPage) => {
+      return this.http.get<unknown>('/feedbacks', {
+        status: options?.status,
+        category: options?.category,
+        includeMerged: options?.includeMerged,
+        sort: options?.sort,
+        paged: 1,
+        page,
+        per_page: perPage
+      });
+    }, options?.page, options?.perPage);
   }
 
   /**
@@ -74,8 +80,11 @@ export class FeedbackApi {
    * @param request - The feedback to create
    * @returns The created feedback item
    * @throws ValidationError if required fields are missing
-   * @throws PaymentRequiredError if feedback limit is exceeded (Free tier)
    * @throws ForbiddenError if project is archived
+   *
+   * The Free-tier feedback cap does not refuse the write. The item is saved and
+   * returned with `isHiddenOverLimit: true`, and later reads omit it. A 402 is
+   * reserved for other subscription limits.
    *
    * @example
    * ```ts
@@ -93,7 +102,7 @@ export class FeedbackApi {
       title: request.title,
       description: request.description,
       category: request.category,
-      userId: request.userId,
+      userId: this.http.resolveRequestUserId(request.userId),
       userEmail: request.userEmail,
       subscribeToMailingList: request.subscribeToMailingList,
       mailingListEmailTypes: request.mailingListEmailTypes

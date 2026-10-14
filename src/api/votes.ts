@@ -47,9 +47,9 @@ export class VotesApi {
    * });
    * ```
    */
-  async vote(feedbackId: string, request: VoteRequest): Promise<VoteResponse> {
+  async vote(feedbackId: string, request: VoteRequest = {}): Promise<VoteResponse> {
     return this.http.post<VoteResponse>(`/feedbacks/${feedbackId}/votes`, {
-      userId: request.userId,
+      userId: this.http.resolveRequestUserId(request.userId),
       email: request.email,
       notifyStatusChange: request.notifyStatusChange ?? false,
       subscribeToMailingList: request.subscribeToMailingList,
@@ -73,9 +73,9 @@ export class VotesApi {
    * console.log(result.hasVoted); // false
    * ```
    */
-  async unvote(feedbackId: string, request: UnvoteRequest): Promise<VoteResponse> {
+  async unvote(feedbackId: string, request: UnvoteRequest = {}): Promise<VoteResponse> {
     return this.http.delete<VoteResponse>(`/feedbacks/${feedbackId}/votes`, {
-      userId: request.userId
+      userId: this.http.resolveRequestUserId(request.userId)
     });
   }
 }
