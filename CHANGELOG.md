@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 1.2.0 and 2.1.0 are git tags on the public mirror (SwiftlyFeedbackKit-Javascript-SDK) and are not published to npm.
 `npm install feedbackkit-js` still resolves to 1.0.1 (9 February 2026).
 
+## [Unreleased]
+
+## [2.2.0] - 2026-10-27
+
+All FeedbackKit SDKs (Swift, JS, React Native, Kotlin, Flutter) now share one version number. The Vapor SDK keeps its own versioning.
+
+### Changed
+
+- The contact addresses in the repository docs are now getfeedbackkit.com aliases: security@ in `SECURITY.md`, support@ in `SUPPORT.md`, hello@ in `CODE_OF_CONDUCT.md` and developers@ in `CONTRIBUTING.md`.
+- The package `author` email in `package.json` is now developers@getfeedbackkit.com.
+
 ## [2.1.0] - 2026-10-14
 
 ### Added

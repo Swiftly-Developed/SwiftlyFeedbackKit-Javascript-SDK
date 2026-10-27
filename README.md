@@ -1,10 +1,10 @@
 # FeedbackKit JavaScript SDK
 
-This README matches the source in this repository (`package.json` version **2.1.0**, not published to npm). A first integration is in [docs/getting-started.md](docs/getting-started.md).
+This README matches the source in this repository (`package.json` version **2.2.0**, not published to npm). A first integration is in [docs/getting-started.md](docs/getting-started.md).
 
-`npm install feedbackkit-js` installs **feedbackkit-js@1.0.1** (9 February 2026). Nothing from 1.1.0 through 2.1.0 is on npm.
+`npm install feedbackkit-js` installs **feedbackkit-js@1.0.1** (9 February 2026). Nothing from 1.1.0 through 2.2.0 is on npm.
 
-| | npm 1.0.1 | GitHub tags 1.1.1 and 1.2.0 | this source 2.1.0 |
+| | npm 1.0.1 | GitHub tags 1.1.1 and 1.2.0 | this source 2.2.0 |
 |---|---|---|---|
 | `feedback.list` / `create`, `votes.vote` / `unvote`, `comments`, `users.register`, `events.track`, `setUserId` | yes | yes | yes |
 | `FeedbackSort`, mailing-list fields, `isHiddenOverLimit` | no | yes | yes |
@@ -43,7 +43,7 @@ yarn add feedbackkit-js
 pnpm add feedbackkit-js
 ```
 
-That installs 1.0.1. 2.1.0 is not on npm. See the table above before copying a snippet from this file into a project that resolved the registry.
+That installs 1.0.1. 2.2.0 is not on npm. See the table above before copying a snippet from this file into a project that resolved the registry.
 
 ## Quick Start
 
