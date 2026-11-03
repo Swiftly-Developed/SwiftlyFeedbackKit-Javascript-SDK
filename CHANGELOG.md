@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-11-03
+
+### Fixed
+
+- Listing feedback or comments can no longer send requests without end when a proxy or cache returns a stale or incomplete page. If a later page's number is missing or is not the page requested, the list stops and returns the rows it already has, and it never follows more than 100 further pages. When either happens, the SDK logs one warning with the path and the two page numbers.
+
+### Added
+
+- `comments.delete(feedbackId, commentId)` deletes the current user's own comment. The server refuses another user's comment or a staff reply with `ForbiddenError`.
+
 ## [2.2.0] - 2026-10-27
 
 All FeedbackKit SDKs (Swift, JS, React Native, Kotlin, Flutter) now share one version number. The Vapor SDK keeps its own versioning.

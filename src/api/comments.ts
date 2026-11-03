@@ -4,6 +4,7 @@
 
 import { HttpClient } from '../utils/http';
 import { Comment, CreateCommentRequest } from '../models/types';
+import { ValidationError } from '../models/errors';
 import { collectList } from './listPages';
 
 /**
@@ -31,8 +32,9 @@ export class CommentsApi {
    * ```
    */
   async list(feedbackId: string, options?: { page?: number; perPage?: number }): Promise<Comment[]> {
-    return collectList<Comment>(async (page, perPage) => {
-      return this.http.get<unknown>(`/feedbacks/${feedbackId}/comments`, {
+    const path = `/feedbacks/${feedbackId}/comments`;
+    return collectList<Comment>(path, async (page, perPage) => {
+      return this.http.get<unknown>(path, {
         paged: 1,
         page,
         per_page: perPage
@@ -79,6 +81,30 @@ export class CommentsApi {
       },
       isAdmin
     );
+  }
+
+  /**
+   * Delete the current user's own comment
+   *
+   * The request carries `X-API-Key` and `X-User-Id`. With no user id this throws
+   * before sending anything, because a key alone does not name who is deleting.
+   *
+   * @param feedbackId - The feedback UUID
+   * @param commentId - The comment UUID
+   * @throws ValidationError if no user id is available
+   * @throws ForbiddenError if the comment is another user's or a staff reply, or the project is archived
+   * @throws NotFoundError if the feedback or comment doesn't exist
+   *
+   * @example
+   * ```ts
+   * await feedbackKit.comments.delete('feedback-id', 'comment-id');
+   * ```
+   */
+  async delete(feedbackId: string, commentId: string): Promise<void> {
+    if (!this.http.ensureUserId()) {
+      throw new ValidationError('A user id is required to delete a comment.');
+    }
+    await this.http.delete<unknown>(`/feedbacks/${feedbackId}/comments/${commentId}`);
   }
 }
 

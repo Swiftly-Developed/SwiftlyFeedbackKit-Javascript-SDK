@@ -27,7 +27,7 @@ live('REL-05 live server', () => {
     expect(page.map((item) => item.id)).toEqual(all.slice(0, 5).map((item) => item.id));
 
     let calls = 0;
-    const legacy = await collectList<{ id: string }>(async () => {
+    const legacy = await collectList<{ id: string }>('/feedbacks', async () => {
       calls += 1;
       const response = await fetch(`${base}/feedbacks?page=2&per_page=1`, {
         headers: { 'X-API-Key': apiKey! }

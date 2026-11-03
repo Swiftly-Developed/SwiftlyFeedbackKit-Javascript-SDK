@@ -41,7 +41,7 @@ export class FeedbackApi {
    * ```
    */
   async list(options?: ListFeedbackOptions): Promise<Feedback[]> {
-    return collectList<Feedback>(async (page, perPage) => {
+    return collectList<Feedback>('/feedbacks', async (page, perPage) => {
       return this.http.get<unknown>('/feedbacks', {
         status: options?.status,
         category: options?.category,

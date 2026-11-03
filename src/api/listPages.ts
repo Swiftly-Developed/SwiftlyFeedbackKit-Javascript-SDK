@@ -4,7 +4,7 @@
  * already the whole collection, so this does not request another page.
  */
 
-const maxPages = 100;
+const maxFollowedPages = 100;
 
 interface PageMeta {
   page?: number;
@@ -28,7 +28,14 @@ function readPage<T>(body: unknown): DecodedPage<T> | null {
   return { items: record.items as T[], meta: record.meta ?? {} };
 }
 
+function warnStopped(path: string, requested: number, received: number | undefined): void {
+  console.warn(
+    `FeedbackKit: stopped following pages of ${path}: requested page ${requested}, received page ${received ?? 'missing'}`
+  );
+}
+
 export async function collectList<T>(
+  path: string,
   fetchPage: (page?: number, perPage?: number) => Promise<unknown>,
   page?: number,
   perPage?: number
@@ -53,8 +60,14 @@ export async function collectList<T>(
     return items;
   }
 
-  while (next <= totalPages && next <= maxPages) {
+  let followed = 0;
+  while (next <= totalPages) {
+    if (followed >= maxFollowedPages) {
+      warnStopped(path, next, next - 1);
+      break;
+    }
     const body = await fetchPage(next, size);
+    followed += 1;
     if (Array.isArray(body)) {
       break;
     }
@@ -62,14 +75,17 @@ export async function collectList<T>(
     if (!more || more.items.length === 0 || (more.meta.perPage ?? size) < 1) {
       break;
     }
-    items.push(...more.items);
-    const morePage = more.meta.page ?? next;
-    size = more.meta.perPage ?? size;
-    totalPages = more.meta.totalPages ?? totalPages;
-    if (morePage >= totalPages) {
+    if (more.meta.page !== next) {
+      warnStopped(path, next, more.meta.page);
       break;
     }
-    next = morePage + 1;
+    items.push(...more.items);
+    size = more.meta.perPage ?? size;
+    totalPages = more.meta.totalPages ?? totalPages;
+    if (next >= totalPages) {
+      break;
+    }
+    next += 1;
   }
   return items;
 }
